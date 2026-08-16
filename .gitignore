@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# 本地数据与缓存（部署环境会自动重建，不提交）
+learning_tracker.db
+_knowledge_cache.json
