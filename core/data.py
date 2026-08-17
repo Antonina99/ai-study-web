@@ -3,7 +3,7 @@
 core/data.py —— 数据与业务核心层
 
 职责：
-1. 静态配置：CAREER_DIRECTIONS（5 大求职方向）、MODULES（8 模块 42 课大纲）、QUESTIONS（离线题库）。
+1. 静态配置：CAREER_DIRECTIONS（5 大求职方向）、COURSE_MODULES/MODULES（5 大核心模块课程大纲）、QUESTIONS（离线题库）。
 2. 课程绑定索引 / 知识库加载 / 关键词加权。
 3. 课程资产组装：get_clean_course_data（关键词/摘要/思维导图/干货/考点，含 session 缓存与离线降级）。
 4. 出题：AI 实战出题（focus 强约束注入）、逐单元自测、离线兜底（选项洗牌）。
@@ -11,6 +11,7 @@ core/data.py —— 数据与业务核心层
 """
 
 import random
+import re
 
 import streamlit as st
 
@@ -60,84 +61,98 @@ def career_prompt_params(career_direction):
 
 
 # ================================================================ 2. 课程大纲
-MODULES = [
-    {"no": 1, "name": "大模型基础与原理",
-     "desc": "从大模型发展史到 API 调用，再到 Prompt 与 AI 应用架构，打好地基。",
-     "courses": ["开学典礼",
-                 "AI大模型基本原理及API使用",
-                 "从提示工程到RAG：构建大模型的知识与交互基础",
-                 "AI应用架构与代码基础"],
-     "topics": ["基础", "原理"],
-     "why": "所有方向的必修地基：模型原理 + API 调用 + Prompt + 应用架构一次打透。"},
-    {"no": 2, "name": "AI Coding 与提效",
-     "desc": "用 Cursor/Copilot 武装编程，让 AI 成为你的高效开发搭档。",
-     "courses": ["AI编程提效：Cursor 高效使用与AI辅助重构",
-                 "AI编程提效：自动测试与智能Debug",
-                 "AI写代码实战：从需求到产品",
-                 "AI自动化：脚本与工具链",
-                 "AIGC创意应用实战"],
-     "topics": ["Prompt", "AI Coding"],
-     "why": "通用提效技能：AI Coding + 自动化，任何岗位都加分。"},
-    {"no": 3, "name": "Agent 智能体与实战",
-     "desc": "从 Agent 原理到 MCP、多智能体与评估，掌握智能体全栈开发。",
-     "courses": ["认识AI Agent：原理与类型",
-                 "AI Agent开发实战：ReAct、工具调用与Function Calling",
-                 "MCP协议：从原理到实战",
-                 "多智能体系统：协作与编排",
-                 "LangChain 应用开发实战",
-                 "LlamaIndex 应用开发实战",
-                 "AI Agent 评估与安全",
-                 "OpenManus实战：开源通用智能体解析"],
-     "topics": ["Agent", "MCP", "Harness", "评估"],
-     "why": "应用开发/全栈工程师的核心主场：从原理到 MCP/多智能体/评估全链路。"},
-    {"no": 4, "name": "大模型应用与工程化",
-     "desc": "流式输出、结构化输出、可观测性与生产级工程实践。",
-     "courses": ["AI应用设计：从需求到架构",
-                 "构建生产级LLM应用：Streamlit、数据库、向量库与部署",
-                 "LLM API 进阶：Function Calling、多模态与流式输出",
-                 "结构化输出：让模型输出可机器解析的数据",
-                 "流式输出与前端集成：SSE、WebSocket实战",
-                 "生产级LLM应用的可观测性与调试"],
-     "topics": ["框架", "开发", "选型"],
-     "why": "把 Demo 变成产品：工程化、可观测、可部署的能力闭环。"},
-    {"no": 5, "name": "模型微调与训练",
-     "desc": "HF 生态、微调原理、高质量数据工程、蒸馏实操与 AI 质检实战。",
-     "courses": ["HuggingFace生态实战：从模型应用到高效微调",
-                 "LLM微调原理",
-                 "高质量微调数据工程与评估",
-                 "LLM模型蒸馏与微调实操",
-                 "项目实战：AI质检",
-                 "就业服务：模型训练与微调相关简历+面试问题辅导"],
-     "topics": ["微调", "蒸馏", "SFT", "RLHF", "数据"],
-     "why": "算法/微调工程师的必选核心模块：原理 + 数据工程 + 蒸馏实操 + 落地项目一条龙。"},
-    {"no": 6, "name": "RAG 与知识库",
-     "desc": "从向量数据库到 RAG 调优，再到企业知识库冠军项目实战。",
-     "courses": ["Embeddings和向量数据库",
-                 "RAG技术与应用",
-                 "RAG多模态数据处理",
-                 "RAG调优",
-                 "项目实战：企业知识库（企业RAG大赛冠军项目）",
-                 "部分场景中可以取代RAG的技术",
-                 "LLM Wiki",
-                 "就业服务：RAG相关简历+面试问题辅导"],
-     "topics": ["RAG", "知识库", "落地"],
-     "why": "最广泛落地的 AI 场景：产品经理、解决方案架构师与数据运营都应重点掌握。"},
-    {"no": 7, "name": "多模态前沿",
-     "desc": "从 Agent 到视频 AIGC，理解多模态模型构建与视觉能力。",
-     "courses": ["多模态前沿：从Agent构建到视频AIGC",
-                 "视觉与多模态模型"],
-     "topics": ["多模态"],
-     "why": "面向未来的方向：做视觉/视频类应用（如 AI 质检、AIGC）时属于加分重点。"},
-    {"no": 8, "name": "企业级部署与运维",
-     "desc": "硬件选型、高并发监控、SGLang 深度优化与昇腾国产化部署实战。",
-     "courses": ["企业级AI部署：从硬件选型到框架选择",
-                 "AI服务核心：高并发原理与性能监控调优",
-                 "SGLang深度优化：Radix缓存与复杂任务的极致吞吐",
-                 "短剧视频逐帧换脸的显卡资源分配及排队系统",
-                 "在华为昇腾显卡上部署DeepSeek V4模型并连通本地Claude Code"],
-     "topics": ["部署", "SGLang", "显卡", "昇腾", "推理"],
-     "why": "运维/Infra 工程师的必选核心：从硬件选型到 SGLang 优化与昇腾国产化部署。"},
-]
+# 数据源：按核心技术模块划分（5 大模块），模块名自带序号与 emoji，课程以此为唯一权威。
+COURSE_MODULES = {
+    "🛠️ 1. LLM 基础与 AI 编程提效": [
+        "开学典礼",
+        "AI大模型基本原理及API使用",
+        "从提示工程到RAG：构建大模型的知识与交互基础",
+        "AI编程-从入门到精通",
+        "大厂优秀工程师使用AI Coding 的最新方法与经验",
+        "大型软件项目的AI开发与AI重构",
+        "AI Coding 中的团队重新分工与新协作模式",
+    ],
+    "📚 2. RAG 企业级知识库与检索": [
+        "Embeddings和向量数据库",
+        "RAG技术与应用",
+        "RAG多模态数据处理",
+        "RAG调优",
+        "LLM Wiki",
+        "部分场景中可以取代RAG的技术",
+        "LangChain：多任务应用开发",
+        "AI框架设计与选型",
+        "🔥 项目实战：企业知识库（企业RAG大赛冠军项目）",
+        "💼 就业服务：RAG及开发框架相关简历+面试问题辅导",
+    ],
+    "🤖 3. Agent 自主体、MCP 协议与 Harness 架构": [
+        "Agent：从可控性到自主反思",
+        "🔥 Function Calling与MCP (上下文交互协议)",
+        "Agent的自主规划与工具开发",
+        "Agent的能力优化与效果评估",
+        "🔥 Harness Engineering",
+        "搭建Hermes Agent 中的长期记忆和自进化能力",
+        "实现Hermes中的多Agent协作、主Agent调度",
+        "🔥 项目实战：OpenManus开发实战",
+        "💼 就业服务：Agent相关简历+面试问题辅导",
+    ],
+    "⚙️ 4. LLM 微调、CV与算力 Infra 部署": [
+        "神经网络基础与Tensorflow实战",
+        "Pytorch与视觉检测",
+        "视觉与多模态模型",
+        "多模态前沿：从Agent构建到视频AIGC",
+        "LLM微调原理",
+        "🔥 高质量微调数据工程与评估",
+        "LLM模型蒸馏与微调实操",
+        "HuggingFace生态实战：从模型应用到高效微调",
+        "企业级AI部署：从硬件选型到框架选择",
+        "AI服务核心：高并发原理与性能监控调优",
+        "🔥 SGLang 深度优化：Radix 缓存与复杂任务的极致吞吐",
+        "短剧视频逐帧换脸的显卡资源分配及排队系统",
+        "🔥 在华为昇腾显卡上部署DeepSeek V4 模型 并连通本地Claude Code",
+        "🔥 项目实战：AI质检",
+        "💼 就业服务：模型训练与微调相关简历+面试问题辅导",
+    ],
+    "🎯 5. 毕业全栈实战与就业冲刺": [
+        "综合实战项目复盘 (RAG + Agent + 微调 + 部署全链路集成)",
+        "Agent / RAG / 开发框架 / 微调部署全套简历优化",
+        "大模型高频面试真题精讲与模拟辅导",
+    ],
+}
+
+# 模块补充元信息（展示说明 / 求职方向匹配主题 / 推荐理由）
+_MODULE_META = {
+    "🛠️ 1. LLM 基础与 AI 编程提效": {
+        "desc": "从大模型原理与 API 调用，到 AI Coding 与大型软件项目重构，理解 AI 如何重塑个人开发效率与团队协作。",
+        "topics": ["基础", "Prompt", "AI Coding", "RAG"],
+        "why": "所有方向的必修地基：模型原理 + Prompt + AI Coding 全链路一次打透。"},
+    "📚 2. RAG 企业级知识库与检索": {
+        "desc": "从 Embeddings/向量数据库到 RAG 调优与多模态检索，再通过 LangChain 与框架选型落地企业级知识库实战。",
+        "topics": ["RAG", "知识库", "向量数据库", "LangChain", "落地"],
+        "why": "最广泛落地的 AI 场景：RAG 全链路 + 框架选型 + 冠军项目实战，应用开发与架构必学。"},
+    "🤖 3. Agent 自主体、MCP 协议与 Harness 架构": {
+        "desc": "从 Agent 可控性与 Function Calling，到 MCP 协议、Harness 架构与多 Agent 协作，掌握智能体全栈实战。",
+        "topics": ["Agent", "MCP", "Harness", "Function Calling", "多Agent"],
+        "why": "应用开发/全栈工程师的核心主场：Agent 原理 + MCP + Harness + OpenManus 实战全链路。"},
+    "⚙️ 4. LLM 微调、CV与算力 Infra 部署": {
+        "desc": "从神经网络/视觉基础到 LLM 微调与高质量数据工程，再到企业级部署、SGLang 优化与华为昇腾国产化实战。",
+        "topics": ["微调", "CV", "多模态", "数据工程", "SGLang", "昇腾", "部署"],
+        "why": "算法/微调/Infra 工程师的必选核心：微调 + 视觉多模态 + 高并发部署与国产化一条龙。"},
+    "🎯 5. 毕业全栈实战与就业冲刺": {
+        "desc": "综合 RAG + Agent + 微调 + 部署全链路项目复盘，配套全套简历优化与高频面试真题精讲。",
+        "topics": ["就业", "面试", "项目复盘", "简历"],
+        "why": "临门一脚：全链路实战复盘 + 简历优化 + 面试冲刺，直击 offer。"},
+}
+
+# 由 COURSE_MODULES 生成 MODULES（no 取自模块名自带编号，兼容既有字段结构）
+MODULES = []
+for _i, (_mname, _mcourses) in enumerate(COURSE_MODULES.items(), start=1):
+    _mno = re.search(r"\d+", _mname)
+    MODULES.append({
+        "no": int(_mno.group()) if _mno else _i,
+        "name": _mname,
+        "courses": _mcourses,
+        **_MODULE_META.get(_mname, {}),
+    })
 
 
 # ================================================================ 3. 离线题库

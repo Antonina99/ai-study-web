@@ -248,9 +248,9 @@ def render_tab1(selected_job):
         st.subheader("📚 课程目录")
         st.caption("模块 → 课程 → 章节 两级联动")
         # 第一级：模块
-        module_labels = [f"模块 {m['no']}｜{m['name']}" for m in data.MODULES]
+        module_labels = [m["name"] for m in data.MODULES]
         sel_module = st.radio("选择模块", options=module_labels, key="tab1_module")
-        module_no = int(sel_module.split("｜")[0].replace("模块 ", ""))
+        module_no = next(mm["no"] for mm in data.MODULES if mm["name"] == sel_module)
         m = next((mm for mm in data.MODULES if mm["no"] == module_no), data.MODULES[0])
 
         # 第二级：课程

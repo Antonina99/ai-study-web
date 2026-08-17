@@ -201,9 +201,9 @@ def render_tab2(selected_job):
             units = [{"name": c["name"], "kb_name": c["kb_name"]} for c in data.COURSE_INDEX]
 
         elif scope == "按模块":
-            module_labels = [f"模块 {m['no']}｜{m['name']}" for m in data.MODULES]
+            module_labels = [m["name"] for m in data.MODULES]
             sel_m = st.selectbox("选择模块", options=module_labels, key="quiz_module")
-            module_no = int(sel_m.split("｜")[0].replace("模块 ", ""))
+            module_no = next(mm["no"] for mm in data.MODULES if mm["name"] == sel_m)
             sub = [c for c in data.COURSE_INDEX if c["module_no"] == module_no]
             course_labels = [f"{c['id']}｜{c['name']}" for c in sub]
             sel_cs = st.multiselect("选择课程（可多选）", options=course_labels, key="quiz_courses", default=course_labels)
@@ -212,9 +212,9 @@ def render_tab2(selected_job):
                     units.append({"name": c["name"], "kb_name": c["kb_name"]})
 
         else:  # 按章节：模块 → 课程 → 章节 三级精准限定
-            module_labels = [f"模块 {m['no']}｜{m['name']}" for m in data.MODULES]
+            module_labels = [m["name"] for m in data.MODULES]
             sel_m = st.selectbox("选择模块", options=module_labels, key="quiz_ch_module")
-            module_no = int(sel_m.split("｜")[0].replace("模块 ", ""))
+            module_no = next(mm["no"] for mm in data.MODULES if mm["name"] == sel_m)
             sub = [c for c in data.COURSE_INDEX if c["module_no"] == module_no]
             course_labels = [f"{c['id']}｜{c['name']}" for c in sub]
             sel_c = st.selectbox("选择课程", options=course_labels, key="quiz_ch_course")
