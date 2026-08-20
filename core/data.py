@@ -520,24 +520,38 @@ def _rule_cleaned_doc(course, max_chars=1600):
 
 
 def _rule_mindmap(course, career_direction):
-    """离线规则版思维导图：关键词/章节/求职方向重点骨架。"""
+    """离线规则版思维导图：root → (核心关键词 / 求职方向重点 / 章节速览) 三组分层骨架。"""
     sm = course.get("summary") or {}
     career_name = CAREER_DIRECTIONS.get(career_direction, {}).get("name", career_direction)
-    lines = ["mindmap", f"root(({career_name}))"]
+
+    def node(text, limit=18):
+        t = str(text).strip()
+        t = re.sub(r"[\s\u3000\u00a0]+", " ", t)     # 压缩空白
+        t = re.sub(r"[\[\](){}|#*（）]", "", t)      # 去掉 mermaid 特殊字符（含全角括号），避免解析错乱
+        return t[:limit]
+
+    groups = []
     seen = set()
-    for kw in sm.get("keywords", [])[:6]:
-        if kw not in seen:
-            lines.append(f"    {kw}")
-            seen.add(kw)
-    for kw in CAREER_DIRECTIONS.get(career_direction, {}).get("focus", [])[:4]:
-        if kw not in seen:
-            lines.append(f"    {kw}")
-            seen.add(kw)
+    kws = [node(x, 14) for x in sm.get("keywords", [])[:6] if x]
+    if kws:
+        groups.append(("核心关键词", kws))
+    focus = [node(x, 14) for x in CAREER_DIRECTIONS.get(career_direction, {}).get("focus", [])[:4] if x]
+    if focus:
+        groups.append(("求职方向重点", focus))
+    secs = []
     for sec in sm.get("sections", [])[:8]:
-        title = (sec.get("title") or "").strip()
+        title = node(sec.get("title") or "")
         if title and title not in seen:
-            lines.append(f"    {title}")
+            secs.append(title)
             seen.add(title)
+    if secs:
+        groups.append(("章节速览", secs))
+
+    lines = ["mindmap", f"root(({career_name}))"]
+    for gname, items in groups:
+        lines.append(f"    {gname}")
+        for it in items:
+            lines.append(f"        {it}")
     return "\n".join(lines)
 
 

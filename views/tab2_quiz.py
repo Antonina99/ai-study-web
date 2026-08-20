@@ -5,7 +5,7 @@ views/tab2_quiz.py —— Tab2 智能自测与刷题
 - 出题范围：全部课程 / 按模块（多选课程）/ 按章节（三级精准限定）。
 - AI 实战出题优先（基于清洗干货 + 求职方向 focus 强约束），失败/无 Key 回退离线题库（选项已洗牌）。
 - 作答使用「无默认选中」；提交后展示三段式结构化解析 + AI 错题深度解析（流式输出）。
-- 提交结果同步落盘 SQLite（learning_tracker.db）。
+- 答错的题目写入 Session State 错题本（不落盘 SQLite），可在「错题复习」Tab 导出 JSON。
 """
 
 import random
@@ -13,7 +13,8 @@ import re
 
 import streamlit as st
 
-from core import data, llm, tracker
+from core import data, llm
+from views import tab4_review
 
 
 def _clean_option_text(text):
@@ -48,7 +49,7 @@ def generate_quiz(units, num_q, selected_job):
 
 
 def submit_quiz(quiz):
-    """提交答卷：记录错题到错题本、更新学习统计（并落盘 SQLite）。"""
+    """提交答卷：把错题记录到 Session State 错题本（不落盘 SQLite）。"""
     for i, q in enumerate(quiz):
         if data.ans_index(q, st.session_state.get(f"ans_{i}")) is None:
             st.warning("还有题目未作答，请完成所有题目后再提交。")
@@ -56,17 +57,7 @@ def submit_quiz(quiz):
     for i, q in enumerate(quiz):
         user_ans = data.ans_index(q, st.session_state.get(f"ans_{i}"))
         if user_ans != q["answer"]:
-            w = dict(q)
-            w["user_ans"] = user_ans
-            if not any(e["q"] == w["q"] for e in st.session_state.wrongs):
-                st.session_state.wrongs.append(w)
-    st.session_state.stats["answered"] += len(quiz)
-    st.session_state.stats["correct"] += sum(
-        1 for i, q in enumerate(quiz)
-        if data.ans_index(q, st.session_state.get(f"ans_{i}")) == q["answer"]
-    )
-    tracker.save_stats(st.session_state.stats)
-    tracker.save_wrongs(st.session_state.wrongs)
+            tab4_review.record_wrong_question(q, user_ans)
     st.session_state.submitted = True
     st.rerun()
 

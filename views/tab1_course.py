@@ -10,8 +10,8 @@ views/tab1_course.py —— Tab1 课程大纲与导读
 
 import streamlit as st
 
-from core import data, llm, tracker
-from views import share_panel
+from core import data, llm
+from views import tab4_review
 
 # 无默认选择的占位选项（用户未主动选择前，提交会被拦截）
 PLACEHOLDER = "（请选择答案）"
@@ -32,7 +32,7 @@ def _render_keywords(keywords):
 
 
 def _submit_course_quiz(quiz):
-    """提交课程内测评：校验完整性、记录错题与学习统计（并落盘 SQLite）。"""
+    """提交课程内测评：校验完整性，并把错题记录到 Session State 错题本（不落盘 SQLite）。"""
     for i, q in enumerate(quiz):
         if data.ans_index(q, st.session_state.get(f"cans_{i}")) is None:
             st.warning("还有题目未作答，请完成所有题目后再提交。")
@@ -40,19 +40,18 @@ def _submit_course_quiz(quiz):
     for i, q in enumerate(quiz):
         user_ans = data.ans_index(q, st.session_state.get(f"cans_{i}"))
         if user_ans != q["answer"]:
-            w = dict(q)
-            w["user_ans"] = user_ans
-            if not any(e["q"] == w["q"] for e in st.session_state.wrongs):
-                st.session_state.wrongs.append(w)
-    st.session_state.stats["answered"] += len(quiz)
-    st.session_state.stats["correct"] += sum(
-        1 for i, q in enumerate(quiz)
-        if data.ans_index(q, st.session_state.get(f"cans_{i}")) == q["answer"]
-    )
-    tracker.save_stats(st.session_state.stats)
-    tracker.save_wrongs(st.session_state.wrongs)
+            tab4_review.record_wrong_question(q, user_ans)
     st.session_state.current_submitted = True
     st.rerun()
+
+
+def render_chapter_completion_toggle(chapter_id):
+    """章节学习打卡：勾选后计入 Session State 学习进度（侧边栏进度条实时更新）。"""
+    is_completed = chapter_id in st.session_state.completed_chapters
+    if st.checkbox("✅ 标记本节为已完成", value=is_completed, key=f"chk_{chapter_id}"):
+        st.session_state.completed_chapters.add(chapter_id)
+    else:
+        st.session_state.completed_chapters.discard(chapter_id)
 
 
 def render_course_quiz():
@@ -150,15 +149,14 @@ def render_course_detail(item, section=None, career_direction=None):
         else:
             st.info("该章节暂无导读正文。")
         st.divider()
+        # 学习打卡：勾选后计入本次会话学习进度（不落盘）
+        render_chapter_completion_toggle(f"{item['id']}::{section.get('ts')}")
         st.caption("💡 提示：完整的关键词 / 摘要 / 定制思维导图请在「整门课程」视图查看。")
         return
 
     # ---------- 整门课程视图 ----------
     data_pack = data.get_clean_course_data(item, career_direction, api_key, model)
     career_name = data.CAREER_DIRECTIONS.get(career_direction, {}).get("name", career_direction)
-
-    # 对外分享：为当前课程生成公开访问链接（无需登录，任意设备可访问）
-    share_panel.render_course_share(item, career_direction)
 
     # A. 关键资产置顶：核心关键词 + 全文摘要
     st.markdown("### 🔑 核心关键词")
@@ -182,6 +180,10 @@ def render_course_detail(item, section=None, career_direction=None):
                 st.markdown(f"```mermaid\n{data_pack['mermaid_code']}\n```")
         else:
             st.caption("（暂时无法生成思维导图）")
+
+        st.caption("结构说明：根节点为求职方向 → 二级主题分组（核心概念 / 技术栈 / 应用场景 / 面试重点）→ 三级具体知识点，层次 ≤ 3 级。")
+        with st.expander("📋 查看 / 复制 Mermaid 源码", expanded=False):
+            st.code(data_pack["mermaid_code"], language="mermaid")
 
         with st.expander("📖 查看清洗后的精炼课程干货", expanded=False):
             if data_pack["interview_points"]:
