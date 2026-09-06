@@ -10,8 +10,8 @@
 - app.py           —— 应用入口：初始化 / 侧边栏 / Tab 调度
 
 说明：
-- 求职方向 5 选 1，贯穿思维导图定制、实战出题与错题解析（focus 强约束注入）。
-- 所有 AI 能力均有离线规则兜底，未配置 API Key 也可完整体验。
+- 求职方向 5 选 1，贯穿课程知识图谱、实战出题与错题解析（focus 强约束注入）。
+- 课程整理和测评提供离线规则兜底；AI 助教需要有效 API Key。
 - 学习进度（章节打卡）与错题本保存在 Session State（本次会话内有效，不落盘 SQLite），
   错题本可在「错题复习」Tab 一键导出 JSON。
 """
@@ -19,7 +19,7 @@
 import streamlit as st
 
 from core import data, llm
-from views import tab1_course, tab2_quiz, tab3_assistant, tab4_review
+from views import tab1_course, tab2_quiz, tab3_assistant, tab4_review, workspace_ui
 
 st.set_page_config(page_title="AI 大模型实战求职助手", layout="wide")
 
@@ -40,7 +40,6 @@ def init_session_state():
         "chat_msgs": [],
         "chat_course_id": None,
         "cleaned_cache": {},
-        "mindmap_cache": {},
         # 课程内测评
         "current_quiz": None,
         "current_submitted": False,
@@ -62,7 +61,7 @@ def _total_chapters():
     for c in data.COURSE_INDEX:
         kb_name = c.get("kb_name")
         if kb_name:
-            sections = (data.KB["courses"][kb_name].get("summary") or {}).get("sections", [])
+            sections = data.course_sections(data.KB["courses"][kb_name])
             total += len(sections)
     return total
 
@@ -71,7 +70,11 @@ def render_progress_bar(total_chapters_count):
     """学习进度看板：基于 Session State 的完成章节数动态计算进度条。"""
     completed_count = len(st.session_state.completed_chapters)
     progress = completed_count / total_chapters_count if total_chapters_count > 0 else 0.0
-    st.progress(progress, text=f"📊 当前完成进度：{completed_count}/{total_chapters_count} ({progress * 100:.1f}%)")
+    workspace_ui.render_progress(
+        progress,
+        f"已完成 {completed_count}/{total_chapters_count} 章",
+        key="sidebar_learning_progress",
+    )
 
 
 # ================================================================ 侧边栏
@@ -85,7 +88,8 @@ def render_sidebar():
         )
         job = data.CAREER_DIRECTIONS[selected_job]
         st.caption(job["desc"])
-        st.markdown("**重点方向**：" + "　".join(f"`{x}`" for x in job["focus"]))
+        st.caption("重点能力")
+        workspace_ui.render_badges(job["focus"], key=f"sidebar_focus_{selected_job}")
 
         st.divider()
         st.subheader("🔑 API 设置")
@@ -105,21 +109,26 @@ def render_sidebar():
         st.divider()
         with st.expander("📖 使用说明"):
             st.markdown(
-                "**Tab 1** 课程大纲与导读：模块 → 课程 → 章节级联；关键词/摘要/定制思维导图/干货/考点/章节速览；课程内求职实战测评。\n\n"
-                "**Tab 2** 智能自测与刷题：AI 实战出题（强依赖 API）+ 内置题库离线兜底；提交后查看结构化解析与 AI 错题深度解析。\n\n"
-                "**Tab 3** 课程 AI 助教：结合当前课程/章节上下文提问，流式回答。\n\n"
+                "**Tab 1** 课程学习：模块 → 课程 → 章节级联；课程精华、可折叠岗位课程路径与当前课程知识树、考点测评、章节速览和原文查找。\n\n"
+                "**Tab 2** 智能自测与刷题：AI 实战出题优先，失败时使用内置题库；提交后查看结构化解析与可选的 AI 错题深度解析。\n\n"
+                "**Tab 3** 课程 AI 助教：结合当前课程/章节文字提问，回答附带可核对的原文依据。\n\n"
                 "**Tab 4** 错题复习：本会话内答错的题目集中展示，支持一键导出 JSON。\n\n"
                 "📈 学习进度与错题本保存在本次会话中（不落盘），刷新页面会清空；可在「Tab 4」导出错题本备份。"
             )
 
         st.divider()
         st.subheader("📈 学习进度")
-        st.markdown("**知识库覆盖**："
-                    f"{sum(1 for c in data.COURSE_INDEX if c['kb_name'])} / {len(data.COURSE_INDEX)} 门课")
+        bound_courses = sum(1 for c in data.COURSE_INDEX if c["kb_name"])
+        workspace_ui.render_metric(
+            "知识库覆盖",
+            f"{bound_courses} / {len(data.COURSE_INDEX)}",
+            "已绑定转写文字的课程",
+            key="sidebar_kb_metric",
+        )
         if data.newly_added:
             st.info(f"🆕 检测到新入库课程：**{data.newly_added}**")
         render_progress_bar(_total_chapters())
-        st.caption(f"错题本：{len(st.session_state.error_notebook)} 道（本会话内有效，可在「Tab 4」导出）")
+        st.caption(f"错题本：{len(st.session_state.error_notebook)} 道（本会话内有效，可在「错题复习」导出）")
         if st.session_state.error_notebook:
             if st.button("📌 重刷错题"):
                 st.session_state.quiz = [
@@ -138,18 +147,22 @@ def render_sidebar():
 # ================================================================ 主区
 def main():
     init_session_state()
+    workspace_ui.apply_workspace_theme()
     selected_job = render_sidebar()
 
-    st.title("🎓 AI 大模型应用开发 · 实战求职学习平台")
-
-    tab1, tab2, tab3, tab4 = st.tabs(["📖 课程大纲与导读", "📝 智能自测与刷题", "💬 课程 AI 助教", "📕 错题复习"])
-    with tab1:
+    workspace_ui.render_workspace_header(
+        "AI 大模型实战学习工作台",
+        "围绕课程转写文字完成阅读、知识整理、智能自测与问答。",
+    )
+    pages = ["课程学习", "智能自测", "AI 助教", "错题复习"]
+    selected_page = workspace_ui.render_navigation(pages, key="main_workspace_navigation")
+    if selected_page == "课程学习":
         tab1_course.render_tab1(selected_job)
-    with tab2:
+    elif selected_page == "智能自测":
         tab2_quiz.render_tab2(selected_job)
-    with tab3:
+    elif selected_page == "AI 助教":
         tab3_assistant.render_tab3()
-    with tab4:
+    else:
         tab4_review.render_error_notebook_tab()
 
     st.divider()

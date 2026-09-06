@@ -5,17 +5,27 @@ core/data.py —— 数据与业务核心层
 职责：
 1. 静态配置：CAREER_DIRECTIONS（5 大求职方向）、COURSE_MODULES/MODULES（5 大核心模块课程大纲）、QUESTIONS（离线题库）。
 2. 课程绑定索引 / 知识库加载 / 关键词加权。
-3. 课程资产组装：get_clean_course_data（关键词/摘要/思维导图/干货/考点，含 session 缓存与离线降级）。
+3. 课程资产组装：get_clean_course_data（关键词/摘要/可折叠知识树/干货/考点，含 session 缓存与离线降级）。
 4. 出题：AI 实战出题（focus 强约束注入）、逐单元自测、离线兜底（选项洗牌）。
 5. 题目工具：选项标签/索引换算、AI 助教 Prompt 构造。
 """
 
+import hashlib
+import json
 import random
 import re
 
 import streamlit as st
 
 from core import kb, llm
+
+COURSE_CLEAN_CHUNK_CHARS = 24000
+LLM_COURSE_CONTEXT_CHARS = 12000
+COURSE_CLEAN_VERSION = 2
+NON_LEARNING_KEYWORDS = {
+    "直播", "开班典礼", "课程安排", "课程服务", "就业服务", "班主任", "助教",
+    "课表", "录播课", "直播课", "资源领取", "课程平台",
+}
 
 # ================================================================ 1. 求职方向
 CAREER_DIRECTIONS = {
@@ -116,6 +126,31 @@ COURSE_MODULES = {
         "综合实战项目复盘 (RAG + Agent + 微调 + 部署全链路集成)",
         "Agent / RAG / 开发框架 / 微调部署全套简历优化",
         "大模型高频面试真题精讲与模拟辅导",
+    ],
+}
+
+# 各求职方向的重点课程匹配词；用于可折叠课程路径中的显式标记。
+CAREER_PRIORITY_COURSE_TERMS = {
+    "agent_fullstack": [
+        "从提示工程到RAG", "RAG技术与应用", "RAG调优", "企业知识库", "LangChain",
+        "AI框架设计", "Agent：从可控性", "Function Calling", "自主规划与工具开发",
+        "能力优化与效果评估", "Harness", "多Agent协作", "OpenManus", "综合实战项目复盘",
+    ],
+    "llm_algorithm": [
+        "神经网络", "Pytorch", "视觉与多模态模型", "多模态前沿", "LLM微调",
+        "微调数据", "模型蒸馏", "HuggingFace", "模型训练与微调", "综合实战",
+    ],
+    "infra_devops": [
+        "企业级AI部署", "高并发", "SGLang", "显卡资源", "华为昇腾", "AI质检",
+        "模型部署", "部署全链路", "综合实战",
+    ],
+    "ai_pm_architect": [
+        "AI大模型基本原理", "从提示工程到RAG", "AI框架设计与选型", "企业知识库",
+        "RAG多模态数据处理", "项目实战", "综合实战项目复盘", "高频面试",
+    ],
+    "prompt_coding": [
+        "AI大模型基本原理", "提示工程", "AI编程", "AI Coding", "大型软件项目",
+        "团队重新分工", "LangChain", "Workflow", "综合实战",
     ],
 }
 
@@ -292,6 +327,16 @@ def module_weight(module, focus):
     return 0.15 + 0.85 * min(1.0, hits / 2)
 
 
+def course_priority_reasons(course_name, career_direction):
+    """返回课程命中的岗位重点标签；空列表表示该岗位下的普通课程。"""
+    normalized_name = kb.normalize(course_name)
+    matches = []
+    for term in CAREER_PRIORITY_COURSE_TERMS.get(career_direction, []):
+        if kb.normalize(term) in normalized_name:
+            matches.append(term)
+    return matches[:2]
+
+
 EXT_MODULE_NO = 99  # 「新增课程（自动发现）」模块编号
 
 
@@ -465,121 +510,251 @@ def _parse_extract(content):
             return [str(x).strip() for x in v if str(x).strip()][:n]
         return []
 
-    cleaned = str(data.get("cleaned_text") or data.get("clean_text") or "").strip()
-    summary = _lst(data.get("summary_points"), 5)
-    interview = _lst(data.get("interview_points"), 5)
+    cleaned = kb.clean_course_text(data.get("cleaned_text") or data.get("clean_text") or "")
+    summary = [kb.clean_text(x) for x in _lst(data.get("summary_points"), 5)]
+    interview = [kb.clean_text(x) for x in _lst(data.get("interview_points"), 5)]
+    summary = [x for x in summary if x]
+    interview = [x for x in interview if x]
     keywords = _lst(data.get("keywords"), 8)
     return {
         "keywords": keywords,
         "summary_points": summary,
-        "mindmap": str(data.get("mindmap") or "").strip(),
         "interview_points": interview,
         "cleaned_text": cleaned,
         "ok": bool(cleaned or summary or interview),
     }
 
 
+def _course_clean_cache_key(item, course, model):
+    """生成包含课程、源内容与模型的整理缓存键。"""
+    source = json.dumps(course, ensure_ascii=False, sort_keys=True)
+    digest = hashlib.sha1(source.encode("utf-8")).hexdigest()[:12]
+    return f"course-v{COURSE_CLEAN_VERSION}::{item.get('kb_name') or item.get('id')}::{model}::{digest}"
+
+
+def _unique_values(values, limit):
+    """去重并限制聚合字段长度。"""
+    result = []
+    for value in values:
+        text = str(value).strip()
+        if text and text not in result:
+            result.append(text)
+        if len(result) >= limit:
+            break
+    return result
+
+
+def _learning_keywords(values, limit=12):
+    """清理关键词中的课程事务和直播运营标签。"""
+    cleaned = []
+    for value in values or []:
+        text = kb.clean_text(value)
+        if text and text not in NON_LEARNING_KEYWORDS:
+            cleaned.append(text)
+    return _unique_values(cleaned, limit)
+
+
+def _balanced_chunk_values(processed, field, limit):
+    """轮询各文本块聚合字段，避免整课摘要只来自前几个块。"""
+    groups = [result.get(field) or [] for _, result in processed]
+    values = []
+    depth = 0
+    while len(values) < limit and any(depth < len(group) for group in groups):
+        for group in groups:
+            if depth < len(group):
+                values.append(group[depth])
+        depth += 1
+    return _unique_values(values, limit)
+
+
+def cleaned_course_context(cleaned, max_chars=LLM_COURSE_CONTEXT_CHARS):
+    """从分块整理正文中均衡抽取上下文，供整课问答和出题使用。"""
+    text = (cleaned or {}).get("cleaned_text") or ""
+    blocks = [block.strip() for block in re.split(r"(?=^## )", text, flags=re.MULTILINE)
+              if block.strip()]
+    if not blocks or len(text) <= max_chars:
+        return text[:max_chars]
+    quota = max(1, (max_chars - len(blocks) * 2) // len(blocks))
+    excerpts = []
+    for block in blocks:
+        if len(block) > quota:
+            head = quota * 2 // 3
+            block = block[:head] + "…" + block[-max(1, quota - head - 1):]
+        excerpts.append(block)
+    return "\n\n".join(excerpts)[:max_chars]
+
+
+def _merge_chunk_extracts(processed, total_chunks):
+    """把分章节文本块的萃取结果合并为整课资产。"""
+    summary_points = _balanced_chunk_values(processed, "summary_points", 12)
+    interview_points = _balanced_chunk_values(processed, "interview_points", 10)
+    cleaned_parts = []
+    for chunk, result in processed:
+        if result.get("cleaned_text"):
+            cleaned_parts.append(f"## {chunk['title']}\n{result['cleaned_text']}")
+    cleaned_text = kb.clean_course_text("\n\n".join(cleaned_parts))
+    return {
+        "keywords": _learning_keywords(_balanced_chunk_values(processed, "keywords", 20)),
+        "summary_points": summary_points,
+        "interview_points": interview_points,
+        "cleaned_text": cleaned_text,
+        "processed_chunks": len(processed),
+        "total_chunks": total_chunks,
+        "ok": bool(cleaned_text or summary_points or interview_points),
+    }
+
+
 def get_cleaned(item, api_key, model):
-    """AI 结构化萃取（带 session 缓存）：返回含 ok 标志的 dict；无 Key/无课程/失败时返回 None。"""
+    """按章节块进行 AI 萃取并合并整课结果；失败时返回可用的部分结果。"""
     cache = st.session_state.setdefault("cleaned_cache", {})
-    # 优先用 id；出题链路传入的单元没有 id，退化用 kb_name 做缓存 key，避免跨课程串用同一份缓存
-    cid = item.get("id") or item.get("kb_name")
-    if cache.get(cid):
-        return cache[cid]
     course = KB["courses"].get(item.get("kb_name"))
     if not api_key or not course:
         return None
-    prompt = kb.kb_course_context(course, max_chars=8000)
-    try:
-        text = llm.call_llm(prompt, llm.EXTRACT_SYSTEM_PROMPT, api_key, model,
-                            temperature=0.2, max_tokens=2000)
-        cleaned = _parse_extract(text)
+    cache_key = _course_clean_cache_key(item, course, model)
+    if cache.get(cache_key):
+        return cache[cache_key]
+    chunks = kb.course_context_chunks(course, max_chars=COURSE_CLEAN_CHUNK_CHARS)
+    processed = []
+    for chunk in chunks:
+        chunk_key = f"{cache_key}::{chunk['id']}"
+        cleaned = cache.get(chunk_key)
         if not cleaned:
-            return None
-        cache[cid] = cleaned
-        return cleaned
-    except Exception:
+            try:
+                response = llm.call_llm(
+                    chunk["text"], llm.EXTRACT_SYSTEM_PROMPT, api_key, model,
+                    temperature=0.2, max_tokens=2200,
+                )
+                cleaned = _parse_extract(response)
+                if cleaned:
+                    cache[chunk_key] = cleaned
+            except Exception:
+                cleaned = None
+        if cleaned:
+            processed.append((chunk, cleaned))
+    merged = _merge_chunk_extracts(processed, len(chunks))
+    if not merged["ok"]:
         return None
+    if len(processed) == len(chunks):
+        cache[cache_key] = merged
+    return merged
 
 
-def _rule_cleaned_doc(course, max_chars=1600):
-    """离线规则版干货正文：导读摘要 + 各章节正文拼接（无 Key 时兜底）。"""
+def get_cached_cleaned(item, model=None):
+    """读取当前课程、源内容和模型对应的整课整理缓存。"""
+    course = KB["courses"].get(item.get("kb_name"))
+    if not course:
+        return None
+    selected_model = model or st.session_state.get("llm_model", llm.DEFAULT_MODEL)
+    cache_key = _course_clean_cache_key(item, course, selected_model)
+    return st.session_state.get("cleaned_cache", {}).get(cache_key)
+
+
+def _rule_cleaned_doc(course, max_chars=2800):
+    """离线规则版干货正文；无导读时回退到清洗后的转写原文。"""
     parts = []
     sm = course.get("summary") or {}
     summary_text = (sm.get("summary") or "").strip()
     if summary_text:
-        parts.append(summary_text)
-    for sec in sm.get("sections", []):
+        parts.append(f"## 核心概览\n{kb.clean_text(summary_text)}")
+    sections = sm.get("sections", [])
+    if len(sections) > 6:
+        indexes = [round(index * (len(sections) - 1) / 5) for index in range(6)]
+        sections = [sections[index] for index in indexes]
+    for sec in sections:
         body = (sec.get("body") or "").strip()
         if body:
-            parts.append(body)
-    text = "\n\n".join(parts)
-    if len(text) > max_chars:
-        text = text[:max_chars] + "…"
-    return text
+            title = kb.clean_text(sec.get("title") or "课程知识点")
+            parts.append(f"## {title}\n{kb.clean_text(body)}")
+    if not parts:
+        org = course.get("original") or {}
+        for segment in org.get("segments", []):
+            body = kb.clean_text(segment.get("text") or "")
+            if body:
+                parts.append(body)
+    if parts:
+        overview = kb.clean_course_text("\n\n".join(parts))
+        return overview[:max_chars]
+    return kb.clean_course_text(kb.kb_course_context(course, max_chars=max_chars))
 
 
-def _rule_mindmap(course, career_direction):
-    """离线规则版思维导图：root → (核心关键词 / 求职方向重点 / 章节速览) 三组分层骨架。"""
-    sm = course.get("summary") or {}
-    career_name = CAREER_DIRECTIONS.get(career_direction, {}).get("name", career_direction)
+def course_sections(course):
+    """返回统一章节列表；缺少导读时用转写原文的时间段或段落兜底。"""
+    sm = (course or {}).get("summary") or {}
+    if sm.get("sections"):
+        return sm["sections"]
 
-    def node(text, limit=18):
-        t = str(text).strip()
-        t = re.sub(r"[\s\u3000\u00a0]+", " ", t)     # 压缩空白
-        t = re.sub(r"[\[\](){}|#*（）]", "", t)      # 去掉 mermaid 特殊字符（含全角括号），避免解析错乱
-        return t[:limit]
-
-    groups = []
-    seen = set()
-    kws = [node(x, 14) for x in sm.get("keywords", [])[:6] if x]
-    if kws:
-        groups.append(("核心关键词", kws))
-    focus = [node(x, 14) for x in CAREER_DIRECTIONS.get(career_direction, {}).get("focus", [])[:4] if x]
-    if focus:
-        groups.append(("求职方向重点", focus))
-    secs = []
-    for sec in sm.get("sections", [])[:8]:
-        title = node(sec.get("title") or "")
-        if title and title not in seen:
-            secs.append(title)
-            seen.add(title)
-    if secs:
-        groups.append(("章节速览", secs))
-
-    lines = ["mindmap", f"root(({career_name}))"]
-    for gname, items in groups:
-        lines.append(f"    {gname}")
-        for it in items:
-            lines.append(f"        {it}")
-    return "\n".join(lines)
+    org = (course or {}).get("original") or {}
+    sections = []
+    for index, segment in enumerate(org.get("segments", [])):
+        body = kb.clean_text(segment.get("text") or "")
+        if not body:
+            continue
+        preview = re.sub(r"\s+", " ", body).strip()
+        if len(preview) > 26:
+            preview = preview[:26] + "…"
+        sections.append({
+            "id": f"original-{index + 1}",
+            "ts": segment.get("ts") or "",
+            "title": preview or f"转写段落 {index + 1}",
+            "body": body,
+            "source": "original",
+        })
+    return sections
 
 
-def generate_learning_mindmap(clean_text, career_direction, course=None, api_key=None, model=None):
-    """求职方向定制思维导图：LLM 优先（focus 强约束注入），失败回退离线规则版。"""
-    api_key = api_key or st.session_state.get("api_key", "").strip()
-    model = model or st.session_state.get("llm_model", llm.DEFAULT_MODEL)
-    career_name, focus = career_prompt_params(career_direction)
+def section_label(section):
+    """生成章节选择标签；无时间戳段落只显示稳定段落编号与内容摘要。"""
+    timestamp = (section or {}).get("ts") or ""
+    title = (section or {}).get("title") or "未命名章节"
+    marker = timestamp or (section or {}).get("id") or "转写段落"
+    return f"{marker}｜{title}"
 
-    if api_key and clean_text:
-        try:
-            system = (llm.MINDMAP_SYSTEM_PROMPT
-                      .replace("{career_name}", career_name)
-                      .replace("{focus_keywords}", focus))
-            code = llm.call_llm(clean_text, system, api_key, model, temperature=0.3, max_tokens=1600)
-            code = llm.sanitize_mermaid(code)
-            if code.startswith("mindmap"):
-                return code
-        except Exception:
-            pass
-    return _rule_mindmap(course or {}, career_direction)
+
+def _balanced_items(values, limit):
+    """从长列表头尾均衡选取条目，保留课程前后知识脉络。"""
+    items = _unique_values([kb.clean_text(value) for value in values], 100)
+    if len(items) <= limit:
+        return items
+    indexes = [round(index * (len(items) - 1) / (limit - 1)) for index in range(limit)]
+    return [items[index] for index in indexes]
+
+
+def course_knowledge_groups(clean_text, career_direction, course=None, keywords=None,
+                            summary_points=None, interview_points=None):
+    """返回当前课程的可折叠知识分组。"""
+    course = course or {}
+    summary = course.get("summary") or {}
+    topic_items = _balanced_items(keywords or summary.get("keywords") or [], 8)
+    section_items = _balanced_items(
+        [section.get("title") for section in summary.get("sections", []) if section.get("title")],
+        12,
+    )
+    takeaway_source = interview_points or summary_points or []
+    if not takeaway_source:
+        takeaway_source = re.findall(r"[^。！？!?；;]+", clean_text or "")
+    takeaway_items = _balanced_items(takeaway_source, 8)
+
+    focus = CAREER_DIRECTIONS.get(career_direction, {}).get("focus", []) or []
+    searchable = " ".join(topic_items + section_items + takeaway_items + [clean_text or ""]).casefold()
+    career_items = []
+    for value in focus:
+        tokens = [token for token in re.split(r"[/、]", value) if token]
+        if any(token.casefold() in searchable for token in tokens):
+            career_items.append(value)
+    groups = [
+        {"name": "核心主题", "items": topic_items},
+        {"name": "课程脉络", "items": section_items},
+        {"name": "实践与考点", "items": takeaway_items},
+        {"name": "求职关联", "items": _balanced_items(career_items, 5)},
+    ]
+    return [group for group in groups if group["items"]]
 
 
 def get_clean_course_data(item, career_direction, api_key=None, model=None):
-    """组装一门课程的「关键资产」数据包：keywords / summary / mermaid_code / clean_text / interview_points。
+    """组装一门课程的关键词、摘要、干货、考点与可折叠知识分组。
 
     - api_key / model 可省略：省略时自动从会话读取；
-    - AI 优先，未配置 Key 或萃取失败时降级为离线规则版；思维导图带 session 缓存。
+    - AI 优先，未配置 Key 或萃取失败时降级为离线规则版。
     """
     api_key = api_key or st.session_state.get("api_key", "").strip()
     model = model or st.session_state.get("llm_model", llm.DEFAULT_MODEL)
@@ -588,34 +763,124 @@ def get_clean_course_data(item, career_direction, api_key=None, model=None):
     cleaned = get_cleaned(item, api_key, model)
     ok = bool(cleaned and cleaned.get("ok"))
 
-    summary = "、".join(cleaned["summary_points"]) if ok and cleaned["summary_points"] else (sm.get("summary") or "（暂无摘要）")
-    keywords = cleaned["keywords"] if ok and cleaned["keywords"] else (sm.get("keywords") or [])
+    summary_points = cleaned["summary_points"] if ok and cleaned["summary_points"] else [
+        kb.clean_text(value)
+        for value in re.findall(r"[^。！？!?；;]+[。！？!?；;]?", sm.get("summary") or "")
+        if kb.clean_text(value)
+    ][:5]
+    summary = " ".join(summary_points) if summary_points else "（暂无摘要）"
+    keywords = _learning_keywords(
+        cleaned["keywords"] if ok and cleaned["keywords"] else (sm.get("keywords") or [])
+    )
     interview_points = cleaned["interview_points"] if ok else []
     clean_text = cleaned["cleaned_text"] if ok and cleaned["cleaned_text"] else _rule_cleaned_doc(course)
 
-    mkey = f"{item['id']}|{career_direction}"
-    mermaid_code = st.session_state.mindmap_cache.get(mkey)
-    if not mermaid_code:
-        mermaid_code = generate_learning_mindmap(clean_text, career_direction, course, api_key, model)
-        st.session_state.mindmap_cache[mkey] = mermaid_code
+    knowledge_groups = course_knowledge_groups(
+        clean_text,
+        career_direction,
+        course,
+        keywords=keywords,
+        summary_points=summary_points,
+        interview_points=interview_points,
+    )
 
     return {
         "keywords": keywords,
         "summary": summary,
-        "mermaid_code": mermaid_code,
+        "summary_points": summary_points,
+        "knowledge_groups": knowledge_groups,
         "clean_text": clean_text,
         "interview_points": interview_points,
+        "processed_chunks": cleaned.get("processed_chunks", 0) if cleaned else 0,
+        "total_chunks": cleaned.get("total_chunks", 0) if cleaned else 0,
     }
 
 
 # ================================================================ 7. 出题
-def generate_practical_quiz(clean_text, career_direction, api_key, model, num_q=3, label=""):
+def _query_terms(text):
+    """提取中英文检索词；中文长句补充 2~4 字片段以适配口语转写。"""
+    raw = str(text or "").casefold()
+    terms = re.findall(r"[a-z][a-z0-9_.+-]{1,30}|[\u4e00-\u9fff]{2,}", raw)
+    expanded = []
+    for term in terms:
+        if re.fullmatch(r"[\u4e00-\u9fff]+", term) and len(term) > 4:
+            expanded.extend(term[index:index + size]
+                            for size in (4, 3, 2)
+                            for index in range(len(term) - size + 1))
+        else:
+            expanded.append(term)
+    stop = {"什么", "怎么", "为什么", "这个", "这些", "课程", "当前", "内容", "总结", "一下"}
+    return [term for term in dict.fromkeys(expanded) if term not in stop]
+
+
+def course_evidence(item, query="", section=None, limit=4):
+    """从指定课程/章节返回真实原文依据，标识和时间戳均由知识库生成。"""
+    course = KB["courses"].get((item or {}).get("kb_name")) or {}
+    entries = kb.course_original_entries(course)
+    if section:
+        allowed = {id(segment) for segment in kb.section_original_segments(course, section)}
+        original_segments = ((course.get("original") or {}).get("segments") or [])
+        allowed_indexes = {index for index, segment in enumerate(original_segments, 1)
+                           if id(segment) in allowed}
+        entries = [entry for entry in entries if entry["index"] in allowed_indexes]
+    if not entries:
+        return []
+
+    terms = _query_terms(query)
+    scored = []
+    for entry in entries:
+        lowered = entry["text"].casefold()
+        score = sum((len(term) ** 2) * lowered.count(term) for term in terms)
+        if score:
+            scored.append((score, entry))
+    if scored:
+        selected = [entry for _, entry in sorted(scored, key=lambda pair: (-pair[0], pair[1]["index"]))[:limit]]
+    elif terms:
+        return []
+    else:
+        count = min(limit, len(entries))
+        indexes = [round(index * (len(entries) - 1) / max(1, count - 1)) for index in range(count)]
+        selected = [entries[index] for index in dict.fromkeys(indexes)]
+
+    section_name = (section or {}).get("title") if isinstance(section, dict) else ""
+    return [{**entry, "course": item.get("name") or item.get("kb_name") or "",
+             "section": section_name or "整门课程"} for entry in selected]
+
+
+def evidence_text(evidence):
+    """把已验证引用格式化为 Prompt 上下文。"""
+    return "\n\n".join(
+        f"[{entry['id']} | {entry['marker']}] {entry['text']}" for entry in evidence
+    )
+
+
+def verified_citations(citation_ids, evidence):
+    """仅保留当前候选集合中的引用，并返回本地原文而非模型复述。"""
+    allowed = {entry["id"]: entry for entry in evidence}
+    result = []
+    for citation_id in citation_ids or []:
+        value = citation_id.get("id") if isinstance(citation_id, dict) else citation_id
+        if value in allowed and value not in {entry["id"] for entry in result}:
+            result.append(allowed[value])
+    return result
+
+
+def sanitize_answer_citations(answer, evidence):
+    """移除回答中不在白名单内的 original-N，防止展示虚构引用。"""
+    allowed = {entry["id"] for entry in evidence}
+    return re.sub(r"original-\d+",
+                  lambda match: match.group(0) if match.group(0) in allowed else "无效引用已移除",
+                  str(answer or ""))
+
+
+def generate_practical_quiz(clean_text, career_direction, api_key, model, num_q=3, label="", evidence=None):
     """基于课程干货 + 求职方向生成实战题（强依赖 LLM）。
 
     返回洗牌后的题目列表（含结构化 analysis）；未配置 Key / 无干货 / 解析失败时返回 []。
     """
     if not api_key or not clean_text:
         return []
+    clean_text = evidence_text(evidence) if evidence else cleaned_course_context({"cleaned_text": clean_text})
     career_name, focus = career_prompt_params(career_direction)
     system = (llm.PRACTICAL_QUIZ_SYSTEM_PROMPT
               .replace("{career_name}", career_name)
@@ -634,19 +899,23 @@ def generate_practical_quiz(clean_text, career_direction, api_key, model, num_q=
         out = []
         for q in questions[:num_q]:
             q["source"] = f"{label} · AI 实战题" if label else "AI 实战题"
+            q["citations"] = verified_citations(q.pop("citation_ids", []), evidence or [])
+            q["citation_status"] = ("已核对课程原文" if q["citations"]
+                                      else "当前课程原文中未找到可核对依据")
             out.append(shuffle_question(q))
         return out
     except Exception:
         return []
 
 
-def generate_practical_quiz_api(clean_text, career_direction, num_q=3):
+def generate_practical_quiz_api(clean_text, career_direction, num_q=3, item=None, section=None):
     """页面直接调用的实战出题入口：自动读取会话中的 API Key / 模型。"""
     api_key = st.session_state.get("api_key", "").strip()
     model = st.session_state.get("llm_model", llm.DEFAULT_MODEL)
+    evidence = course_evidence(item, "", section, limit=8) if item else []
     return generate_practical_quiz(
         clean_text, career_direction, api_key, model,
-        num_q=num_q, label="求职实战测评",
+        num_q=num_q, label="求职实战测评", evidence=evidence,
     )
 
 
@@ -664,20 +933,34 @@ def ai_gen_questions(units, num_q, api_key, model, career_direction):
         course = KB["courses"].get(kb_name)
         if not course:
             continue
-        section_ts = unit.get("section_ts")
+        section = None
+        if unit.get("section_id") or unit.get("section_ts") or unit.get("section_title"):
+            section = {
+                "id": unit.get("section_id"),
+                "ts": unit.get("section_ts"),
+                "title": unit.get("section_title"),
+            }
         cleaned = get_cleaned({**unit, "kb_name": kb_name}, api_key, model)
-        if cleaned and cleaned.get("ok") and cleaned.get("cleaned_text"):
-            ctx = cleaned["cleaned_text"]
+        if not section and cleaned and cleaned.get("ok") and cleaned.get("cleaned_text"):
+            ctx = cleaned_course_context(cleaned)
         else:
-            ctx = kb.kb_course_context(course, max_chars=4000, section_ts=section_ts)
+            ctx = kb.kb_course_context(course, max_chars=4000, section=section)
         if not ctx:
             continue
         scope_desc = unit.get("module_name", "") + " / " + unit.get("name", "")
-        if unit.get("title"):
-            scope_desc += " / " + unit["title"]
+        if unit.get("section_title"):
+            scope_desc += " / " + unit["section_title"]
         label = f"自测 · {scope_desc}" if scope_desc else "自测"
         try:
-            qs = generate_practical_quiz(ctx, career_direction, api_key, model, num_q=num_q, label=label)
+            evidence = course_evidence(
+                {"name": unit.get("name"), "kb_name": kb_name},
+                unit.get("section_title") or unit.get("name") or "",
+                section, limit=8,
+            )
+            qs = generate_practical_quiz(
+                ctx, career_direction, api_key, model, num_q=num_q,
+                label=label, evidence=evidence,
+            )
             if qs:
                 return qs
         except Exception:
@@ -704,8 +987,8 @@ def ans_index(q, label):
         return None
 
 
-def build_qa_prompt(item, question, section=None):
-    """构造 AI 助教的 (system, user) Prompt（含最近对话历史与章节/整课上下文）。
+def build_qa_request(item, question, section=None):
+    """构造助教 Prompt 与本地验证过的原文依据。
 
     section 支持两种形态：章节 dict（含 ts/title/body）或标题字符串。
     """
@@ -713,31 +996,23 @@ def build_qa_prompt(item, question, section=None):
     scope_desc = "整门课程"
 
     if section and isinstance(section, dict):
-        body = section.get("body") or ""
         title = section.get("title") or ""
-        if len(body) > 1200:
-            body = body[:1200] + "…"
-        ctx = body or ""
+        ctx = kb.kb_course_context(course, max_chars=6000, section=section)
         if ctx:
             scope_desc = f"章节「{title}」"
     elif section and isinstance(section, str):
-        ctx = ""
-        sm = course.get("summary") or {}
-        for s in sm.get("sections", []):
-            if s.get("title") == section:
-                body = s.get("body") or ""
-                if len(body) > 1200:
-                    body = body[:1200] + "…"
-                ctx = body
-                scope_desc = f"章节「{section}」"
-                break
+        ctx = kb.kb_course_context(
+            course, max_chars=6000, section={"title": section}
+        )
+        if ctx:
+            scope_desc = f"章节「{section}」"
     else:
         ctx = ""
 
     if not ctx:
-        cleaned = st.session_state.get("cleaned_cache", {}).get(item.get("id"))
+        cleaned = get_cached_cleaned(item, st.session_state.get("llm_model"))
         if cleaned and cleaned.get("cleaned_text"):
-            ctx = cleaned["cleaned_text"]
+            ctx = cleaned_course_context(cleaned, max_chars=6000)
             scope_desc = "整门课程（AI 清洗后的干货）"
         else:
             ctx = kb.kb_course_context(course, max_chars=6000)
@@ -746,11 +1021,79 @@ def build_qa_prompt(item, question, section=None):
     history = st.session_state.get("chat_msgs", [])[-6:]
     hist_txt = "\n".join(f"{m['role']}: {m['content']}" for m in history)
 
+    evidence = course_evidence(item, question, section if isinstance(section, dict) else None, limit=4)
+    evidence_block = evidence_text(evidence) or "（当前范围没有可用的课程原文依据）"
     user = (
         f"当前课程：《{item.get('name', '')}》\n"
         f"【当前学习范围】{scope_desc}\n\n"
-        f"【课程内容参考】\n{ctx}\n\n"
+        f"【已验证课程原文依据】\n{evidence_block}\n\n"
+        f"【课程导读/整理内容（只能辅助理解，不能作为原文引用）】\n{ctx}\n\n"
         f"【最近对话】\n{hist_txt}\n\n"
         f"用户问题：{question}"
     )
-    return llm.ASSISTANT_SYSTEM_PROMPT, user
+    return llm.ASSISTANT_SYSTEM_PROMPT, user, evidence
+
+
+def _offline_question_evidence(item, question, section=None):
+    """为离线原文题按真实时间戳回填引用；导读题不伪装成原文引用。"""
+    if "· 原文" not in str(question.get("source_detail") or question.get("source", "")):
+        return []
+    match = re.search(r"原文\s+([^\s]+)\s+处", question.get("explain", ""))
+    if not match:
+        return []
+    marker = match.group(1)
+    course = KB["courses"].get(item.get("kb_name")) or {}
+    for entry in kb.course_original_entries(course):
+        if entry["marker"] == marker:
+            return [{**entry, "course": item.get("name") or item.get("kb_name") or "",
+                     "section": (section or {}).get("title") or "整门课程"}]
+    return []
+
+
+def generate_course_assessment(item, section, clean_text, career_direction,
+                               api_key, model, num_q=3):
+    """课程页测评的 AI → 课程文字 → 通用题库三级降级链。"""
+    questions = []
+    if api_key:
+        questions = generate_practical_quiz_api(
+            clean_text, career_direction, num_q=num_q, item=item, section=section,
+        )
+        for question in questions:
+            question["question_kind"] = "course_ai"
+            question["source"] = "AI 课程原文题"
+
+    if not questions and item.get("kb_name"):
+        section_filter = None
+        if section:
+            section_filter = {item["kb_name"]: [section]}
+        questions = kb.gen_questions(
+            KB, num=num_q, course_names=[item["kb_name"]],
+            section_filter=section_filter,
+        )
+        for question in questions:
+            question["question_kind"] = "course_text"
+            question["source_detail"] = question.get("source", "")
+            question["source"] = ("课程原文题" if "· 原文" in question["source_detail"]
+                                  else "课程导读题")
+            question["citations"] = _offline_question_evidence(item, question, section)
+            question["citation_status"] = (
+                "已核对课程原文" if question["citations"]
+                else "本题依据课程导读生成，没有对应的原文片段引用"
+            )
+
+    if len(questions) < num_q:
+        job = CAREER_DIRECTIONS.get(career_direction, {})
+        fallback = fallback_questions(job.get("fallback_job", "agent_developer"), num_q - len(questions))
+        for question in fallback:
+            question["question_kind"] = "general_offline"
+            question["source"] = "通用内置题"
+            question["citations"] = []
+            question["citation_status"] = "本题来自内置通用题库，没有课程原文引用"
+        questions.extend(fallback)
+    return questions[:num_q]
+
+
+def build_qa_prompt(item, question, section=None):
+    """兼容旧调用：只返回助教 system/user Prompt。"""
+    system, user, _ = build_qa_request(item, question, section)
+    return system, user

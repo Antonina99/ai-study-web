@@ -1,164 +1,215 @@
-# 部署指南（DEPLOY.md）
+# 部署与课程文字入库指南
 
-本文档说明如何让**不依赖本地网络**的外部用户通过互联网访问本项目。
+本项目是 Python + Streamlit 动态应用。音视频在项目外转换成文字，项目只接收课程文字 DOCX，并围绕文字提供阅读、整理、问答和测评。
 
-- 项目本质：**Streamlit 动态 Web 应用**（Python），不是静态站点，需要一个能跑 Python 的运行环境。
-- 三个可选方案：
-  - **方案 A（推荐，免费、最快）**：Streamlit Community Cloud —— 适合快速公开演示。
-  - **方案 B（推荐长期使用）**：国内云服务器（腾讯云 / 阿里云轻量）—— 数据持久、国内访问稳定。
-  - **方案 C（临时）**：内网穿透（ngrok / cpolar / frp）—— 不搬服务器，临时对外演示。
+## 1. 运行要求
 
----
+- Python 3.10 或更高版本
+- 项目根目录中的 `requirements.txt`
+- 课程资料目录 `课程原文及导读/`
+- 可选的大模型 API Key；不填写时阅读、原文检索和离线测评仍可使用
 
-## 一、项目部署相关知识
+项目没有 SQLite 数据库。学习进度、当前答题状态和错题本保存在 Streamlit Session State 中，刷新页面、关闭会话或服务重启后会清空；错题可在页面导出 JSON。`_knowledge_cache.json` 只缓存 DOCX 解析结果，可删除并自动重建。
 
-| 组成部分 | 说明 |
-| --- | --- |
-| 运行环境 | 需要 Python 3.9+ 与 `requirements.txt` 中的依赖（`streamlit` / `openai`） |
-| 知识库 | `课程原文及导读/*.docx` **必须随代码一起上传**（否则课程数据为空） |
-| 解析缓存 | `_knowledge_cache.json`，部署后首次访问会自动重建，无需上传 |
-| 本地数据 | `learning_tracker.db`（错题本 / 学习统计 / 分享链接记录），**免费 PaaS 平台可能被重置** |
-| AI 能力 | 访客在页面手动填写 API Key（`app.py` 侧边栏「API 设置」）；离线规则兜底，不填也可完整浏览 |
+## 2. 本地启动
 
-### 启动命令
+### Windows PowerShell
 
-```bash
-streamlit run app.py --server.address 0.0.0.0 --server.port 8501
+```powershell
+cd D:\AI项目\ai_study_web
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
-> `--server.address 0.0.0.0` 是**必须的**，否则外部无法访问。
+浏览器访问 `http://127.0.0.1:8501/`。
 
----
-
-## 二、方案 A：Streamlit Community Cloud（免费）
-
-### A1. 需要准备的条件
-
-- GitHub 账号（用于承载代码仓库）
-- 本机安装 Git，并配置好 GitHub 凭据
-- 可选：安装 GitHub CLI（`gh`），可用命令一键建仓库并推送
-
-### A2. 代码推送到 GitHub
-
-在项目根目录执行：
+### Linux / macOS
 
 ```bash
-cd d:/ai_study_web
-
-# 1. 初始化仓库
-git init
-git add .
-git commit -m "init: AI 大模型实战求职学习平台"
-
-# 2. 方式一：使用 gh CLI 创建远程仓库并推送（推荐）
-gh repo create ai-study-web --public --source . --push
-
-# 方式二：没有 gh 时，先在 GitHub 网页新建空仓库，再：
-git remote add origin https://github.com/<你的用户名>/ai-study-web.git
-git push -u origin main
+cd /path/to/ai_study_web
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m streamlit run app.py
 ```
 
-> 注意：提交前确认 `.gitignore` 已忽略 `__pycache__/`、`*.pyc`、`learning_tracker.db`、`_knowledge_cache.json` 等本地文件（模板见下方）。`课程原文及导读/` 与 `app.py`、`requirements.txt`、`core/`、`views/` 必须被包含。
+需要从局域网或服务器外部访问时使用：
 
-### A3. 在 Streamlit Community Cloud 部署
+```bash
+python -m streamlit run app.py --server.address 0.0.0.0 --server.port 8501
+```
 
-1. 打开 <https://share.streamlit.io>，用 **GitHub 账号**登录（若未注册会引导授权 Streamlit 访问你的仓库）。
-2. 点击 **New app**（或 **Create app**）：
-   - **Repository**：选择 `ai-study-web`
-   - **Branch**：`main`
-   - **Main file path**：`app.py`
-   - 点击 **Deploy**。
-3. 等待构建完成（首次约 1~3 分钟，期间会安装 `requirements.txt` 依赖）。
-4. 部署成功后获得公网地址，形如 `https://<你的应用名>.streamlit.app`。
+启动后可运行回归测试：
 
-### A4. 部署后必做（关键！）
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
 
-代码会自动探测"本机局域网 IP"作为分享地址，部署到云端后必须手动改成公网地址，否则分享链接外部打不开：
+## 3. 导入一门课程
 
-1. 打开部署好的页面。
-2. 左侧边栏「🔗 对外分享」→ 把「对外访问地址」改为 `https://<你的应用名>.streamlit.app`。
-3. 重新生成分享链接，发给任何人即可访问（无需登录）。
+### 3.1 文件命名
 
-### A5. 方案 A 注意事项
+将文件放到项目根目录的 `课程原文及导读/`：
 
-- **休眠冷启动**：免费层长时间无人访问会休眠，再次打开需等待十几秒。
-- **数据可能重置**：重新部署 / 平台回收实例后，本地文件（错题本、已生成的分享链接）可能被清空 —— 这是免费层的限制。需要长期保留数据请用方案 B。
-- **国内访问**：`.streamlit.app` 域名在国内偶发不稳定，主要访客在国内时建议方案 B。
-- **API Key**：访客在页面自行填写，与部署无关，无需额外配置。
+```text
+课程名称_原文.docx       # 必需
+课程名称_导读.docx       # 可选
+```
 
----
+例如：
 
-## 三、方案 B：国内云服务器（推荐长期使用）
+```text
+RAG技术与应用_原文.docx
+RAG技术与应用_导读.docx
+```
 
-### B1. 需要准备的条件
+文件名中的课程名称应与课程大纲名称一致。开头可以带序号，如 `2、RAG技术与应用_原文.docx`；系统会在匹配时去除常见序号、空格和全半角标点差异。无法匹配大纲的课程会进入“新增课程（自动发现）”模块，不会丢弃。
 
-- 一台云服务器（推荐 2核2G，Ubuntu 22.04，可选国内 / 香港节点）
-- 域名（可选）：用域名 + HTTPS 需要 ICP 备案（国内节点）；直接 `IP:端口` 访问不需要
-- SSH 客户端（Windows 自带 `ssh` 或 MobaXterm / Xshell）
+### 3.2 只有转写原文
 
-### B2. 步骤
+导读不是必需文件。只有 `_原文.docx` 时，系统会：
 
-1. **购买并初始化**：在云控制台创建轻量应用服务器，安装 Ubuntu 22.04 镜像。
-2. **放行端口**：安全组 / 防火墙放行 TCP 8501（直接访问）或 80/443（配域名后）。
-3. **上传代码**：`scp -r d:/ai_study_web root@<服务器IP>:/opt/`，或用宝塔面板上传。
-4. **安装依赖并启动**：
+- 解析时间戳并生成章节/片段目录；
+- 没有时间戳时按 DOCX 正文段落生成 `original-1`、`original-2` 等稳定标识；
+- 使用规则清洗生成可阅读正文；
+- 支持原文搜索、课程问答上下文和离线课程测评。
 
-   ```bash
-   cd /opt/ai_study_web
-   apt update && apt install -y python3 python3-venv
-   python3 -m venv venv && source venv/bin/activate
-   pip install -r requirements.txt
-   streamlit run app.py --server.address 0.0.0.0 --server.port 8501
-   ```
+原文 DOCX 建议结构：
 
-5. **访问验证**：浏览器打开 `http://<服务器公网IP>:8501`。
-6. **配成后台服务**（关掉 SSH 也不停）：写 systemd unit 文件，或 `nohup streamlit run app.py --server.address 0.0.0.0 --server.port 8501 &`。
-7. **（可选）域名 + HTTPS**：Nginx 反代 8501 → 80/443，用 certbot 申请证书，最终地址 `https://<你的域名>/?share=<短码>`。
-8. **改分享地址**：侧边栏「🔗 对外分享」→「对外访问地址」改为你的公网域名 / IP → 重新生成分享链接。
+```text
+RAG技术与应用_原文
+2026年09月06日
+00:05
+今天介绍 RAG 的文档切分策略。
+01:20
+接下来介绍召回和重排。
+```
 
-### B3. 方案 B 注意事项
+时间戳和正文也可以位于同一段：
 
-- 数据（`learning_tracker.db`）完整保留在服务器磁盘，重启不丢。
-- 用域名对外服务记得备案；裸 IP + 端口访问则无需。
-- 建议给服务器配置好防火墙只放行必要端口。
+```text
+00:05 今天介绍 RAG 的文档切分策略。
+发言人 1 01:20 接下来介绍召回和重排。
+```
 
----
+### 3.3 支持的时间戳
 
-## 四、方案 C：内网穿透（临时演示）
+支持半角或全角冒号：
 
-1. 本机保持应用运行：`streamlit run app.py`（8501）。
-2. 安装并运行穿透工具，例如：
-   - `ngrok http 8501`
-   - `cpolar http 8501`
-3. 获得一个公网地址，如 `https://xxxx.ngrok-free.app`。
-4. 侧边栏「对外访问地址」填该地址 → 重新生成分享链接。
+- `MM:SS`，例如 `07:59`、`60:00`
+- `HH:MM:SS`，例如 `01:02:03`
+- 可选说话人前缀，例如 `发言人 1 00:05`、`说话人 A 00：05`、`讲师 01:02:03`
 
-> 免费穿透地址通常有有效期、限速，仅适合临时展示。长期使用请用方案 A / B。
+时间戳只用于文字分段、章节范围和引用定位，不用于音视频播放。没有时间戳时正文仍能入库。
 
----
+### 3.4 可选导读格式
 
-## 五、通用注意事项
+导读解析依赖以下三个标记行，文字必须保持一致：
 
-1. **分享地址必须改**：`core/share.py` 的 `get_default_base_url()` 会自动探测本机地址。每次更换部署环境后，都要在侧边栏把「对外访问地址」改为新的公网地址，并**重新生成分享链接**。
-2. **SQLite 持久化**：错题本、学习统计、分享链接记录都在 `learning_tracker.db`。免费 PaaS 文件系统是临时的，需要长期保留数据就用云服务器（方案 B）。
-3. **知识库目录**：`课程原文及导读/` 缺失时课程列表不完整；上传后首次访问会自动解析并重建 `_knowledge_cache.json`。
-4. **HTTPS**：PaaS 平台默认自带；云服务器裸 IP 访问建议配域名 + 证书。
-5. **安全**：公开部署后任何拿到链接的人都能访问。「整个平台」级分享会把完整应用暴露给访客，对外尽量只发课程级分享链接。
-6. **API Key**：当前设计为访客页面自行填写，云端无需配置。如后续希望服务器统一配置，可改为优先读取环境变量。
+```text
+RAG技术与应用_导读
+2026年09月06日
+关键词
+RAG 向量检索 重排
+全文摘要
+本课程介绍企业知识库的完整处理流程。
+章节速览
+00:00 文档切分
+介绍切分粒度与语义完整性。
+10:30 召回与重排
+介绍召回、过滤和重排策略。
+```
 
----
+导读的第二段应保留日期或其他元数据占位，因为解析器从第三段开始识别标记。章节时间戳应能对应原文范围；一个章节覆盖本章起点到下一章起点之前的原文，最后一章覆盖到课程结尾。
 
-## 附：.gitignore 模板（推送到 GitHub 前使用）
+### 3.5 让新文件生效
+
+文件放入目录后刷新网页。应用会按文件名、大小和修改时间检测变化并更新 `_knowledge_cache.json`。正常结果包括：
+
+1. 侧边栏“知识库覆盖”数量增加；
+2. 课程目录显示“课程文字已入库”；
+3. 课程页可以阅读章节并搜索原文；
+4. 无 API Key 时也能生成课程文字题。
+
+资料盘点与当前缺口见 `docs/course_content_status.md`。
+
+## 4. 常见问题排查
+
+### 页面找不到新课程
+
+1. 确认文件扩展名是 `.docx`，不是 `.doc`、TXT 或伪装扩展名。
+2. 确认文件位于 `课程原文及导读/` 根层，没有放进子目录。
+3. 确认文件名以 `_原文.docx` 或 `_导读.docx` 结尾。
+4. 刷新页面；仍无效时停止服务，删除 `_knowledge_cache.json` 后重新启动。
+5. 查看终端是否有 DOCX 损坏或权限错误。
+
+### 课程存在但没有正文
+
+- 原文文件第一段应为标题；第二段可以是日期，正文放在其后。
+- 确认 DOCX 中的文字是可选择的普通段落，不是截图或扫描图片。
+- 空原文会保留课程记录并显示无可阅读文字，不会编造内容。
+
+### 章节范围不正确
+
+- 检查时间戳是否是有效的 `MM:SS` 或 `HH:MM:SS`。
+- 分钟和秒的末两位必须小于 60；`60:00` 表示 60 分钟，是有效格式。
+- 导读章节时间戳应按课程顺序排列，并与原文使用同一时间基准。
+
+### 导读没有关键词或章节
+
+- 确认标记行严格写为“关键词”“全文摘要”“章节速览”。
+- 确认导读第二段有日期或占位内容。
+- 导读缺失不会阻止原文阅读；可以先只导入原文。
+
+### AI 功能不可用
+
+- API Key 由每位用户在侧边栏输入，只保存在当前会话内存中，项目不会写入文件或环境变量。
+- 确认所选模型与 API Key 服务商匹配。
+- API 失败时课程测评会自动降级；AI 助教本身需要有效 API Key。
+
+## 5. Streamlit Community Cloud
+
+1. 将代码、`requirements.txt` 和需要公开使用的课程 DOCX 推送到 Git 仓库。
+2. 不提交 `.venv/`、`__pycache__/` 和 `_knowledge_cache.json`。
+3. 在 Streamlit Community Cloud 创建应用，入口文件选择 `app.py`。
+4. 部署完成后打开应用，检查知识库覆盖、课程阅读和离线测评。
+
+课程 DOCX 会随仓库一起部署。包含私密或无权公开的转写文字时，不应放进公开仓库；应使用私有仓库或自管服务器，并按实际授权控制访问。
+
+应用没有课程级分享链接或“对外分享”侧边栏。部署平台提供的应用 URL 就是访问地址。
+
+## 6. Linux 云服务器
+
+示例目录为 `/opt/ai_study_web`：
+
+```bash
+cd /opt/ai_study_web
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m streamlit run app.py --server.address 0.0.0.0 --server.port 8501
+```
+
+在云安全组和系统防火墙中放行实际使用的端口。长期运行可配置 systemd；使用域名时可通过 Nginx 反向代理到 `127.0.0.1:8501` 并配置 HTTPS。
+
+当前没有数据库持久化需求。需要更新课程时替换或增加 `课程原文及导读/*.docx`，然后重启或刷新应用。
+
+## 7. 临时内网穿透
+
+先在本机保持 Streamlit 运行，再让 ngrok、cpolar 或 frp 转发本机 8501 端口。外部访问地址由穿透工具提供。临时地址、访问控制和流量限制以所用工具为准，项目页面内无需填写分享地址。
+
+## 8. `.gitignore` 建议
 
 ```gitignore
+.venv/
 __pycache__/
 *.pyc
 .vscode/
 .idea/
 
-# 本地数据与缓存（部署环境会自动重建，不提交）
-learning_tracker.db
+# DOCX 解析缓存会自动重建
 _knowledge_cache.json
-
-# 如确需把错题本初始数据一起带过去，可注释掉 learning_tracker.db 这一行
 ```
+
+是否提交 `课程原文及导读/` 取决于部署方式和资料授权。部署环境若没有这些文件，课程大纲仍会显示，但对应课程会标记为尚未入库。

@@ -14,13 +14,31 @@ import re
 import streamlit as st
 
 from core import data, llm
-from views import tab4_review
+from views import tab4_review, workspace_ui
 
 
 def _clean_option_text(text):
     """去掉选项文本自带的 A./A、等字母前缀，避免与 format_func 叠加显示。"""
     text = str(text).strip()
     return re.sub(r"^[A-Da-d][\.、,，\s\)\）:：]\s*", "", text)
+
+
+def _render_question_evidence(q, key):
+    """展示题目携带的已验证课程原文依据。"""
+    citations = q.get("citations") or []
+    if citations:
+        with st.expander(f"📎 查看课程原文依据（{len(citations)}）", key=key):
+            for entry in citations:
+                st.markdown(
+                    f"**《{entry['course']}》 · {entry['section']} · "
+                    f"{entry['marker']} · `{entry['id']}`**"
+                )
+                st.write(entry["text"])
+                st.divider()
+    elif "AI 实战题" in str(q.get("source", "")):
+        st.warning(q.get("citation_status") or "当前课程原文中未找到可核对依据。")
+    else:
+        st.caption("本题来自内置通用题库，没有课程原文引用。")
 
 
 def generate_quiz(units, num_q, selected_job):
@@ -77,7 +95,10 @@ def _render_ai_explain(q, user_ans, api_key, model, i):
     if st.button(f"🤖 AI 解析：为什么选 {chr(65 + q['answer'])} 不选我选的", key=f"btn_ai_{i}"):
         try:
             system, user = llm.build_explain_prompt(q, user_ans)
-            st.session_state[ai_key] = st.write_stream(llm.call_llm_stream(user, system, api_key, model))
+            answer = llm.call_llm(user, system, api_key, model, max_tokens=1600)
+            st.session_state[ai_key] = data.sanitize_answer_citations(
+                answer, q.get("citations") or []
+            )
         except Exception as e:
             st.session_state[ai_key] = f"❌ AI 解析调用失败：{llm.humanize_error(e)}"
         st.rerun()
@@ -96,7 +117,8 @@ def render_quiz():
     st.markdown(f"**共 {len(quiz)} 题**" + ("（已提交，可查看解析）" if submitted else ""))
 
     for i, q in enumerate(quiz):
-        col_l, col_r = st.columns([3, 2])
+        question_card = st.container(border=True)
+        col_l, col_r = question_card.columns([3, 2])
         with col_l:
             st.markdown(f"**第 {i + 1} 题**" + (f"　`{q['source']}`" if q.get("source") else ""))
             st.write(q["q"])
@@ -125,6 +147,7 @@ def render_quiz():
                     st.write(q["explain"])
                 else:
                     st.caption("该题暂无文字解析。")
+                _render_question_evidence(q, f"exp_evidence_preview_{i}")
         with col_r:
             if submitted:
                 user_ans = data.ans_index(q, st.session_state.get(f"ans_{i}"))
@@ -149,7 +172,6 @@ def render_quiz():
                     st.markdown(f"**解析**：{q['explain']}")
                 else:
                     st.caption("该题暂无文字解析。" + ("可点击下方「AI 解析」让助教讲解。" if (not is_right and api_key) else ""))
-
                 # AI 错题深度解析（仅做错且已配置 Key 时提供，流式输出）
                 if not is_right and api_key and user_ans is not None:
                     _render_ai_explain(q, user_ans, api_key, model, i)
@@ -172,7 +194,7 @@ def render_quiz():
 
 def render_tab2(selected_job):
     """Tab2 入口：出题面板 + 题目渲染。"""
-    st.subheader("📝 智能自测与刷题")
+    workspace_ui.render_section_heading("智能自测与刷题", "按整课、模块或章节生成练习")
     api_key = st.session_state.get("api_key", "").strip()
     model = st.session_state.get("llm_model", llm.DEFAULT_MODEL)
     if api_key:
@@ -182,7 +204,8 @@ def render_tab2(selected_job):
 
     job = data.CAREER_DIRECTIONS.get(selected_job, {})
 
-    col_panel, col_opt = st.columns([2, 1], gap="large")
+    control_card = st.container(border=True)
+    col_panel, col_opt = control_card.columns([2, 1], gap="large")
 
     with col_panel:
         scope = st.radio("出题范围", ["全部课程", "按模块", "按章节"], horizontal=True, key="quiz_scope")
@@ -214,11 +237,11 @@ def render_tab2(selected_job):
 
             sec_labels, sec_map = [], {}
             if course_item["kb_name"]:
-                sections = (data.KB["courses"][course_item["kb_name"]].get("summary") or {}).get("sections", [])
-                sec_labels = [f"{s['ts']}｜{s['title']}" for s in sections]
-                sec_map = {f"{s['ts']}｜{s['title']}": s for s in sections}
+                sections = data.course_sections(data.KB["courses"][course_item["kb_name"]])
+                sec_labels = [data.section_label(s) for s in sections]
+                sec_map = {data.section_label(s): s for s in sections}
             if not sec_labels:
-                st.info("该课程暂无章节级导读，将按整门课程出题。")
+                st.info("该课程暂无可用章节文字，将按整门课程出题。")
             sel_secs = st.multiselect(
                 "选择章节（可多选，留空=整门课程）", options=sec_labels, key="quiz_ch_sections",
                 help="选中具体章节后，AI 将只提取该章节文本精准定向出题。",
@@ -229,6 +252,7 @@ def render_tab2(selected_job):
                     units.append({
                         "name": course_item["name"],
                         "kb_name": course_item["kb_name"],
+                        "section_id": s.get("id"),
                         "section_ts": s["ts"],
                         "section_title": s["title"],
                     })

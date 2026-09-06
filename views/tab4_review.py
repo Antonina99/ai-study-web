@@ -11,6 +11,8 @@ import json
 
 import streamlit as st
 
+from views import workspace_ui
+
 
 def _option_text(idx, opts):
     """把答案下标转成「字母. 选项文本」；未作答 / 异常下标给出兜底文案。"""
@@ -46,11 +48,11 @@ def record_wrong_question(q, user_ans):
 
 def render_error_notebook_tab():
     """错题复习 Tab：展示错题列表，并提供 JSON 一键导出。"""
+    workspace_ui.render_section_heading("错题复习", "集中回看本次会话中的薄弱知识点")
     if not st.session_state.error_notebook:
         st.info("🎉 当前暂无错题记录，继续保持！")
         return
 
-    st.subheader("📚 错题复习与导出")
     st.caption("错题保存在本次会话中（不落盘）；点击下方按钮可导出 JSON 备份。")
     for idx, item in enumerate(st.session_state.error_notebook):
         with st.expander(f"❌ 错题 {idx + 1}：[{item['chapter']}] {item['question'][:20]}..."):

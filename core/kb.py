@@ -18,15 +18,24 @@ import json
 import glob
 import random
 import zipfile
+from difflib import SequenceMatcher
 
 # 知识库目录（项目根目录下的「课程原文及导读」文件夹；本模块位于 core/ 子目录，故向上两级）
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KB_DIR = os.path.join(_PROJECT_ROOT, "课程原文及导读")
 # 解析缓存文件
 CACHE_FILE = os.path.join(_PROJECT_ROOT, "_knowledge_cache.json")
+# 解析规则版本；升级后自动忽略旧文件指纹并重新解析全部源文件。
+CACHE_VERSION = 3
 
 # 时间戳匹配，如 "00:05" / "01:09:23"
-TS_RE = re.compile(r"^\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(.*)$")
+TS_RE = re.compile(r"^\s*(\d{1,2})[:：](\d{2})(?:[:：](\d{2}))?\s*(.*)$")
+# 常见音视频转写前缀，如「发言人 00:01」「说话人 1 00:01」。
+SPEAKER_PREFIX_RE = re.compile(
+    r"^\s*(?:发言人|说话人|讲师)(?:\s+[^\s:：]+)?\s+(?=\d{1,2}[:：]\d{2})"
+)
+# 转写文件第二行常见的日期，用于区分元数据与无时间戳正文。
+DATE_LINE_RE = re.compile(r"^\s*\d{4}(?:年|[-/.])\d{1,2}(?:月|[-/.])\d{1,2}")
 
 # 中文句子切分（用于原文长句提取）
 SENT_SPLIT_RE = re.compile(r"[。！？!?；;]")
@@ -38,6 +47,20 @@ N_OPTIONS = 4
 # ============================================================
 # 一、docx 解析
 # ============================================================
+
+def _match_timestamp(line: str):
+    """匹配普通或带说话人前缀的时间戳行，返回正则匹配结果。"""
+    text = SPEAKER_PREFIX_RE.sub("", str(line or ""), count=1)
+    return TS_RE.match(text)
+
+
+def _timestamp_text(match: re.Match) -> str:
+    """将时间戳匹配结果规范为 MM:SS 或 HH:MM:SS，保留秒级精度。"""
+    value = match.group(1) + ":" + match.group(2)
+    if match.group(3):
+        value += ":" + match.group(3)
+    return value
+
 
 def parse_docx(path):
     """用 zipfile + 正则解析 docx 的段落文本，返回非空段落列表。"""
@@ -64,23 +87,28 @@ def split_ts_text(paras):
     cur_ts = None
     buf = []
     for p in paras:
-        m = TS_RE.match(p)
+        m = _match_timestamp(p)
         if m:
-            if cur_ts is not None and buf:
-                segs.append((cur_ts, "".join(buf)))
-            cur_ts = m.group(1) + ":" + m.group(2) + ((":" + m.group(3)) if m.group(3) else "")
+            if buf:
+                segs.append((cur_ts or "", "".join(buf)))
+            cur_ts = _timestamp_text(m)
             buf = [m.group(4)] if m.group(4) else []
         else:
             buf.append(p)
-    if cur_ts is not None and buf:
-        segs.append((cur_ts, "".join(buf)))
+    if buf:
+        segs.append((cur_ts or "", "".join(buf)))
     return segs
 
 
 def parse_original(paras):
-    """解析原文：返回 {title, segments:[{ts, text}]}。"""
+    """解析原文；无时间戳时保留正文段落，并将 ts 留空。"""
     title = paras[0] if paras else ""
-    segs = split_ts_text(paras[2:])  # 跳过标题行与日期行
+    body_start = 2 if len(paras) > 1 and DATE_LINE_RE.match(paras[1]) else 1
+    body_paras = paras[body_start:]
+    if any(_match_timestamp(text) for text in body_paras):
+        segs = split_ts_text(body_paras)
+    else:
+        segs = [("", text) for text in body_paras if str(text).strip()]
     return {
         "title": title,
         "segments": [{"ts": ts, "text": text} for ts, text in segs],
@@ -121,13 +149,13 @@ def parse_summary(paras):
         elif mode == "summary":
             summary += p
         elif mode == "sections":
-            m = TS_RE.match(p)
+            m = _match_timestamp(p)
             if m:
                 # 新章节：时间戳 + 标题
                 if cur_section is not None:
                     sections.append(cur_section)
                 cur_section = {
-                    "ts": m.group(1) + ":" + m.group(2),
+                    "ts": _timestamp_text(m),
                     "title": m.group(4).strip(),
                     "body": "",
                 }
@@ -171,29 +199,128 @@ NOISE_WORDS = [
     "是吧对吧", "对不对对", "这个这个", "那然后", "我们就是说",
 ]
 
+# 仅用于学习视图派生文本；原始转写片段始终原样保存在知识库中。
+NON_LEARNING_PATTERNS = [
+    re.compile(pattern, re.I)
+    for pattern in (
+        r"^(?:大家|同学们)?(?:早上|上午|中午|下午|晚上)?好[啊呀嘛]?$",
+        r"^(?:大家)?(?:能|可以)(?:听|看)(?:到|见|清楚)(?:我|声音|屏幕)?吗?$",
+        r"^(?:感谢|谢谢)(?:大家|各位|同学们)?(?:的参与|的支持|收看)?[啊呀]?$",
+        r"^(?:好[的，, ]*)?(?:今天|这节课|本节课|咱们)?(?:就)?(?:先)?(?:讲|聊)?到这(?:里|儿)?(?:吧)?$",
+        r"^(?:下课|散会|拜拜|再见|回头见|下次见|下周[一二三四五六日天]?见)[了啊呀，, ]*$",
+        r"^(?:大家)?(?:点个赞|点点赞|关注一下|刷一波|扣个?\d|公屏上扣\d)[吧啊呀]?$",
+        r"^(?:好的?|行|可以|没问题|收到|ok|okay)[了啊呀吧嘛，, ]*$",
+    )
+]
+NON_LEARNING_PHRASES = (
+    "下课，拜拜", "下课拜拜", "拜拜，下周", "拜拜下周", "下周二见",
+    "大家唠唠嗑", "聊会儿天", "聊会儿天儿", "我这个头发", "头发有点自来卷",
+    "开班典礼", "直播课与录播课", "直播课和录播课", "资源领取", "班主任通知",
+    "课程平台", "课程初期无作业", "更新课表", "讲师、助教和班主任",
+)
+
+
+def _sentence_key(text):
+    """生成去重用句子键，忽略空白、标点和常见口语连接词。"""
+    value = str(text or "").casefold()
+    value = re.sub(r"^(?:那么|然后|所以|就是|这个|其实)+", "", value)
+    return re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", value)
+
+
+def _is_non_learning_sentence(text):
+    """判断句子是否仅包含寒暄、直播互动、结束语等非课程内容。"""
+    value = re.sub(r"[。！？!?；;…\s]+$", "", str(text or "").strip())
+    compact = re.sub(r"\s+", "", value).casefold()
+    if not compact:
+        return True
+    if any(phrase in compact for phrase in NON_LEARNING_PHRASES):
+        return True
+    return any(pattern.fullmatch(value) for pattern in NON_LEARNING_PATTERNS)
+
+
+def _dedupe_adjacent_clauses(text):
+    """压缩相邻的重复短语或分句，如“我们慢慢来，我们慢慢来”。"""
+    value = str(text or "")
+    repeated = re.compile(r"([\u4e00-\u9fffA-Za-z0-9 ]{2,16})[，,、 ]+\1")
+    while repeated.search(value):
+        value = repeated.sub(r"\1", value)
+    return value
+
 
 def clean_text(text):
-    """规则版口语去噪：剔除语气词/口头禅、压缩重复字与标点。
+    """清洗单段学习文字，过滤口头语、重复表达与非课程聊天。
 
     用于「未配置 API Key」或「LLM 萃取失败」时的离线降级清洗；
     配置 Key 后优先使用 app.py 中的 AI 结构化萃取（extract_structured_knowledge）。
     """
     if not text:
         return ""
-    t = str(text)
-    for w in NOISE_WORDS:
-        t = t.replace(w, "")
-    # 连续重复中文单字压缩（如 对对对 → 对），不影响英文/数字 token
-    t = re.sub(r"([\u4e00-\u9fff])\1{2,}", r"\1", t)
-    # 连续重复标点压缩
-    t = re.sub(r"([，。！？；：])\1+", r"\1", t)
-    # 空白压成单个空格（保留英文 token 间的空格，如 "Function Calling"）
-    t = re.sub(r"\s+", " ", t)
-    # 中文标点两侧去掉空格
-    t = re.sub(r"\s*([，。！？；：、])\s*", r"\1", t)
-    t = re.sub(r"[，。]{2,}", "。", t)
-    t = re.sub(r"^[，。；：、,;: ]+", "", t)
-    return t.strip()
+    sentences = re.findall(r"[^。！？!?；;\n]+[。！？!?；;]?", str(text))
+    kept = []
+    for sentence in sentences:
+        if _is_non_learning_sentence(sentence):
+            continue
+        cleaned = _dedupe_adjacent_clauses(sentence)
+        for word in NOISE_WORDS:
+            cleaned = cleaned.replace(word, "")
+        cleaned = re.sub(
+            r"^(?:在)?(?:本次|这次)?(?:分享|讨论|对话|演讲)(?:中)?[，, ]*"
+            r"(?:主要|重点|深入|详细|还)?(?:介绍了|讨论了|探讨了|聚焦于|强调了|涵盖了|分享了)?[，, ]*",
+            "",
+            cleaned,
+        )
+        cleaned = re.sub(r"([\u4e00-\u9fff])\1{2,}", r"\1", cleaned)
+        cleaned = re.sub(r"([，。！？；：])\1+", r"\1", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned)
+        cleaned = re.sub(r"\s*([，。！？；：、])\s*", r"\1", cleaned)
+        cleaned = re.sub(r"[，。]{2,}", "。", cleaned)
+        cleaned = re.sub(r"^[，。；：、,;: ]+", "", cleaned).strip()
+        if cleaned and not _is_non_learning_sentence(cleaned):
+            kept.append(cleaned)
+    return "".join(kept).strip()
+
+
+def clean_course_text(text, similarity=0.92):
+    """清洗整课派生文本，并删除完全相同或高度相似的重复句。"""
+    if not text:
+        return ""
+    output = []
+    seen_keys = []
+    exact_keys = set()
+    for raw_line in str(text).splitlines():
+        line = raw_line.strip()
+        if not line:
+            if output and output[-1] != "":
+                output.append("")
+            continue
+        if line.startswith("#"):
+            heading = re.sub(r"^#+\s*", "", line)
+            heading = clean_text(heading)
+            if heading:
+                output.append(f"## {heading}")
+            continue
+        for sentence in re.findall(r"[^。！？!?；;]+[。！？!?；;]?", line):
+            cleaned = clean_text(sentence)
+            key = _sentence_key(cleaned)
+            if not key:
+                continue
+            duplicate = key in exact_keys
+            if not duplicate and len(key) >= 12:
+                duplicate = any(
+                    SequenceMatcher(None, key, old).ratio() >= similarity
+                    for old in seen_keys
+                    if len(old) >= 12
+                    and abs(len(key) - len(old)) <= max(3, len(key) // 10)
+                    and (key[:6] == old[:6] or key[-6:] == old[-6:])
+                )
+            if duplicate:
+                continue
+            seen_keys.append(key)
+            exact_keys.add(key)
+            output.append(cleaned)
+    while output and output[-1] == "":
+        output.pop()
+    return "\n".join(output)
 
 
 def _course_key(fname):
@@ -223,7 +350,7 @@ def build_kb():
       kb: {"courses": {课程名: {"original": {...}, "summary": {...}}}, "file_signs": {...}}
       newly_added: 本次新增/变化的课程名列表
     """
-    kb = {"courses": {}, "file_signs": {}}
+    kb = {"cache_version": CACHE_VERSION, "courses": {}, "file_signs": {}}
     newly_added = []
 
     # 读取已有缓存
@@ -231,8 +358,9 @@ def build_kb():
         try:
             with open(CACHE_FILE, encoding="utf-8") as f:
                 old = json.load(f)
-            kb["courses"] = old.get("courses", {})
-            kb["file_signs"] = old.get("file_signs", {})
+            if old.get("cache_version") == CACHE_VERSION:
+                kb["courses"] = old.get("courses", {})
+                kb["file_signs"] = old.get("file_signs", {})
         except Exception:
             pass
 
@@ -247,8 +375,6 @@ def build_kb():
             continue  # 未变化，跳过
 
         paras = parse_docx(path)
-        if not paras:
-            continue
         course = kb["courses"].setdefault(name, {"original": None, "summary": None})
         if kind == "原文":
             course["original"] = parse_original(paras)
@@ -265,7 +391,8 @@ def build_kb():
     if os.path.isdir(KB_DIR):
         try:
             with open(CACHE_FILE, "w", encoding="utf-8") as f:
-                json.dump({"courses": kb["courses"], "file_signs": kb["file_signs"]},
+                json.dump({"cache_version": CACHE_VERSION,
+                           "courses": kb["courses"], "file_signs": kb["file_signs"]},
                           f, ensure_ascii=False, indent=2)
         except Exception:
             pass
@@ -281,7 +408,10 @@ def has_file_changes():
     if os.path.exists(CACHE_FILE):
         try:
             with open(CACHE_FILE, encoding="utf-8") as f:
-                old_signs = json.load(f).get("file_signs", {}) or {}
+                cached = json.load(f)
+            if cached.get("cache_version") != CACHE_VERSION:
+                return True
+            old_signs = cached.get("file_signs", {}) or {}
         except Exception:
             pass
     current_signs = {}
@@ -300,7 +430,7 @@ def has_file_changes():
 def get_kb():
     """读取缓存中的知识库（不重新扫描）。页面加载时用 build_kb 即可。"""
     if not os.path.exists(CACHE_FILE):
-        return {"courses": {}, "file_signs": {}}
+        return {"cache_version": CACHE_VERSION, "courses": {}, "file_signs": {}}
     with open(CACHE_FILE, encoding="utf-8") as f:
         return json.load(f)
 
@@ -353,6 +483,225 @@ def _all_terms(courses):
     return [x for x in pool if x.strip()]
 
 
+def timestamp_seconds(timestamp):
+    """将 MM:SS / HH:MM:SS 转为秒；格式无效时返回 None。"""
+    if not isinstance(timestamp, str):
+        return None
+    value = timestamp.strip().replace("：", ":")
+    if not re.fullmatch(r"\d+:\d{2}(?::\d{2})?", value):
+        return None
+    parts = [int(part) for part in value.split(":")]
+    if parts[-1] >= 60 or (len(parts) == 3 and parts[1] >= 60):
+        return None
+    if len(parts) == 2:
+        return parts[0] * 60 + parts[1]
+    return parts[0] * 3600 + parts[1] * 60 + parts[2]
+
+
+def _section_reference(value):
+    """把时间戳字符串或章节字典规范为章节引用。"""
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        if value.startswith("original-"):
+            return {"id": value}
+        return {"ts": value}
+    return {}
+
+
+def _summary_section_index(course, reference):
+    """按精确时间戳或标题查找导读章节下标。"""
+    sections = ((course or {}).get("summary") or {}).get("sections", [])
+    target_seconds = timestamp_seconds(reference.get("ts"))
+    for index, section in enumerate(sections):
+        section_seconds = timestamp_seconds(section.get("ts"))
+        if target_seconds is not None and section_seconds == target_seconds:
+            return index
+        if reference.get("title") and section.get("title") == reference["title"]:
+            return index
+    return None
+
+
+def _original_section_index(section_id, segment_count):
+    """解析 original-N 标识并返回零基下标。"""
+    match = re.fullmatch(r"original-(\d+)", str(section_id or ""))
+    if not match:
+        return None
+    index = int(match.group(1)) - 1
+    return index if 0 <= index < segment_count else None
+
+
+def section_original_segments(course, section):
+    """按章节引用提取原文；导读章节使用本章起点到下一章起点的区间。"""
+    reference = _section_reference(section)
+    segments = ((course or {}).get("original") or {}).get("segments", [])
+    original_index = _original_section_index(reference.get("id"), len(segments))
+    if original_index is not None:
+        return [segments[original_index]]
+
+    summary_sections = ((course or {}).get("summary") or {}).get("sections", [])
+    summary_index = _summary_section_index(course, reference)
+    if summary_index is not None:
+        start = timestamp_seconds(summary_sections[summary_index].get("ts"))
+        end = None
+        for next_section in summary_sections[summary_index + 1:]:
+            end = timestamp_seconds(next_section.get("ts"))
+            if end is not None:
+                break
+    else:
+        start = timestamp_seconds(reference.get("ts"))
+        end = None
+        if start is not None:
+            later = []
+            for segment in segments:
+                segment_seconds = timestamp_seconds(segment.get("ts"))
+                if segment_seconds is not None and segment_seconds > start:
+                    later.append(segment_seconds)
+            end = min(later) if later else None
+    if start is None:
+        return []
+    matched = []
+    for segment in segments:
+        segment_seconds = timestamp_seconds(segment.get("ts"))
+        if segment_seconds is None or segment_seconds < start:
+            continue
+        if end is None or segment_seconds < end:
+            matched.append(segment)
+    return matched
+
+
+def course_original_entries(course):
+    """返回带稳定段落标识的原文条目，供浏览和关键词定位复用。"""
+    segments = ((course or {}).get("original") or {}).get("segments", [])
+    entries = []
+    for index, segment in enumerate(segments):
+        text = clean_text(segment.get("text") or "")
+        if not text:
+            continue
+        marker = segment.get("ts") or f"段落 {index + 1}"
+        entries.append({
+            "id": f"original-{index + 1}",
+            "index": index + 1,
+            "ts": segment.get("ts") or "",
+            "marker": marker,
+            "text": text,
+        })
+    return entries
+
+
+def search_course_segments(course, query="", limit=None):
+    """在课程原文中按全部关键词检索；空查询返回可分页的完整原文。"""
+    entries = course_original_entries(course)
+    terms = [term.casefold() for term in re.split(r"\s+", str(query).strip()) if term]
+    if terms:
+        entries = [
+            entry for entry in entries
+            if all(term in entry["text"].casefold() for term in terms)
+        ]
+    return entries[:limit] if isinstance(limit, int) and limit >= 0 else entries
+
+
+def _section_context_unit(course, section, index):
+    """构造一个完整章节的导读与原文单元。"""
+    title = section.get("title") or f"章节 {index + 1}"
+    marker = section.get("ts") or section.get("id") or str(index + 1)
+    lines = [f"【章节 {marker}】{title}"]
+    body = clean_text(section.get("body") or "")
+    if body:
+        lines.append("【导读】" + body)
+    segments = section_original_segments(course, section)
+    for segment in segments:
+        segment_marker = segment.get("ts") or "无时间戳"
+        lines.append(f"[{segment_marker}] {clean_text(segment.get('text') or '')}")
+    return {"id": f"section-{index + 1}", "title": title, "text": "\n".join(lines)}, segments
+
+
+def course_context_units(course):
+    """按章节构造整课上下文单元，并补入未被导读区间覆盖的原文。"""
+    summary = (course or {}).get("summary") or {}
+    original = (course or {}).get("original") or {}
+    units = []
+    covered = set()
+    for index, section in enumerate(summary.get("sections", [])):
+        unit, segments = _section_context_unit(course, section, index)
+        if unit["text"].strip():
+            units.append(unit)
+        covered.update(id(segment) for segment in segments)
+    entries_by_index = {entry["index"]: entry for entry in course_original_entries(course)}
+    for index, segment in enumerate(original.get("segments", []), 1):
+        if id(segment) not in covered:
+            entry = entries_by_index.get(index)
+            if not entry:
+                continue
+            units.append({"id": entry["id"], "title": entry["marker"],
+                          "text": f"【原文 {entry['marker']}】\n{entry['text']}"})
+    if not units and summary.get("summary"):
+        units.append({"id": "summary", "title": "全文摘要",
+                      "text": "【全文摘要】" + summary["summary"]})
+    return units
+
+
+def _split_context_unit(unit, max_chars):
+    """把超长章节切为连续文本块，并保留章节标题。"""
+    text = unit["text"]
+    if len(text) <= max_chars:
+        return [unit]
+    prefix = f"【{unit['title']} · 分段】\n"
+    size = max(1, max_chars - len(prefix))
+    pieces = []
+    for index, start in enumerate(range(0, len(text), size), 1):
+        pieces.append({"id": f"{unit['id']}-{index}", "title": unit["title"],
+                       "text": prefix + text[start:start + size]})
+    return pieces
+
+
+def course_context_chunks(course, max_chars=8000):
+    """按章节边界打包整课上下文，确保头、中、尾内容均进入某个文本块。"""
+    units = []
+    for unit in course_context_units(course):
+        units.extend(_split_context_unit(unit, max_chars))
+    chunks, current, current_size = [], [], 0
+    for unit in units:
+        extra = len(unit["text"]) + (2 if current else 0)
+        if current and current_size + extra > max_chars:
+            chunks.append(current)
+            current, current_size = [], 0
+        current.append(unit)
+        current_size += len(unit["text"]) + (2 if len(current) > 1 else 0)
+    if current:
+        chunks.append(current)
+    return [{"id": f"chunk-{index + 1}",
+             "title": " / ".join(unit["title"] for unit in group),
+             "text": "\n\n".join(unit["text"] for unit in group)}
+            for index, group in enumerate(chunks)]
+
+
+def _balanced_unit_excerpt(units, max_chars):
+    """在字符预算内均衡保留每个章节的开头与结尾。"""
+    if not units:
+        return ""
+    joined = "\n\n".join(unit["text"] for unit in units)
+    if len(joined) <= max_chars:
+        return joined
+    quota = max(12, (max_chars - len(units) * 2) // len(units))
+    excerpts = []
+    for unit in units:
+        text = unit["text"]
+        if len(text) > quota:
+            head = max(1, quota * 2 // 3)
+            text = text[:head] + "…" + text[-max(1, quota - head - 1):]
+        excerpts.append(text)
+    result = "\n\n".join(excerpts)
+    return result[:max_chars]
+
+
+def _section_filter_references(section_filter, course_name):
+    """读取一门课的章节过滤条件，兼容旧时间戳字符串列表。"""
+    if not section_filter or course_name not in section_filter:
+        return []
+    return [_section_reference(value) for value in section_filter[course_name]]
+
+
 def gen_questions(kb, num=3, focus=None, course_names=None, section_filter=None):
     """基于知识库生成 num 道单选题。
 
@@ -362,7 +711,7 @@ def gen_questions(kb, num=3, focus=None, course_names=None, section_filter=None)
 
     focus: 岗位重点关键词列表，命中关键词的课程优先出题。
     course_names: 可选，限定出题范围。可传大纲课程名或知识库课程名，内部按 normalize 自动匹配绑定。
-    section_filter: 可选 dict，{知识库课程名: [ts, ...]}，仅从指定章节（分钟级时间戳匹配）出题。
+    section_filter: 可选 dict，{知识库课程名: [章节引用, ...]}，按章节区间或 original-N 精确出题。
     题目内容全部来自课程原文与导读；不足 num 时返回实际可生成的题数。
     """
     courses = kb.get("courses", {})
@@ -406,12 +755,13 @@ def gen_questions(kb, num=3, focus=None, course_names=None, section_filter=None)
     sec_list = []
     for name in names:
         sm = courses[name].get("summary") or {}
-        for s in sm.get("sections", []):
+        references = _section_filter_references(section_filter, name)
+        for index, s in enumerate(sm.get("sections", [])):
             if not (s.get("title") and s.get("body")):
                 continue
-            # 章节级出题范围过滤：命中指定时间戳（分钟级匹配）
-            if section_filter and name in section_filter:
-                if not any(s.get("ts", "")[:5] == ts[:5] for ts in section_filter[name]):
+            if references:
+                if not any(_summary_section_index(courses[name], ref) == index
+                           for ref in references):
                     continue
             sec_list.append((name, s))
     if len(sec_list) >= N_OPTIONS and len(questions) < num:
@@ -444,6 +794,8 @@ def gen_questions(kb, num=3, focus=None, course_names=None, section_filter=None)
     # ---- 题型 2：关键词匹配 ----
     kw_list = []
     for name in names:
+        if _section_filter_references(section_filter, name):
+            continue
         sm = courses[name].get("summary") or {}
         if len(sm.get("keywords", [])) >= 2:
             kw_list.append((name, sm["keywords"]))
@@ -473,18 +825,24 @@ def gen_questions(kb, num=3, focus=None, course_names=None, section_filter=None)
             org = courses[name].get("original")
             if not org:
                 continue
+            references = _section_filter_references(section_filter, name)
+            allowed_segments = {
+                id(segment)
+                for reference in references
+                for segment in section_original_segments(courses[name], reference)
+            }
             for seg in org.get("segments", []):
                 text = clean_text(seg.get("text", ""))
-                if section_filter and name in section_filter:
-                    if not any(seg.get("ts", "")[:5] == ts[:5] for ts in section_filter[name]):
-                        continue
+                if references and id(seg) not in allowed_segments:
+                    continue
                 for sent in SENT_SPLIT_RE.split(text):
                     sent = sent.strip()
                     if len(sent) < 20 or len(sent) > 120:
                         continue
                     for term in _extract_key_terms(sent):
                         if term in sent:
-                            candidates.append((name, seg["ts"], sent, term))
+                            marker = seg.get("ts") or "无时间戳段落"
+                            candidates.append((name, marker, sent, term))
                             break
         random.shuffle(candidates)
         used = set()
@@ -520,49 +878,48 @@ def gen_questions(kb, num=3, focus=None, course_names=None, section_filter=None)
 # 四、LLM 上下文生成（供 app.py 的 AI 出题 / AI 助教使用）
 # ============================================================
 
-def kb_course_context(course, max_chars=4000, section_ts=None):
+def kb_course_context(course, max_chars=4000, section_ts=None, section=None):
     """把一门课的知识库内容拼成适合送入 LLM 的上下文文本。
 
     优先导读（关键词 / 全文摘要 / 章节速览），再附原文摘录；整体按 max_chars 裁剪。
 
-    section_ts: 可选，指定只提取该章节（分钟级时间戳匹配）的导读正文与对应时段原文，
-    用于「按章节精准定向出题」。
+    section_ts 保留用于兼容历史调用；section 可传统一章节字典。指定章节后，导读章节
+    按当前起点到下一章起点提取原文，无时间戳原文按 original-N 精确定位。
     """
-    parts = []
     sm = course.get("summary") or {}
     org = course.get("original") or {}
 
-    if section_ts:
-        for s in sm.get("sections", []):
-            if s.get("ts", "")[:5] == section_ts[:5]:
-                parts.append("【章节 %s】%s\n%s" % (s.get("ts", ""), s.get("title", ""), clean_text(s.get("body", "") or "")))
-        if org.get("segments"):
-            matched = [seg for seg in org["segments"] if seg.get("ts", "")[:5] == section_ts[:5]]
-            if matched:
-                parts.append("【原文摘录】\n" + "\n".join(
-                    "[%s] %s" % (seg.get("ts", ""), clean_text(seg.get("text", ""))) for seg in matched))
-        text = "\n\n".join(p for p in parts if p)
-        if len(text) > max_chars:
-            text = text[:max_chars] + "\n…（内容过长已截断）"
-        return text
+    reference = _section_reference(section or section_ts)
+    if reference:
+        section_units = []
+        summary_index = _summary_section_index(course, reference)
+        if summary_index is not None:
+            selected = sm["sections"][summary_index]
+            section_units.append({
+                "id": "guide", "title": selected.get("title", "章节导读"),
+                "text": "【章节 %s】%s\n%s" % (
+                    selected.get("ts", ""), selected.get("title", ""),
+                    clean_text(selected.get("body", "") or ""),
+                ),
+            })
+        matched = section_original_segments(course, reference)
+        if matched:
+            positions = {id(item): index + 1 for index, item in enumerate(org.get("segments", []))}
+            for segment in matched:
+                marker = segment.get("ts") or f"段落 {positions.get(id(segment), '?')}"
+                section_units.append({
+                    "id": f"original-{positions.get(id(segment), '?')}", "title": marker,
+                    "text": "[%s] %s" % (marker, clean_text(segment.get("text", ""))),
+                })
+        return _balanced_unit_excerpt(section_units, max_chars)
 
+    metadata = []
     if sm.get("keywords"):
-        parts.append("【关键词】" + "、".join(sm["keywords"]))
+        metadata.append("【关键词】" + "、".join(sm["keywords"]))
     if sm.get("summary"):
-        parts.append("【全文摘要】" + sm["summary"])
-    if sm.get("sections"):
-        secs = []
-        for s in sm["sections"]:
-            secs.append("【章节 %s】%s\n%s" % (s.get("ts", ""), s.get("title", ""), clean_text(s.get("body", "") or "")))
-        parts.append("【章节速览】\n" + "\n\n".join(secs))
-
-    if org.get("segments"):
-        joined = "\n".join("[%s] %s" % (s.get("ts", ""), clean_text(s.get("text", ""))) for s in org["segments"])
-        parts.append("【原文摘录】\n" + joined)
-
-    text = "\n\n".join(p for p in parts if p)
-    if len(text) > max_chars:
-        head = max_chars * 3 // 4
-        tail = max_chars - head - 1
-        text = text[:head] + "\n…（内容过长已截断）\n" + text[-tail:]
-    return text
+        metadata.append("【全文摘要】" + sm["summary"])
+    units = course_context_units(course)
+    if metadata:
+        units.insert(0, {"id": "metadata", "title": "课程概览",
+                         "text": "\n\n".join(metadata)})
+    return _balanced_unit_excerpt(units, max_chars)
