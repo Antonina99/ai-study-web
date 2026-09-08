@@ -75,6 +75,17 @@ class TranscriptParsingTests(unittest.TestCase):
         self.assertNotIn("拜拜", cleaned)
         self.assertNotIn("下周二见", cleaned)
 
+    def test_summary_boilerplate_and_sales_content_are_removed(self):
+        cleaned = kb.clean_course_text(
+            "在这次讨论中，焦点放在了Agent检查点与恢复机制。"
+            "课程章节介绍检查点如何恢复执行。"
+            "此外还介绍价格优惠和直播课回放。"
+        )
+        self.assertIn("Agent检查点与恢复机制", cleaned)
+        self.assertIn("课程章节", cleaned)
+        self.assertNotIn("焦点放在了", cleaned)
+        self.assertNotIn("价格优惠", cleaned)
+
     def test_course_cleanup_deduplicates_repeated_sentences(self):
         cleaned = kb.clean_course_text(
             "RAG 通过检索补充模型上下文。\nRAG 通过检索补充模型上下文。\n"

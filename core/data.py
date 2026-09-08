@@ -102,6 +102,8 @@ COURSE_MODULES = {
         "🔥 Harness Engineering",
         "搭建Hermes Agent 中的长期记忆和自进化能力",
         "实现Hermes中的多Agent协作、主Agent调度",
+        "Loop Engineering：由目标驱动的复杂智能体实现原理分析",
+        "最强模型Fable5 - Harness架构下的模型训练范式大变革",
         "🔥 项目实战：OpenManus开发实战",
         "💼 就业服务：Agent相关简历+面试问题辅导",
     ],
@@ -172,6 +174,8 @@ CAREER_COURSE_RULES = [
     ('🔥 项目实战：OpenManus开发实战', '岗位核心', '验证Agent工程实践能力', '关注工具集成与调试，而非记忆框架名', 'agent_fullstack'),
     ('搭建Hermes Agent 中的长期记忆和自进化能力', '专项选学', '在单Agent稳定后扩展复杂能力', '记忆或协作机制及适用边界', 'agent_fullstack architect'),
     ('实现Hermes中的多Agent协作、主Agent调度', '专项选学', '在单Agent稳定后扩展复杂能力', '记忆或协作机制及适用边界', 'agent_fullstack architect'),
+    ('Loop Engineering：由目标驱动的复杂智能体实现原理分析', '岗位核心', '用目标、反馈和检查机制驱动复杂任务持续执行', '循环控制、越界约束、反馈与停止条件', 'agent_fullstack architect'),
+    ('最强模型Fable5 - Harness架构下的模型训练范式大变革', '专项选学', '理解长任务中的检查点、恢复与人类介入', '关注Harness机制；模型与营销信息仅作案例', 'agent_fullstack llm_algorithm architect'),
     ('企业级AI部署：从硬件选型到框架选择', '岗位核心', '将模型应用可靠交付为服务', '硬件预算、部署与交付', 'agent_fullstack infra_devops architect'),
     ('AI服务核心：高并发原理与性能监控调优', '岗位核心', '将模型应用可靠交付为服务', '并发、延迟、吞吐与监控', 'agent_fullstack infra_devops architect'),
     ('神经网络基础与Tensorflow实战', '基础必学', '补齐训练所需基础', '神经网络与优化原理；框架实操按需', 'llm_algorithm'),
@@ -449,9 +453,15 @@ def build_course_index(courses, api_key=None, model=None):
     index = []
     bound_keys = set()
     # 归一化映射：归一化课程名 -> 原始课程名（同一门课去重，保留第一个原始名）
+    # 编号 13 的资料文件名误用了上一课标题，但导读和原文实际为多 Agent
+    # 调度课程；在绑定层校正，不改写用户提供的源文件。
+    course_name_aliases = {
+        "13. 搭建Hermes Agent 中的长期记忆和自进化能力":
+            "实现Hermes中的多Agent协作、主Agent调度",
+    }
     norm_map = {}
     for k in courses:
-        nk = kb.normalize(k)
+        nk = kb.normalize(course_name_aliases.get(k, k))
         if nk:
             norm_map.setdefault(nk, k)
     for mod in MODULES:

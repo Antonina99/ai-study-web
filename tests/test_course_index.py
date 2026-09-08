@@ -9,6 +9,14 @@ from views import tab2_quiz
 
 
 class CourseIndexTests(unittest.TestCase):
+    def test_mislabeled_multi_agent_course_binds_to_correct_outline(self):
+        kb_name = "13. 搭建Hermes Agent 中的长期记忆和自进化能力"
+        index = data.build_course_index({kb_name: {}})
+        matched = [item for item in index if item.get("kb_name") == kb_name]
+        self.assertEqual(len(matched), 1)
+        self.assertEqual(matched[0]["name"], "实现Hermes中的多Agent协作、主Agent调度")
+        self.assertEqual(matched[0]["module_no"], 3)
+
     def test_numbered_kb_name_matches_outline_without_api(self):
         kb_name = "2. 从提示工程到RAG：构建大模型的知识与交互基础"
         index = data.build_course_index({kb_name: {}})

@@ -21,7 +21,15 @@ class RealCourseInventoryTests(unittest.TestCase):
                 self.assertTrue(data.course_sections(course), "章节应可定位")
                 self.assertTrue(kb.course_context_chunks(course, 24000), "整课应可分块")
 
+                cleaned_text = data._rule_cleaned_doc(course)
+                self.assertTrue(cleaned_text, "课程应能生成清洗后的干货正文")
+                self.assertNotIn("价格优惠", cleaned_text)
                 keywords = ((course.get("summary") or {}).get("keywords") or ["AI"])
+                groups = data.course_knowledge_groups(
+                    cleaned_text, career, course=course, keywords=keywords,
+                )
+                self.assertTrue(groups, "课程应能归纳为可折叠知识分组")
+
                 with mock.patch.object(data.st, "session_state", {
                     "llm_model": "offline-test", "chat_msgs": [], "cleaned_cache": {},
                 }):
