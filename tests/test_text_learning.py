@@ -137,6 +137,22 @@ class CourseAssetTests(unittest.TestCase):
                 self.assertTrue(data.course_priority_reasons(course_name, career))
         self.assertFalse(data.course_priority_reasons("LLM微调原理", "agent_fullstack"))
 
+    def test_path_profiles_are_exact_and_role_specific(self):
+        courses = {name for names in data.COURSE_MODULES.values() for name in names}
+        for path in data.CAREER_COURSE_PATHS.values():
+            self.assertTrue(set(path).issubset(courses))
+            self.assertTrue(all(p["reason"] and p["scope"] for p in path.values()))
+        profile = data.course_learning_profile
+        self.assertEqual(profile("Embeddings和向量数据库", "agent_fullstack")["level"], "岗位核心")
+        self.assertFalse(profile("新增项目实战", "ai_pm_architect"))
+        self.assertFalse(profile("🔥 项目实战：AI质检", "infra_devops"))
+        name = "大型软件项目的AI开发与AI重构"
+        self.assertEqual(profile(name, "prompt_coding", "coding")["level"], "岗位核心")
+        self.assertEqual(profile(name, "prompt_coding", "office")["level"], "专项选学")
+        name = "企业级AI部署：从硬件选型到框架选择"
+        self.assertFalse(profile(name, "ai_pm_architect", "product"))
+        self.assertEqual(profile(name, "ai_pm_architect", "architect")["level"], "岗位核心")
+
     def test_chunk_merge_cleans_and_deduplicates_ai_results(self):
         processed = [
             ({"title": "第一章"}, {

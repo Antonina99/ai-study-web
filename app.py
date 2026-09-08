@@ -31,6 +31,8 @@ def init_session_state():
     data.refresh_kb()
     defaults = {
         "api_key": "",
+        "path_variant_ai_pm_architect": "product",
+        "path_variant_prompt_coding": "coding",
         "llm_model": llm.DEFAULT_MODEL,
         "current_course": data.COURSE_INDEX[0],
         "current_section": None,

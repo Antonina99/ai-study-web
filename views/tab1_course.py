@@ -74,38 +74,49 @@ def _render_career_course_tree(current_item, career_direction):
         data.kb.normalize(course.get("name"))
         for course in data.COURSE_INDEX if course.get("kb_name")
     }
-    priorities = {
-        course_name: data.course_priority_reasons(course_name, career_direction)
-        for module in data.MODULES
-        for course_name in module.get("courses", [])
-    }
-    priority_total = sum(bool(reasons) for reasons in priorities.values())
+    variant = None
+    options = data.CAREER_PATH_VARIANTS.get(career_direction, {})
+    if options:
+        variant = st.radio("课程路径侧重点", list(options),
+                           format_func=options.get, horizontal=True,
+                           key=f"path_variant_{career_direction}")
+        st.caption("侧重点用于下方课程路径；问答和测评仍使用侧边栏的求职方向。")
+    path = variant or career_direction
+    title = options.get(variant, career.get("name", career_direction))
     st.markdown(
-        f'<div class="knowledge-tree-root"><span>目标岗位</span>'
-        f'<strong>{escape(career.get("name", career_direction))}</strong>'
-        f'<small>{escape(career.get("desc", ""))} · {priority_total} 门重点课程</small></div>',
+        f'<div class="knowledge-tree-root"><span>学习路径</span>'
+        f'<strong>{escape(title)}</strong>'
+        '<small>基础必学 → 岗位核心 → 专项选学 · 求职准备</small></div>',
         unsafe_allow_html=True,
     )
+    st.caption("课程定位依据当前大纲；未入库课程的具体覆盖范围待原文确认。未标记课程可按需浏览。")
+    if data.PATH_GAPS.get(path):
+        st.info(data.PATH_GAPS[path])
     for module in data.MODULES:
         if module.get("no") == data.EXT_MODULE_NO:
             continue
         courses = module.get("courses", [])
-        priority_count = sum(bool(priorities.get(name)) for name in courses)
+        profiles = {name: data.course_learning_profile(name, career_direction, variant)
+                    for name in courses}
+        core_count = sum(p.get("level") == "岗位核心" for p in profiles.values())
         contains_current = any(data.kb.normalize(name) == current_key for name in courses)
-        label = f"{module['name']}　·　⭐ {priority_count} 门岗位重点"
-        with st.expander(label, expanded=contains_current):
-            for course_name in courses:
-                reasons = priorities.get(course_name) or []
-                normalized = data.kb.normalize(course_name)
-                tags = []
-                if reasons:
-                    tags.append(("岗位重点", "priority"))
-                if normalized == current_key:
-                    tags.append(("当前课程", "current"))
-                if normalized in bound_keys:
-                    tags.append(("已有文字", "ready"))
-                detail = f"重点关联：{' / '.join(reasons)}" if reasons else ""
-                _render_tree_node(course_name, tags, bool(reasons), detail)
+        with st.expander(f"{module['name']} · {core_count} 门岗位核心", expanded=contains_current):
+            for name in courses:
+                _render_career_node(name, profiles[name], current_key, bound_keys)
+
+
+def _render_career_node(name, profile, current_key, bound_keys):
+    """展示课程等级、推荐理由和明确的学习范围。"""
+    kinds = {"基础必学": "foundation", "岗位核心": "priority",
+             "专项选学": "optional", "求职准备": "preparation"}
+    level = profile.get("level")
+    tags = [(level, kinds[level])] if level else []
+    normalized = data.kb.normalize(name)
+    if normalized == current_key:
+        tags.append(("当前课程", "current"))
+    tags.append(("已有文字", "ready") if normalized in bound_keys else ("待补原文", "optional"))
+    detail = (f"{profile['reason']} · 学习范围：{profile['scope']}" if profile else "")
+    _render_tree_node(name, tags, level == "岗位核心", detail)
 
 
 def _render_course_knowledge_tree(item, groups):

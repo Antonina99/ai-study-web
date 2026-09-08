@@ -300,3 +300,9 @@ code {
   .knowledge-tree-node { align-items: flex-start; flex-direction: column; }
   .knowledge-tree-tags { justify-content: flex-start; }
 }
+
+/* 课程路径的学习等级 */
+.knowledge-tree-tag.foundation { background: #eaf2ff; color: #315eaa; }
+.knowledge-tree-tag.optional { background: #f1f3f5; color: #647080; }
+.knowledge-tree-tag.preparation { background: #fff3de; color: #946511; }
+.knowledge-tree-label small { line-height: 1.6; }

@@ -42,7 +42,7 @@ CAREER_DIRECTIONS = {
         "fallback_job": "finetune_engineer",
     },
     "infra_devops": {
-        "name": "AI 架构 / Infra / 运维工程师",
+        "name": "AI 推理服务 / Infra / 运维工程师",
         "desc": "专注于高性能推理加速、集群调度与高并发部署",
         "focus": ["SGLang", "vLLM", "显卡调度", "高并发部署", "Quantization量化", "K8s/Triton"],
         "fallback_job": "infra_engineer",
@@ -54,7 +54,7 @@ CAREER_DIRECTIONS = {
         "fallback_job": "ai_pm",
     },
     "prompt_coding": {
-        "name": "Prompt 工程师 / AI 提效泛职场",
+        "name": "Prompt 与 AI 提效",
         "desc": "专注于提示词工程、AI 辅助编程（AI Coding）与个人/企业提效",
         "focus": ["Prompt工程", "AI Coding", "Cursor/Copilot", "Workflow自动化", "结构化输出"],
         "fallback_job": "prompt_engineer",
@@ -129,30 +129,85 @@ COURSE_MODULES = {
     ],
 }
 
-# 各求职方向的重点课程匹配词；用于可折叠课程路径中的显式标记。
-CAREER_PRIORITY_COURSE_TERMS = {
-    "agent_fullstack": [
-        "从提示工程到RAG", "RAG技术与应用", "RAG调优", "企业知识库", "LangChain",
-        "AI框架设计", "Agent：从可控性", "Function Calling", "自主规划与工具开发",
-        "能力优化与效果评估", "Harness", "多Agent协作", "OpenManus", "综合实战项目复盘",
-    ],
-    "llm_algorithm": [
-        "神经网络", "Pytorch", "视觉与多模态模型", "多模态前沿", "LLM微调",
-        "微调数据", "模型蒸馏", "HuggingFace", "模型训练与微调", "综合实战",
-    ],
-    "infra_devops": [
-        "企业级AI部署", "高并发", "SGLang", "显卡资源", "华为昇腾", "AI质检",
-        "模型部署", "部署全链路", "综合实战",
-    ],
-    "ai_pm_architect": [
-        "AI大模型基本原理", "从提示工程到RAG", "AI框架设计与选型", "企业知识库",
-        "RAG多模态数据处理", "项目实战", "综合实战项目复盘", "高频面试",
-    ],
-    "prompt_coding": [
-        "AI大模型基本原理", "提示工程", "AI编程", "AI Coding", "大型软件项目",
-        "团队重新分工", "LangChain", "Workflow", "综合实战",
-    ],
+# 课程学习路径使用完整课程名精确配置，不以标题关键词推断重要性。
+CAREER_PATH_VARIANTS = {
+    "ai_pm_architect": {"product": "AI 产品经理", "architect": "解决方案架构师"},
+    "prompt_coding": {"coding": "AI 编程提效", "office": "办公提效"},
 }
+PATH_GAPS = {
+    "llm_algorithm": "预训练、RLHF/DPO 的课程覆盖尚待原文确认。视觉检测与视频生成按岗位选学。",
+    "infra_devops": "vLLM、量化、K8s/Triton 的课程覆盖尚待原文确认。",
+    "product": "需求分析、业务指标和成本估算暂无明确专课，需补充学习。",
+    "architect": "安全边界、容量规划和成本估算需结合项目补充验证。",
+    "office": "办公工作流、信息整理和结果验证暂无充分的专课覆盖，编程课程按需选学。",
+}
+
+
+def _build_career_paths():
+    """按完整课程标题生成各路径的等级、推荐理由与学习范围。"""
+    paths = {key: {} for key in (
+        "agent_fullstack", "llm_algorithm", "infra_devops", "product", "architect", "coding", "office"
+    )}
+    for course, level, reason, scope, targets in CAREER_COURSE_RULES:
+        for target in targets.split():
+            paths[target][course] = {"level": level, "reason": reason, "scope": scope}
+    return paths
+
+
+# 每行显式列出课程、等级、理由、学习范围和适用路径。
+CAREER_COURSE_RULES = [
+    ('AI大模型基本原理及API使用', '基础必学', '建立模型能力边界与调用基础', '模型限制、API、输出检查', 'agent_fullstack llm_algorithm infra_devops product architect coding office'),
+    ('从提示工程到RAG：构建大模型的知识与交互基础', '基础必学', '理解提示与外部知识如何影响结果', '提示设计、知识引用、结果验证', 'agent_fullstack product architect coding office'),
+    ('Embeddings和向量数据库', '岗位核心', '为检索召回和RAG调优建立基础', '语义表示、索引与检索', 'agent_fullstack architect'),
+    ('RAG技术与应用', '岗位核心', '建立知识检索与生成链路', '检索、生成与引用', 'agent_fullstack architect'),
+    ('RAG调优', '岗位核心', '定位并改善知识问答效果', '召回、重排与评估', 'agent_fullstack architect'),
+    ('AI框架设计与选型', '岗位核心', '根据交付约束选择技术方案', '框架边界与选型比较', 'agent_fullstack architect'),
+    ('🔥 项目实战：企业知识库（企业RAG大赛冠军项目）', '岗位核心', '验证完整知识库的交付能力', '数据接入、检索、评估与集成', 'agent_fullstack architect'),
+    ('🔥 Function Calling与MCP (上下文交互协议)', '岗位核心', '连接模型与外部工具', '工具接口、参数与执行边界', 'agent_fullstack architect'),
+    ('Agent：从可控性到自主反思', '岗位核心', '理解智能体执行和控制机制', '任务循环、失败恢复与可控性', 'agent_fullstack architect'),
+    ('Agent的能力优化与效果评估', '岗位核心', '建立可验证的任务质量标准', '成功率、工具调用与失败分析', 'agent_fullstack architect'),
+    ('LangChain：多任务应用开发', '岗位核心', '实践应用编排与组件集成', '通过框架理解可迁移的工程模式', 'agent_fullstack'),
+    ('Agent的自主规划与工具开发', '岗位核心', '实现可执行的任务链路', '规划、工具实现与错误处理', 'agent_fullstack'),
+    ('🔥 Harness Engineering', '岗位核心', '完善智能体运行约束', '执行环境、反馈与控制', 'agent_fullstack'),
+    ('🔥 项目实战：OpenManus开发实战', '岗位核心', '验证Agent工程实践能力', '关注工具集成与调试，而非记忆框架名', 'agent_fullstack'),
+    ('搭建Hermes Agent 中的长期记忆和自进化能力', '专项选学', '在单Agent稳定后扩展复杂能力', '记忆或协作机制及适用边界', 'agent_fullstack architect'),
+    ('实现Hermes中的多Agent协作、主Agent调度', '专项选学', '在单Agent稳定后扩展复杂能力', '记忆或协作机制及适用边界', 'agent_fullstack architect'),
+    ('企业级AI部署：从硬件选型到框架选择', '岗位核心', '将模型应用可靠交付为服务', '硬件预算、部署与交付', 'agent_fullstack infra_devops architect'),
+    ('AI服务核心：高并发原理与性能监控调优', '岗位核心', '将模型应用可靠交付为服务', '并发、延迟、吞吐与监控', 'agent_fullstack infra_devops architect'),
+    ('神经网络基础与Tensorflow实战', '基础必学', '补齐训练所需基础', '神经网络与优化原理；框架实操按需', 'llm_algorithm'),
+    ('Pytorch与视觉检测', '基础必学', '建立训练实现能力', 'PyTorch为基础；视觉检测按目标岗位选学', 'llm_algorithm'),
+    ('LLM微调原理', '岗位核心', '完成数据、训练到评估的微调闭环', '结合验证集检查效果与泛化', 'llm_algorithm'),
+    ('🔥 高质量微调数据工程与评估', '岗位核心', '完成数据、训练到评估的微调闭环', '结合验证集检查效果与泛化', 'llm_algorithm'),
+    ('LLM模型蒸馏与微调实操', '岗位核心', '完成数据、训练到评估的微调闭环', '结合验证集检查效果与泛化', 'llm_algorithm'),
+    ('HuggingFace生态实战：从模型应用到高效微调', '岗位核心', '完成数据、训练到评估的微调闭环', '结合验证集检查效果与泛化', 'llm_algorithm'),
+    ('视觉与多模态模型', '专项选学', '面向多模态细分岗位拓展', '文本微调岗位可后置', 'llm_algorithm'),
+    ('多模态前沿：从Agent构建到视频AIGC', '专项选学', '面向多模态细分岗位拓展', '文本微调岗位可后置', 'llm_algorithm'),
+    ('🔥 SGLang 深度优化：Radix 缓存与复杂任务的极致吞吐', '岗位核心', '提升推理服务效率', '缓存、吞吐与性能测量', 'infra_devops'),
+    ('短剧视频逐帧换脸的显卡资源分配及排队系统', '岗位核心', '学习共享算力的调度机制', '资源隔离、任务排队；业务案例为载体', 'infra_devops'),
+    ('🔥 在华为昇腾显卡上部署DeepSeek V4 模型 并连通本地Claude Code', '专项选学', '满足国产算力适配需求', '目标岗位要求昇腾时优先', 'infra_devops'),
+    ('Agent：从可控性到自主反思', '岗位核心', '支撑产品方案与效果判断', '理解能力边界与用户控制', 'product'),
+    ('Agent的能力优化与效果评估', '岗位核心', '支撑产品方案与效果判断', '定义成功指标和效果验收', 'product'),
+    ('AI框架设计与选型', '岗位核心', '支撑产品方案与效果判断', '了解方案约束，不要求深入框架实现', 'product'),
+    ('🔥 项目实战：企业知识库（企业RAG大赛冠军项目）', '岗位核心', '支撑产品方案与效果判断', '关注场景、体验、验收与投入产出', 'product'),
+    ('RAG多模态数据处理', '专项选学', '按实际业务场景选择案例', '产品看场景与验收；架构看集成边界', 'product architect'),
+    ('🔥 项目实战：OpenManus开发实战', '专项选学', '按实际业务场景选择案例', '产品看场景与验收；架构看集成边界', 'product architect'),
+    ('🔥 项目实战：AI质检', '专项选学', '按实际业务场景选择案例', '产品看场景与验收；架构看集成边界', 'product architect'),
+    ('AI编程-从入门到精通', '岗位核心', '提升软件开发与验证效率', '任务拆解、代码审查、测试与重构', 'coding'),
+    ('大厂优秀工程师使用AI Coding 的最新方法与经验', '岗位核心', '提升软件开发与验证效率', '任务拆解、代码审查、测试与重构', 'coding'),
+    ('大型软件项目的AI开发与AI重构', '岗位核心', '提升软件开发与验证效率', '任务拆解、代码审查、测试与重构', 'coding'),
+    ('AI Coding 中的团队重新分工与新协作模式', '专项选学', '适合团队负责人优化协作', '职责分工、审查与交付流程', 'coding office product'),
+    ('LangChain：多任务应用开发', '专项选学', '需要编程自动化时扩展能力', '有编程基础后学习', 'coding office'),
+    ('AI编程-从入门到精通', '专项选学', '仅在办公任务需要开发时学习', '非编程用户可跳过', 'office'),
+    ('大型软件项目的AI开发与AI重构', '专项选学', '仅在办公任务需要开发时学习', '非编程用户可跳过', 'office'),
+    ('综合实战项目复盘 (RAG + Agent + 微调 + 部署全链路集成)', '求职准备', '形成可展示的项目成果与复盘', '选取本方向负责的部分说明贡献', 'agent_fullstack llm_algorithm infra_devops product architect coding'),
+    ('💼 就业服务：RAG及开发框架相关简历+面试问题辅导', '求职准备', '将学习成果转化为求职表达', '按目标岗位筛选题目与项目经历', 'agent_fullstack architect'),
+    ('💼 就业服务：Agent相关简历+面试问题辅导', '求职准备', '将学习成果转化为求职表达', '按目标岗位筛选题目与项目经历', 'agent_fullstack'),
+    ('💼 就业服务：模型训练与微调相关简历+面试问题辅导', '求职准备', '将学习成果转化为求职表达', '按目标岗位筛选题目与项目经历', 'llm_algorithm'),
+    ('Agent / RAG / 开发框架 / 微调部署全套简历优化', '求职准备', '将学习成果转化为求职表达', '按目标岗位筛选题目与项目经历', 'agent_fullstack llm_algorithm infra_devops architect'),
+    ('大模型高频面试真题精讲与模拟辅导', '求职准备', '将学习成果转化为求职表达', '按目标岗位筛选题目与项目经历', 'agent_fullstack llm_algorithm infra_devops product architect coding'),
+]
+CAREER_COURSE_PATHS = _build_career_paths()
+
 
 # 模块补充元信息（展示说明 / 求职方向匹配主题 / 推荐理由）
 _MODULE_META = {
@@ -327,14 +382,17 @@ def module_weight(module, focus):
     return 0.15 + 0.85 * min(1.0, hits / 2)
 
 
+def course_learning_profile(course_name, career_direction, variant=None):
+    """精确查询课程学习定位；未知课程返回空配置，不自动猜测。"""
+    options = CAREER_PATH_VARIANTS.get(career_direction, {})
+    path = variant if variant in options else next(iter(options), career_direction)
+    return dict(CAREER_COURSE_PATHS.get(path, {}).get(course_name, {}))
+
+
 def course_priority_reasons(course_name, career_direction):
-    """返回课程命中的岗位重点标签；空列表表示该岗位下的普通课程。"""
-    normalized_name = kb.normalize(course_name)
-    matches = []
-    for term in CAREER_PRIORITY_COURSE_TERMS.get(career_direction, []):
-        if kb.normalize(term) in normalized_name:
-            matches.append(term)
-    return matches[:2]
+    """兼容旧调用，返回基础或核心课程的具体推荐理由。"""
+    profile = course_learning_profile(course_name, career_direction)
+    return [profile["reason"]] if profile.get("level") in {"基础必学", "岗位核心"} else []
 
 
 EXT_MODULE_NO = 99  # 「新增课程（自动发现）」模块编号
