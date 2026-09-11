@@ -199,6 +199,17 @@ NOISE_WORDS = [
     "是吧对吧", "对不对对", "这个这个", "那然后", "我们就是说",
 ]
 
+# 仅修正导读/转写中可由课程上下文明确判断的常见术语误识别；原始引用不改写。
+TERMINOLOGY_CORRECTIONS = {
+    "Model Scope Platform": "Model Context Protocol",
+    "方程call": "Function Calling",
+    "风声call": "Function Calling",
+    "风声扣": "Function Calling",
+    "Long Graf": "LangGraph",
+    "Long Graph": "LangGraph",
+    "Lama Index": "LlamaIndex",
+}
+
 # 仅用于学习视图派生文本；原始转写片段始终原样保存在知识库中。
 NON_LEARNING_PATTERNS = [
     re.compile(pattern, re.I)
@@ -218,6 +229,7 @@ NON_LEARNING_PHRASES = (
     "开班典礼", "直播课与录播课", "直播课和录播课", "资源领取", "班主任通知",
     "课程平台", "课程初期无作业", "更新课表", "讲师、助教和班主任",
     "价格优惠", "锁定优惠", "直播课回放", "优惠的方法",
+    "免费试听", "优惠活动", "分期付款", "报名前可享受优惠",
 )
 
 
@@ -266,12 +278,14 @@ def clean_text(text):
             cleaned = cleaned.replace(word, "")
         cleaned = re.sub(
             r"^(?:在)?(?:本次|这次)?(?:课程|分享|讨论|对话|演讲)(?:中)?[，, ]*"
-            r"(?:老师与学生|参与者)?(?:主要|重点|深入|详细|集中|还)?"
+            r"(?:老师与学生|教授与助手|参与者)?(?:主要|重点|深入|详细|集中|还)?"
             r"(?:介绍了|讨论了|探讨了|围绕|聚焦于|焦点放在了|强调了|涵盖了|分享了)[，, ]*",
             "",
             cleaned,
         )
         cleaned = re.sub(r"^(?:整体上|总体而言|总的来说)[，, ]*", "", cleaned)
+        for incorrect, correct in TERMINOLOGY_CORRECTIONS.items():
+            cleaned = re.sub(re.escape(incorrect), correct, cleaned, flags=re.I)
         cleaned = re.sub(r"([\u4e00-\u9fff])\1{2,}", r"\1", cleaned)
         cleaned = re.sub(r"([，。！？；：])\1+", r"\1", cleaned)
         cleaned = re.sub(r"\s+", " ", cleaned)

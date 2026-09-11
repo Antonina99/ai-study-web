@@ -17,6 +17,15 @@ class CourseIndexTests(unittest.TestCase):
         self.assertEqual(matched[0]["name"], "实现Hermes中的多Agent协作、主Agent调度")
         self.assertEqual(matched[0]["module_no"], 3)
 
+    def test_newer_agent_career_source_wins_without_duplicate_extra_course(self):
+        old_name = "14. 就业服务：Agent相关简历+面试问题辅导"
+        new_name = "14.就业服务：Agent相关简历+面试问题辅导"
+        index = data.build_course_index({old_name: {}, new_name: {}})
+        matched = [item for item in index if item.get("kb_name") == new_name]
+        self.assertEqual(len(matched), 1)
+        self.assertEqual(matched[0]["module_no"], 3)
+        self.assertFalse(any(item.get("name") == old_name for item in index))
+
     def test_numbered_kb_name_matches_outline_without_api(self):
         kb_name = "2. 从提示工程到RAG：构建大模型的知识与交互基础"
         index = data.build_course_index({kb_name: {}})

@@ -86,6 +86,34 @@ class TranscriptParsingTests(unittest.TestCase):
         self.assertNotIn("焦点放在了", cleaned)
         self.assertNotIn("价格优惠", cleaned)
 
+    def test_unrelated_course_summary_is_skipped(self):
+        course = {
+            "summary": {
+                "title": "20.AI框架设计与选型_导读",
+                "summary": "量化投资课程提供免费试听和分期付款。",
+                "sections": [{
+                    "title": "AI框架选型原则",
+                    "body": "框架选型需要比较扩展性、可观测性与维护成本。",
+                }],
+            },
+            "original": {"segments": []},
+        }
+        cleaned = data._rule_cleaned_doc(course)
+        self.assertIn("框架选型", cleaned)
+        self.assertNotIn("量化投资", cleaned)
+        self.assertNotIn("免费试听", cleaned)
+
+    def test_known_transcript_term_errors_are_corrected(self):
+        cleaned = kb.clean_text(
+            "在这次讨论中，教授与助手探讨了MCP（Model Scope Platform）和方程call。"
+            "Long Graf与Lama Index用于应用编排。"
+        )
+        self.assertNotIn("教授与助手探讨了", cleaned)
+        self.assertIn("Model Context Protocol", cleaned)
+        self.assertIn("Function Calling", cleaned)
+        self.assertIn("LangGraph", cleaned)
+        self.assertIn("LlamaIndex", cleaned)
+
     def test_course_cleanup_deduplicates_repeated_sentences(self):
         cleaned = kb.clean_course_text(
             "RAG 通过检索补充模型上下文。\nRAG 通过检索补充模型上下文。\n"

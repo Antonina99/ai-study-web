@@ -459,11 +459,20 @@ def build_course_index(courses, api_key=None, model=None):
         "13. 搭建Hermes Agent 中的长期记忆和自进化能力":
             "实现Hermes中的多Agent协作、主Agent调度",
     }
+    preferred_course_sources = {
+        kb.normalize("就业服务：Agent相关简历+面试问题辅导"):
+            "14.就业服务：Agent相关简历+面试问题辅导",
+    }
     norm_map = {}
+    norm_sources = {}
     for k in courses:
         nk = kb.normalize(course_name_aliases.get(k, k))
         if nk:
             norm_map.setdefault(nk, k)
+            norm_sources.setdefault(nk, []).append(k)
+    for nk, preferred in preferred_course_sources.items():
+        if preferred in courses:
+            norm_map[nk] = preferred
     for mod in MODULES:
         # 「新增课程」模块（EXT_MODULE_NO）只是兜底展示，不参与大纲名称匹配，
         # 否则其中的课程会被精确绑定回 99，AI 分类永不触发
@@ -472,14 +481,16 @@ def build_course_index(courses, api_key=None, model=None):
         for i, c in enumerate(mod["courses"]):
             key = kb.normalize(c)
             hit_key = norm_map.get(key)
+            hit_norm = key if hit_key else None
             if hit_key is None:
                 # 精确匹配失败时退化为双向子串包含匹配
                 for nk, ok in norm_map.items():
                     if nk in key or key in nk:
                         hit_key = ok
+                        hit_norm = nk
                         break
             if hit_key:
-                bound_keys.add(hit_key)
+                bound_keys.update(norm_sources.get(hit_norm, [hit_key]))
             index.append({
                 "id": f"{mod['no']}-{i}",
                 "module_no": mod["no"],
@@ -722,7 +733,7 @@ def _rule_cleaned_doc(course, max_chars=2800):
     parts = []
     sm = course.get("summary") or {}
     summary_text = (sm.get("summary") or "").strip()
-    if summary_text:
+    if summary_text and _summary_matches_course(sm.get("title") or "", summary_text):
         parts.append(f"## 核心概览\n{kb.clean_text(summary_text)}")
     sections = sm.get("sections", [])
     if len(sections) > 6:
@@ -743,6 +754,25 @@ def _rule_cleaned_doc(course, max_chars=2800):
         overview = kb.clean_course_text("\n\n".join(parts))
         return overview[:max_chars]
     return kb.clean_course_text(kb.kb_course_context(course, max_chars=max_chars))
+
+
+def _summary_matches_course(title, summary_text):
+    """用标题特征词识别串课摘要，避免错误导读污染课程干货。"""
+    title_value = kb.normalize(re.sub(r"_(?:原文|导读)$", "", str(title or "")))
+    summary_value = kb.normalize(summary_text)
+    if not title_value or not summary_value:
+        return False
+    ignored = {"ai", "agent", "课程", "相关", "基础", "使用", "实战", "服务"}
+    english_terms = re.findall(r"[a-z][a-z0-9-]{2,}", title_value)
+    chinese_runs = re.findall(r"[\u4e00-\u9fff]{2,}", title_value)
+    chinese_terms = {
+        run[index:index + 2]
+        for run in chinese_runs
+        for index in range(len(run) - 1)
+    }
+    terms = [term for term in english_terms + sorted(chinese_terms)
+             if term not in ignored]
+    return any(term in summary_value for term in terms)
 
 
 def course_sections(course):
