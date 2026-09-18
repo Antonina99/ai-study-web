@@ -116,7 +116,36 @@ def _render_career_node(name, profile, current_key, bound_keys):
         tags.append(("当前课程", "current"))
     tags.append(("已有文字", "ready") if normalized in bound_keys else ("待补原文", "optional"))
     detail = (f"{profile['reason']} · 学习范围：{profile['scope']}" if profile else "")
-    _render_tree_node(name, tags, level == "岗位核心", detail)
+    item = next((course for course in data.COURSE_INDEX if course["name"] == name), None)
+    with st.container(border=True, key=f"graph_course_{item['id']}" if item else None):
+        st.button(
+            name, key=f"open_graph_course_{item['id']}" if item else None,
+            type="tertiary", width="stretch", disabled=not item or not item.get("kb_name"),
+            help="打开本课课程精华" if item and item.get("kb_name") else "待补原文后可阅读",
+            on_click=_open_graph_course, args=(item["id"] if item else "",),
+        )
+        st.markdown(" ".join(
+            f'<span class="knowledge-tree-tag {escape(kind)}">{escape(text)}</span>'
+            for text, kind in tags
+        ), unsafe_allow_html=True)
+        if detail:
+            st.caption(detail)
+
+
+def _open_graph_course(course_id: str) -> None:
+    """在按钮回调中同步目录和详情页，跳转到目标课程的整课精华。"""
+    item = next((course for course in data.COURSE_INDEX if course["id"] == course_id), None)
+    if not item or not item.get("kb_name"):
+        return
+    module = next((m for m in data.MODULES if m["no"] == item["module_no"]), None)
+    if not module:
+        return
+    st.session_state.tab1_module = module["name"]
+    st.session_state.tab1_course = f"{item['id']}｜{item['name']}"
+    st.session_state.tab1_section = "整门课程"
+    st.session_state.tab1_detail = "✨ 课程精华"
+    st.session_state.current_course = item
+    st.session_state.current_section = None
 
 
 def _render_course_knowledge_tree(item, groups):
@@ -356,7 +385,8 @@ def render_course_detail(item, section=None, career_direction=None):
 
     # B. 二级 Tab 拆解长页面（P2 减负）
     t_essence, t_mind, t_quiz, t_sec, t_original = st.tabs(
-        ["✨ 课程精华", "🧠 知识图谱", "🎯 考点与测评", "📚 章节速览", "🔎 原文查找"]
+        ["✨ 课程精华", "🧠 知识图谱", "🎯 考点与测评", "📚 章节速览", "🔎 原文查找"],
+        key="tab1_detail", on_change="rerun",
     )
 
     with t_essence:
@@ -377,7 +407,7 @@ def render_course_detail(item, section=None, career_direction=None):
 
     with t_mind:
         st.markdown("### 🧭 岗位课程路径")
-        st.caption("展开模块查看课程；重点标记会随左侧求职方向切换。")
+        st.caption("点击课程名称打开课程精华；待补原文的课程暂不可点击。重点标记随左侧求职方向切换。")
         _render_career_course_tree(item, career_direction)
         st.divider()
         st.markdown("### 🧠 当前课程知识结构")

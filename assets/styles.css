@@ -302,6 +302,15 @@ code {
 }
 
 /* 课程路径的学习等级 */
+[class*="st-key-graph_course_"] button {
+    justify-content: flex-start;
+    text-align: left;
+    font-weight: 600;
+}
+[class*="st-key-graph_course_"] button:not(:disabled):hover {
+    color: #6755cc;
+    background: #f3f0ff;
+}
 .knowledge-tree-tag.foundation { background: #eaf2ff; color: #315eaa; }
 .knowledge-tree-tag.optional { background: #f1f3f5; color: #647080; }
 .knowledge-tree-tag.preparation { background: #fff3de; color: #946511; }
