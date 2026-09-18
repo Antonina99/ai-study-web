@@ -18,10 +18,11 @@ import re
 import streamlit as st
 
 from core import kb, llm
+from core.terminology import TERMINOLOGY_VERSION, terminology_prompt
 
 COURSE_CLEAN_CHUNK_CHARS = 24000
 LLM_COURSE_CONTEXT_CHARS = 12000
-COURSE_CLEAN_VERSION = 2
+COURSE_CLEAN_VERSION = 3
 NON_LEARNING_KEYWORDS = {
     "直播", "开班典礼", "课程安排", "课程服务", "就业服务", "班主任", "助教",
     "课表", "录播课", "直播课", "资源领取", "课程平台",
@@ -608,7 +609,7 @@ def _course_clean_cache_key(item, course, model):
     """生成包含课程、源内容与模型的整理缓存键。"""
     source = json.dumps(course, ensure_ascii=False, sort_keys=True)
     digest = hashlib.sha1(source.encode("utf-8")).hexdigest()[:12]
-    return f"course-v{COURSE_CLEAN_VERSION}::{item.get('kb_name') or item.get('id')}::{model}::{digest}"
+    return f"course-v{COURSE_CLEAN_VERSION}-terms{TERMINOLOGY_VERSION}::{item.get('kb_name') or item.get('id')}::{model}::{digest}"
 
 
 def _unique_values(values, limit):
@@ -687,6 +688,16 @@ def get_cleaned(item, api_key, model):
     """按章节块进行 AI 萃取并合并整课结果；失败时返回可用的部分结果。"""
     cache = st.session_state.setdefault("cleaned_cache", {})
     course = KB["courses"].get(item.get("kb_name"))
+    if course and course.get("reviewed_assets"):
+        review = course["reviewed_assets"]
+        return {
+            "keywords": review["keywords"], "summary_points": review["summary_points"],
+            "interview_points": review["interview_points"],
+            "cleaned_text": "\n\n".join(
+                f"## {s['title']}\n{s['body']}" for s in review["sections"]
+            ),
+            "processed_chunks": 0, "total_chunks": 0, "ok": True,
+        }
     if not api_key or not course:
         return None
     cache_key = _course_clean_cache_key(item, course, model)
@@ -700,7 +711,7 @@ def get_cleaned(item, api_key, model):
         if not cleaned:
             try:
                 response = llm.call_llm(
-                    chunk["text"], llm.EXTRACT_SYSTEM_PROMPT, api_key, model,
+                    chunk["text"], llm.EXTRACT_SYSTEM_PROMPT + "\n" + terminology_prompt(), api_key, model,
                     temperature=0.2, max_tokens=2200,
                 )
                 cleaned = _parse_extract(response)
@@ -723,6 +734,8 @@ def get_cached_cleaned(item, model=None):
     course = KB["courses"].get(item.get("kb_name"))
     if not course:
         return None
+    if course.get("reviewed_assets"):
+        return get_cleaned(item, "", model)
     selected_model = model or st.session_state.get("llm_model", llm.DEFAULT_MODEL)
     cache_key = _course_clean_cache_key(item, course, selected_model)
     return st.session_state.get("cleaned_cache", {}).get(cache_key)
@@ -861,9 +874,12 @@ def get_clean_course_data(item, career_direction, api_key=None, model=None):
     cleaned = get_cleaned(item, api_key, model)
     ok = bool(cleaned and cleaned.get("ok"))
 
+    fallback_summary = sm.get("summary") or ""
+    if not _summary_matches_course(sm.get("title") or item.get("name"), fallback_summary):
+        fallback_summary = ""
     summary_points = cleaned["summary_points"] if ok and cleaned["summary_points"] else [
         kb.clean_text(value)
-        for value in re.findall(r"[^。！？!?；;]+[。！？!?；;]?", sm.get("summary") or "")
+        for value in re.findall(r"[^。！？!?；;]+[。！？!?；;]?", kb.clean_course_text(fallback_summary))
         if kb.clean_text(value)
     ][:5]
     summary = " ".join(summary_points) if summary_points else "（暂无摘要）"
@@ -891,6 +907,7 @@ def get_clean_course_data(item, career_direction, api_key=None, model=None):
         "interview_points": interview_points,
         "processed_chunks": cleaned.get("processed_chunks", 0) if cleaned else 0,
         "total_chunks": cleaned.get("total_chunks", 0) if cleaned else 0,
+        "review_notes": (course.get("reviewed_assets") or {}).get("notes", []),
     }
 
 
@@ -978,12 +995,15 @@ def generate_practical_quiz(clean_text, career_direction, api_key, model, num_q=
     """
     if not api_key or not clean_text:
         return []
-    clean_text = evidence_text(evidence) if evidence else cleaned_course_context({"cleaned_text": clean_text})
+    clean_text = cleaned_course_context({"cleaned_text": clean_text})
+    if evidence:
+        clean_text += "\n\n【转写原文依据；可能含误识别，引用原样保留】\n" + evidence_text(evidence)
     career_name, focus = career_prompt_params(career_direction)
     system = (llm.PRACTICAL_QUIZ_SYSTEM_PROMPT
               .replace("{career_name}", career_name)
               .replace("{focus_keywords}", focus)
               .replace("{num_q}", str(num_q)))
+    system += "\n" + terminology_prompt()
     user = (f"请基于以下课程干货内容，为【{career_name}】方向生成 {num_q} 道求职实战单选题：\n\n{clean_text}"
             if not label else
             f"【范围】{label}\n请基于以下课程干货内容，为【{career_name}】方向生成 {num_q} 道求职实战单选题：\n\n{clean_text}")
@@ -1111,7 +1131,7 @@ def build_qa_request(item, question, section=None):
         cleaned = get_cached_cleaned(item, st.session_state.get("llm_model"))
         if cleaned and cleaned.get("cleaned_text"):
             ctx = cleaned_course_context(cleaned, max_chars=6000)
-            scope_desc = "整门课程（AI 清洗后的干货）"
+            scope_desc = "整门课程（整理后的干货）"
         else:
             ctx = kb.kb_course_context(course, max_chars=6000)
             scope_desc = "整门课程"
@@ -1129,7 +1149,7 @@ def build_qa_request(item, question, section=None):
         f"【最近对话】\n{hist_txt}\n\n"
         f"用户问题：{question}"
     )
-    return llm.ASSISTANT_SYSTEM_PROMPT, user, evidence
+    return llm.ASSISTANT_SYSTEM_PROMPT + "\n" + terminology_prompt(), user, evidence
 
 
 def _offline_question_evidence(item, question, section=None):

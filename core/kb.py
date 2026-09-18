@@ -20,13 +20,16 @@ import random
 import zipfile
 from difflib import SequenceMatcher
 
+from core.terminology import correct_terms
+from core.course_review import apply_reviews
+
 # 知识库目录（项目根目录下的「课程原文及导读」文件夹；本模块位于 core/ 子目录，故向上两级）
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KB_DIR = os.path.join(_PROJECT_ROOT, "课程原文及导读")
 # 解析缓存文件
 CACHE_FILE = os.path.join(_PROJECT_ROOT, "_knowledge_cache.json")
 # 解析规则版本；升级后自动忽略旧文件指纹并重新解析全部源文件。
-CACHE_VERSION = 3
+CACHE_VERSION = 4
 
 # 时间戳匹配，如 "00:05" / "01:09:23"
 TS_RE = re.compile(r"^\s*(\d{1,2})[:：](\d{2})(?:[:：](\d{2}))?\s*(.*)$")
@@ -133,6 +136,13 @@ def parse_summary(paras):
     mode = None            # "keywords" | "summary" | "sections"
     cur_section = None     # 当前正在拼接的章节
     for p in paras[2:]:    # 跳过标题行与日期行
+        if p.strip() in {"要点回顾", "提取PPT", "提取 PPT", "智能纪要", "会议纪要"}:
+            # 导读的后续问答/PPT 常重复同一组时间戳，不属于章节正文。
+            if cur_section is not None:
+                sections.append(cur_section)
+                cur_section = None
+            mode = None
+            continue
         if p == "关键词":
             mode = "keywords"
             continue
@@ -154,14 +164,19 @@ def parse_summary(paras):
                 # 新章节：时间戳 + 标题
                 if cur_section is not None:
                     sections.append(cur_section)
+                stamp = _timestamp_text(m)
+                if any(section["ts"] == stamp for section in sections):
+                    cur_section = None
+                    mode = None
+                    continue
                 cur_section = {
-                    "ts": _timestamp_text(m),
+                    "ts": stamp,
                     "title": m.group(4).strip(),
                     "body": "",
                 }
             elif cur_section is not None:
                 # 章节正文（可能跨多段）
-                cur_section["body"] += p
+                cur_section["body"] += ("\n" if cur_section["body"] else "") + p
     if cur_section is not None:
         sections.append(cur_section)
 
@@ -198,17 +213,6 @@ NOISE_WORDS = [
     "呃呃", "呃", "嗯嗯", "嗯", "额额", "额", "好吧", "好的好的", "行吧",
     "是吧对吧", "对不对对", "这个这个", "那然后", "我们就是说",
 ]
-
-# 仅修正导读/转写中可由课程上下文明确判断的常见术语误识别；原始引用不改写。
-TERMINOLOGY_CORRECTIONS = {
-    "Model Scope Platform": "Model Context Protocol",
-    "方程call": "Function Calling",
-    "风声call": "Function Calling",
-    "风声扣": "Function Calling",
-    "Long Graf": "LangGraph",
-    "Long Graph": "LangGraph",
-    "Lama Index": "LlamaIndex",
-}
 
 # 仅用于学习视图派生文本；原始转写片段始终原样保存在知识库中。
 NON_LEARNING_PATTERNS = [
@@ -275,7 +279,10 @@ def clean_text(text):
             continue
         cleaned = _dedupe_adjacent_clauses(sentence)
         for word in NOISE_WORDS:
-            cleaned = cleaned.replace(word, "")
+            if len(word) > 1 and word != "是不是":
+                cleaned = cleaned.replace(word, "")
+        # 单字语气词仅在独立停顿处删除，不能破坏“额度”等正常词语。
+        cleaned = re.sub(r"(^|[，,：:])\s*[嗯呃额]+[，, ]+", r"\1", cleaned)
         cleaned = re.sub(
             r"^(?:在)?(?:本次|这次)?(?:课程|分享|讨论|对话|演讲)(?:中)?[，, ]*"
             r"(?:老师与学生|教授与助手|参与者)?(?:主要|重点|深入|详细|集中|还)?"
@@ -284,8 +291,7 @@ def clean_text(text):
             cleaned,
         )
         cleaned = re.sub(r"^(?:整体上|总体而言|总的来说)[，, ]*", "", cleaned)
-        for incorrect, correct in TERMINOLOGY_CORRECTIONS.items():
-            cleaned = re.sub(re.escape(incorrect), correct, cleaned, flags=re.I)
+        cleaned = correct_terms(cleaned)
         cleaned = re.sub(r"([\u4e00-\u9fff])\1{2,}", r"\1", cleaned)
         cleaned = re.sub(r"([，。！？；：])\1+", r"\1", cleaned)
         cleaned = re.sub(r"\s+", " ", cleaned)
@@ -295,6 +301,16 @@ def clean_text(text):
         if cleaned and not _is_non_learning_sentence(cleaned):
             kept.append(cleaned)
     return "".join(kept).strip()
+
+
+def _fact_signature(text: str) -> tuple:
+    """保护数字、比较符号、英文标识和否定条件，防止相似句去重吞掉差异。"""
+    return (
+        tuple(re.findall(r"[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?%?", text)),
+        tuple(re.findall(r"[<>≤≥=]+|大于|小于|至少|至多|超过|不超过", text)),
+        tuple(re.findall(r"不|未|无|非|仅|必须|禁止|可以|不能|只要|只有|否则", text)),
+        tuple(re.findall(r"[a-z][a-z0-9_.+-]*", text.casefold())),
+    )
 
 
 def clean_course_text(text, similarity=0.92):
@@ -321,19 +337,20 @@ def clean_course_text(text, similarity=0.92):
             key = _sentence_key(cleaned)
             if not key:
                 continue
-            duplicate = key in exact_keys
+            signature = _fact_signature(cleaned)
+            duplicate = (key, signature) in exact_keys
             if not duplicate and len(key) >= 12:
                 duplicate = any(
                     SequenceMatcher(None, key, old).ratio() >= similarity
-                    for old in seen_keys
-                    if len(old) >= 12
+                    for old, old_signature in seen_keys
+                    if signature == old_signature and len(old) >= 12
                     and abs(len(key) - len(old)) <= max(3, len(key) // 10)
                     and (key[:6] == old[:6] or key[-6:] == old[-6:])
                 )
             if duplicate:
                 continue
-            seen_keys.append(key)
-            exact_keys.add(key)
+            seen_keys.append((key, signature))
+            exact_keys.add((key, signature))
             output.append(cleaned)
     while output and output[-1] == "":
         output.pop()
@@ -414,7 +431,26 @@ def build_kb():
         except Exception:
             pass
 
-    return kb, newly_added
+    return _learning_kb(kb), newly_added
+
+
+def _learning_kb(knowledge: dict) -> dict:
+    """向学习链路投影已校订导读；磁盘解析缓存及原文引用保留原貌。"""
+    result = apply_reviews(knowledge)
+    for name, source in result["courses"].items():
+        course = dict(source)
+        guide = dict(course.get("summary") or {})
+        if guide and not course.get("reviewed_assets"):
+            guide["summary"] = clean_course_text(guide.get("summary", ""))
+            guide["keywords"] = [correct_terms(x) for x in guide.get("keywords", [])]
+            guide["sections"] = [
+                dict(section, title=correct_terms(section.get("title", "")),
+                     body=clean_course_text(section.get("body", "")))
+                for section in guide.get("sections", [])
+            ]
+            course["summary"] = guide
+        result["courses"][name] = course
+    return result
 
 
 def has_file_changes():
@@ -449,7 +485,7 @@ def get_kb():
     if not os.path.exists(CACHE_FILE):
         return {"cache_version": CACHE_VERSION, "courses": {}, "file_signs": {}}
     with open(CACHE_FILE, encoding="utf-8") as f:
-        return json.load(f)
+        return _learning_kb(json.load(f))
 
 
 # ============================================================

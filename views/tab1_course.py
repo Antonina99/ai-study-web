@@ -332,6 +332,8 @@ def render_course_detail(item, section=None, career_direction=None):
         st.markdown(f"**📄 {heading}（已去噪清洗）**")
         if body:
             st.markdown(body)
+            if section.get("citation_ids"):
+                st.caption("原文依据：" + "、".join(section["citation_ids"]))
         else:
             st.info("该章节暂无可阅读文字。")
         chapter_segments = data.kb.section_original_segments(course, section)
@@ -339,7 +341,7 @@ def render_course_detail(item, section=None, career_direction=None):
             with st.expander(f"查看本章原文（{len(chapter_segments)} 个片段）"):
                 for segment in chapter_segments:
                     marker = segment.get("ts") or "无时间戳"
-                    st.markdown(f"**{marker}**　{data.kb.clean_text(segment.get('text') or '')}")
+                    st.markdown(f"**{marker}**　{segment.get('text') or ''}")
         st.divider()
         # 学习打卡：勾选后计入本次会话学习进度（不落盘）
         section_id = section.get("id") or section.get("ts") or section.get("title")
@@ -391,7 +393,13 @@ def render_course_detail(item, section=None, career_direction=None):
 
     with t_essence:
         st.markdown("### ✨ 课程精华")
-        st.caption("已过滤寒暄、直播互动、课程事务、结束语和重复表达，并保留课程知识内容。")
+        if data_pack.get("review_notes"):
+            st.caption("已结合整课原文复核并整理；保留知识要点、适用条件与原文依据。")
+            with st.expander("术语校订与依据"):
+                for note in data_pack["review_notes"]:
+                    st.markdown(f"- {note}")
+        else:
+            st.caption("已进行口语过滤、去重与已知术语纠错；原始转写可在“原文查找”核对。")
         if data_pack["summary_points"]:
             st.markdown("**本课核心结论**")
             for index, point in enumerate(data_pack["summary_points"], 1):
