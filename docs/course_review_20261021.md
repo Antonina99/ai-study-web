@@ -50,3 +50,9 @@
 共 **57 个**无法从当前材料确认的转写词，已通过 transcript-fixer 持久队列入库并逐文件回读，全部维持 pending，未猜改。具体短词、`original-N` 和理由记录在各资产的 `review_audit.pending_tokens`；原文保留。当前项目没有源音频，不具备第二识别器交叉验证条件；这些词不作为学习版的确定实体结论。内部演示、商业数字及版本限制另在各课说明中披露。
 
 学习版可发布，原始逐字稿不能宣称“已完全纠错”。未入库的 31 门课程仍待原文。既有 11 份未跟踪 `_笔记.docx` 不纳入本次提交。网页不增加清洗工具运行依赖，云端只加载 JSON 学习资产。
+
+## 发布记录
+
+2026-10-21：实现与内容提交 **59a5278** 已推送 `origin/main`，`git ls-remote` 验证远端一致。线上应用 Source 指向同仓库 `main/app.py`。但是多次刷新后，云端仍显示开学典礼 34 章和旧版正文，尚未确认切换成功；管理入口显示登录页，当前浏览器没有权限执行重启。
+
+后续由已登录的应用所有者在 [Community Cloud](https://share.streamlit.io/) 的应用菜单执行 Reboot，再验收开学典礼 **24** 个主题及“已通读课程文字”提示、企业部署课 **25** 个按时间排序主题。操作参考 [Streamlit 官方重启说明](https://docs.streamlit.io/deploy/streamlit-community-cloud/manage-your-app/reboot-your-app)。本记录区分仓库发布与云端生效，不宣称尚未观察到的部署结果。
