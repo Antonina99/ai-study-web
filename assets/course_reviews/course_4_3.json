@@ -1,0 +1,678 @@
+{
+  "course_key": "4. 多模态前沿：从Agent构建到视频AIGC",
+  "source_sha256": "8ed254f53439397dca343f939f02ca1cbdd9bd89de2357155b78fe187f35e4fd",
+  "review_date": "2026-10-21",
+  "method": "transcript-fixer Stage 1 词典初筛 + 294 段原文及完整导读全语境复核 + 官方资料事实校订 + 学习版整理 + 独立学习版冷复核及逐项裁定",
+  "keywords": [
+    "多模态",
+    "视觉转译",
+    "视觉推理",
+    "YOLO",
+    "U-Net",
+    "视频切片",
+    "结构化标签",
+    "素材库",
+    "渐进披露",
+    "虚拟试衣",
+    "局部重绘",
+    "数据回流"
+  ],
+  "summary_points": [
+    "本课以电商视频系统串联视觉理解、专用检测分割、文本规划和媒体执行，强调按任务组合模型与工程。",
+    "图片和视频可以转为描述及标签供检索与规划，但属于有损表示；复杂视觉关系仍需原媒体和专项验证。",
+    "YOLO、U-Net 与 VLM 的精度速度取决于任务、版本和硬件，不能把一个输出示意、帧率或部署成本推广为定律。",
+    "素材库由实拍切片、生成片段与模板片段组成；固定调用生成切片/编排方案，代码执行，未必需要自主工具调用或向量数据库。",
+    "虚拟试衣案例通过检查 mask、复用预处理图、商品模特标签与规则修复局部失败；该经验不等于所有模型都需相同补丁。",
+    "数据回流可支持策略评估，既要衡量当前交付，也要保留替换模型的能力。商业数字、产品版本和平台政策未确认的部分不当作事实教学。"
+  ],
+  "interview_points": [
+    "什么任务应选检测、分割或视觉语言模型？如何公平比较精度、延迟和硬件成本？",
+    "为什么 confidence 不等于真实正确率？训练标签与模型预测输出为什么不能混为一谈？",
+    "视频采样帧率与 patch 有何关系？怎样验证快速动作、台词和切片时间？",
+    "如何设计可追溯的视频素材元数据与受控标签，使文本模型能够编排多模态流程？",
+    "候选片段太多时，怎样结合属性过滤、分层规划和预算，而不是默认建向量库？",
+    "虚拟试衣失败如何定位到分割 mask、条件图、版型匹配或生成阶段？",
+    "模型更新后哪些工程资产仍有价值？怎样用回流指标评估策略而避免错误因果归因？",
+    "inference 与 reasoning 有何区别？扩散、Transformer、自回归及 LoRA 分别处于什么层次？"
+  ],
+  "sections": [
+    {
+      "ts": "10:03",
+      "title": "多模态系统要区分理解、推理和生成",
+      "body": "课程把视觉与语言的联合理解、专用视觉任务和图片/视频生成串起来。多模态不只包括文字与视觉，也包括音频等模态；一个模型支持哪些输入和输出，要查具体模型及接口，不能由产品名称推定。系统也可以组合多个专用模型，不要求单个模型同时完成全部工作。",
+      "citation_ids": [
+        "original-17",
+        "original-18",
+        "original-19",
+        "original-38",
+        "original-68",
+        "original-213",
+        "original-214",
+        "original-215"
+      ]
+    },
+    {
+      "ts": "12:43",
+      "title": "视觉转译可以服务检索，但文字不是图像的无损替代",
+      "body": "将图片或视频转成文字描述，再保存为可检索记录，是课堂的视觉转译方案。描述可能漏掉布局、细节、动作及图形关系，应保留原图、原视频和片段定位，必要时回看。文本切片只是检索表示之一，也可以使用图像或多模态 embedding；不能说一段描述代表了全部视觉知识。",
+      "citation_ids": [
+        "original-20",
+        "original-21",
+        "original-22",
+        "original-24",
+        "original-25",
+        "original-26",
+        "original-270",
+        "original-271",
+        "original-272",
+        "original-273",
+        "original-274"
+      ]
+    },
+    {
+      "ts": "14:16",
+      "title": "视频理解要核对采样、时间定位和模型限制",
+      "body": "课堂展示约 32 秒视频的分段描述与台词，不代表同类模型对任意时长都能精确处理。外部校订：视频采样帧与图像 patch 并不矛盾；Google 官方视频文档说明静态模式按固定帧率抽取，不能绝对说视频“不逐帧处理、只切 patch”。快速动作可能在采样中遗漏，分段时间与台词需核对原视频；时长、帧率、分辨率、音频和 token 预算均受具体接口限制。原文具体 Gemini/Qwen 版本不反猜。",
+      "citation_ids": [
+        "original-23",
+        "original-24",
+        "original-25",
+        "original-26",
+        "original-27",
+        "original-28",
+        "original-109",
+        "original-110",
+        "original-111",
+        "original-112"
+      ]
+    },
+    {
+      "ts": "17:07",
+      "title": "融合推理把视觉证据与文字问题联系起来",
+      "body": "视觉规则题需要从输入输出样例归纳变化规律；图文选择题需要同时理解图片与文字。游戏助手的课堂思路是周期截图结合对话生成建议，但产品实际截图频率和内部架构未经验证。实现前应准备代表性截图、场景和异常样本测识别与推理效果，不能假设模型认识所有游戏或影视作品，也不能反推其训练数据必然含某作品。",
+      "citation_ids": [
+        "original-29",
+        "original-30",
+        "original-31",
+        "original-32",
+        "original-33",
+        "original-34",
+        "original-252",
+        "original-253",
+        "original-254",
+        "original-255",
+        "original-258"
+      ]
+    },
+    {
+      "ts": "20:57",
+      "title": "目标检测、分割与场景理解按指标组合",
+      "body": "目标检测给出物体位置和类别，分割给出像素级区域；跨帧行为理解还涉及跟踪、动作和时序判断。咖啡店计杯数是组合方案的例子，但仅凭视频画框无法确认使用 YOLO，也不能断言必须接多模态语言模型，时序模型和规则等也可能承担工作。精度、延迟、吞吐与部署成本要在具体数据、硬件和任务上比较，不能一概排出专用模型与 VLM 的高低。",
+      "citation_ids": [
+        "original-35",
+        "original-36",
+        "original-37",
+        "original-38",
+        "original-39",
+        "original-40",
+        "original-41",
+        "original-42",
+        "original-59",
+        "original-65",
+        "original-66",
+        "original-67"
+      ]
+    },
+    {
+      "ts": "23:46",
+      "title": "YOLO 输出与置信分数不能用一个示意格式包办",
+      "body": "YOLO 全称 You Only Look Once，是目标检测模型家族。典型结果包含框坐标、类别及分数；外部校订：版本和接口不同，输出张量结构也不同，原文“每个框固定 5+20 个数字、20 个概率必然合计 100%”不是通用规则。当前 Ultralytics 检测结果可提供坐标、confidence 和 class ID。分数不能直接当作经校准的真实正确率，20/30 FPS 也不是所有硬件下的保证。",
+      "citation_ids": [
+        "original-39",
+        "original-40",
+        "original-41",
+        "original-45",
+        "original-46",
+        "original-48",
+        "original-50",
+        "original-57",
+        "original-58"
+      ]
+    },
+    {
+      "ts": "26:21",
+      "title": "定制检测先定义类别和数据，再验证迁移效果",
+      "body": "特定水果、货架或缺陷识别需要检查现成模型是否覆盖目标类别与现场条件。数据工作包括类别定义、框标注、质量复核和验证集。外部校订：Ultralytics 常用标签一行是 class 与归一化中心点、宽高，不是人工写一组 25 个概率；人工标注也并非天然百分之百正确。增加类别不一定全流程从零重做，可研究迁移训练；YOLO-World 等还支持开放词汇检测。样本数取决于难度与分布，不照搬课堂数值。",
+      "citation_ids": [
+        "original-43",
+        "original-44",
+        "original-47",
+        "original-48",
+        "original-49",
+        "original-51",
+        "original-52",
+        "original-53",
+        "original-54",
+        "original-55",
+        "original-56",
+        "original-57"
+      ]
+    },
+    {
+      "ts": "36:21",
+      "title": "U-Net 是分割网络结构，分割粒度不等于必然更准确",
+      "body": "U-Net 是用于像素级分割的神经网络架构，原论文面向生物医学图像；显示不同颜色是可视化类别或区域的一种方式。外部校订：输出尺寸取决于具体网络和后处理，原版也不能简单等同“永远输入输出同尺寸”。分割与检测任务不同，不能直接说 U-Net 一定比 YOLO 精确、一定不能实时，或医疗影像全部使用 U-Net。自动驾驶也不能据此排除整个架构家族。",
+      "citation_ids": [
+        "original-60",
+        "original-61",
+        "original-62",
+        "original-63",
+        "original-64",
+        "original-67",
+        "original-227"
+      ]
+    },
+    {
+      "ts": "43:00",
+      "title": "工程补强：分层海报与角色资产管理",
+      "body": "海报系统可保存图层和模板，分轮确认商品、文字和版式，便于修改。漫剧则维护角色、服装、场景和道具参考图，在镜头生成时按需调用。三视图和服装变体能帮助一致性，但不能保证所有角度和镜头都不漂移；仍需检查人物、商品细节和场景连续性。课堂提及软件名称与爆款占比未核实，不作为推荐或事实。",
+      "citation_ids": [
+        "original-69",
+        "original-70",
+        "original-71",
+        "original-72",
+        "original-73",
+        "original-74",
+        "original-75",
+        "original-76",
+        "original-77",
+        "original-78",
+        "original-79"
+      ]
+    },
+    {
+      "ts": "50:30",
+      "title": "区分暂时补丁与可复用的系统资产",
+      "body": "讲师用固定柱子与浮船比喻两种投入：补偿当前模型缺陷的规则可能被新模型替代，素材管理、可替换接口和评估反馈则可能随模型提升继续受益。它是决策框架，不是对未来能力或商业收益的保证。应比较当前可交付价值、维护成本、可替换性与延迟上线的代价，而非仅猜下一代模型何时解决问题。",
+      "citation_ids": [
+        "original-80",
+        "original-81",
+        "original-82",
+        "original-83",
+        "original-84",
+        "original-85",
+        "original-189",
+        "original-197",
+        "original-198",
+        "original-199",
+        "original-200",
+        "original-201",
+        "original-202",
+        "original-203"
+      ]
+    },
+    {
+      "ts": "55:03",
+      "title": "电商视频系统从业务素材到交付形成管线",
+      "body": "案例的问题包括长尾商品素材不足、拍摄与剪辑流程长、素材分散及效果难回溯。系统因此要管理商品、源素材、标签、片段、编排、生成、发布和反馈。课堂所述六十多个模型、一百多人研发团队及客户规模属于讲师转述，未得到可审计证据，也不是实现类似系统的固定门槛。平台对 AI 内容的政策与内容占比不作为本课确定结论。",
+      "citation_ids": [
+        "original-86",
+        "original-87",
+        "original-88",
+        "original-89",
+        "original-90",
+        "original-91",
+        "original-92",
+        "original-93",
+        "original-94",
+        "original-95",
+        "original-96",
+        "original-171",
+        "original-172"
+      ]
+    },
+    {
+      "ts": "01:01:49",
+      "title": "片段库容纳实拍、生成和模板三类来源",
+      "body": "完整电商视频可以组合品牌视频、产品展示、直播片段与空镜，再补充生成片段及动画模板。应记录来源与制作方式，避免把“AI 编排”误读为全部像素都由模型生成。案例广告中的成分、功效和销量诉求只是素材台词，不作为已核实产品事实；素材可使用范围需要单独核验，不能由“品牌方上传”推定所有用途均已授权。",
+      "citation_ids": [
+        "original-97",
+        "original-98",
+        "original-99",
+        "original-100",
+        "original-101",
+        "original-102",
+        "original-103",
+        "original-104",
+        "original-105",
+        "original-181",
+        "original-182",
+        "original-183",
+        "original-184",
+        "original-185",
+        "original-186",
+        "original-187"
+      ]
+    },
+    {
+      "ts": "01:06:41",
+      "title": "模型给切片方案，代码执行实际剪辑",
+      "body": "让多模态模型输出起止时间、视觉描述、台词等结构化字段，再由代码解析并执行切片。课堂检查了部分片段，不足以证明整批视频永远准确。工程上应校验时间范围、顺序、重叠和越界，检查切点是否截断语句或动作，并保留人工修正。这个固定调用流程不必使用 Function Calling；反过来，工具调用也不要求一定存在多个工具供模型自由选择。",
+      "citation_ids": [
+        "original-106",
+        "original-107",
+        "original-108",
+        "original-109",
+        "original-110",
+        "original-111",
+        "original-112",
+        "original-113",
+        "original-114",
+        "original-115",
+        "original-116",
+        "original-117",
+        "original-118",
+        "original-119",
+        "original-120",
+        "original-236",
+        "original-237"
+      ]
+    },
+    {
+      "ts": "01:13:58",
+      "title": "结构化元数据和受控标签让素材可复用",
+      "body": "每条片段同时保存媒体文件、时长、台词、画面描述、商品关联、内容作用与呈现形式。标签体系由使用场景定义，避免“痛点描述”和“痛点挖掘”等近义词无规则漂移；模型可辅助标注，但需校验枚举和抽查质量。原文标签“代言人郑妍”结合后文应理解为“代言人证言”，不是人物姓名。",
+      "citation_ids": [
+        "original-121",
+        "original-122",
+        "original-123",
+        "original-124",
+        "original-125",
+        "original-126",
+        "original-127",
+        "original-128",
+        "original-129",
+        "original-130",
+        "original-131"
+      ]
+    },
+    {
+      "ts": "01:20:29",
+      "title": "先过滤素材，再让文本模型编排",
+      "body": "已有可靠文字描述时，选片和排序可以由纯文本模型承担，不必每次重新读取全部视频。先按商品及用户要求过滤，再把候选元数据送入模型。课堂 120×50=6000 字只是一种规模估算，不等于固定 token 数或必然可装入任何模型窗口；还要给指令、历史和输出预留空间，并检查描述是否遗漏决定选片的视觉信息。",
+      "citation_ids": [
+        "original-132",
+        "original-133",
+        "original-134",
+        "original-135",
+        "original-136",
+        "original-137",
+        "original-138",
+        "original-139",
+        "original-140",
+        "original-141",
+        "original-142"
+      ]
+    },
+    {
+      "ts": "01:27:59",
+      "title": "分层选片降低上下文压力，最终输出可执行编号",
+      "body": "候选仍多时，先规划痛点、产品介绍、促销等结构，再按类选择较宽的候选池，最后统一排序和裁剪。模型输出素材 ID 与顺序，代码按引用取文件并拼接；还需验证总时长、重复片段、转场及音画配合。此处可用标签与数据库过滤，不必强建向量库；RAG 是检索增强生成思路，并不以必须使用向量数据库为定义。",
+      "citation_ids": [
+        "original-143",
+        "original-144",
+        "original-145",
+        "original-146",
+        "original-147",
+        "original-148",
+        "original-149",
+        "original-150",
+        "original-151",
+        "original-152",
+        "original-153",
+        "original-154"
+      ]
+    },
+    {
+      "ts": "01:34:07",
+      "title": "虚拟试衣要拆解失败发生在哪个步骤",
+      "body": "商品图生成模特穿着图，再图生视频，是补充素材的一条路径。课堂换裤案例将错误定位到自动 mask 未覆盖应重绘区域，而非笼统归因于生成模型差。局部重绘用 mask 指定修改区域；需同时检查人物解析、衣物范围、条件图和生成结果。外部核验：CatVTON 官方实现确有 mask 等输入，但不能凭相似读音证明课堂部署的确切版本或复现其全部失败。",
+      "citation_ids": [
+        "original-155",
+        "original-156",
+        "original-157",
+        "original-158",
+        "original-159",
+        "original-160",
+        "original-161",
+        "original-162",
+        "original-163",
+        "original-164",
+        "original-165"
+      ]
+    },
+    {
+      "ts": "01:41:33",
+      "title": "重复资产可预处理 mask，但复用要匹配图像条件",
+      "body": "案例建议给常用模特准备不同上衣、短裤、长裤等遮罩变体，保存标签，后续按任务选用，从而减少逐次手工修补。30 个模特各 8 张得到 240 张只是教学估算。遮罩与具体图像像素对齐，姿态、裁切或构图改变后必须重新检查，不能笼统认为换动作也能沿用原 mask。扩大遮罩也可能破坏需保留的细节。",
+      "citation_ids": [
+        "original-166",
+        "original-167",
+        "original-168",
+        "original-169",
+        "original-170",
+        "original-171"
+      ]
+    },
+    {
+      "ts": "01:46:12",
+      "title": "商品、模特和场景规则补足现有方案",
+      "body": "课堂针对所测换装方案管理服装类别、版型、长度、袖型，以及模特原图的服饰条件，再建立匹配规则；场景也要与展示目标相符。这些规则是特定实现的经验补偿，不是所有试衣模型的固定要求。规则与提示可由模型辅助整理，人需验证服装形态、图案和商品真实性，再选择合适的视频生成接口。",
+      "citation_ids": [
+        "original-172",
+        "original-173",
+        "original-174",
+        "original-175",
+        "original-176",
+        "original-177",
+        "original-178",
+        "original-179",
+        "original-180"
+      ]
+    },
+    {
+      "ts": "01:57:50",
+      "title": "回流数据支持策略比较，不会自动证明因果",
+      "body": "记录发布视频带来的曝光、访问及成交等指标，并连接到编排策略、片段 ID 和制作版本，可分析哪些组合表现较好。需要控制投放、时间、商品和受众等差异，不能把相关性直接当素材导致销量的证据。策略选择与资产积累可以形成改进循环；不等于模型权重自动训练。客户开放回流数据约 70% 等数字为讲师转述，未独立验证。",
+      "citation_ids": [
+        "original-190",
+        "original-191",
+        "original-192",
+        "original-193",
+        "original-194",
+        "original-195",
+        "original-196",
+        "original-200",
+        "original-201",
+        "original-202",
+        "original-203",
+        "original-237"
+      ]
+    },
+    {
+      "ts": "02:06:56",
+      "title": "按结果交付是案例商业选择，不是 AI 独有定律",
+      "body": "课程描述服务商结合人工和 AI，按客户验收标准交付视频，随自动化比例变化管理成本。这体现结果验收与系统能力的关系。所述团队人数、费用、人工比例和就业影响均是讲师观点或示例，不推广成普适收益、裁员建议或必然趋势；外包和按结果交付也并非 AI 才出现。技术评估仍应关注质量、交付和持续维护。",
+      "citation_ids": [
+        "original-204",
+        "original-205",
+        "original-206",
+        "original-207",
+        "original-208",
+        "original-209",
+        "original-210",
+        "original-211",
+        "original-212"
+      ]
+    },
+    {
+      "ts": "02:13:08",
+      "title": "多模态流程可以由文字状态串联",
+      "body": "本课核心架构是将媒体转成可引用的描述、标签和结构化状态，由语言模型负责规划，专用模型及代码负责媒体处理，再对最终产物验收。文本中间表示有助控制和检索，但不能替代所有视觉检查。课堂未提供完整可运行项目，也未验证代码可靠性；AI 代码必然无法人工维护等答疑说法属于绝对化观点，不纳入技术结论。",
+      "citation_ids": [
+        "original-213",
+        "original-214",
+        "original-215",
+        "original-217",
+        "original-218",
+        "original-219",
+        "original-225",
+        "original-236",
+        "original-240",
+        "original-241",
+        "original-242",
+        "original-243",
+        "original-244",
+        "original-245",
+        "original-246",
+        "original-247",
+        "original-248",
+        "original-249"
+      ]
+    },
+    {
+      "ts": "02:27:18",
+      "title": "区分 inference、reasoning 与生成架构",
+      "body": "inference 指训练后运行模型得到预测或生成结果，reasoning 指解决问题时的推理能力，二者中文同为“推理”但含义不同。外部校订：原文 influence 应为 inference；扩散生成通常从噪声经学习到的逆过程逐步生成，不是把图像不断加噪就生成成品。DiT 将 Transformer 用于扩散骨干；生成也有自回归等路线，不能说所有图像视频模型都是扩散模型。",
+      "citation_ids": [
+        "original-238",
+        "original-250",
+        "original-251"
+      ]
+    },
+    {
+      "ts": "02:39:46",
+      "title": "实时语音与图像检索要按模态选择路径",
+      "body": "语音应用可以采用 ASR→语言模型→TTS 级联，也有端到端语音理解生成模型，实际延迟还受网络及调度影响。拍照搜题则要判断文本化是否丢失图形信息；大量图形可考虑图像 embedding 与图像检索，再验证题干和选项。文本、图像可用分开索引或合适的共享空间，不必机械建立两个物理数据库；相似图不保证就是原题。",
+      "citation_ids": [
+        "original-257",
+        "original-258",
+        "original-267",
+        "original-270",
+        "original-271",
+        "original-272",
+        "original-273",
+        "original-274"
+      ]
+    },
+    {
+      "ts": "02:45:18",
+      "title": "未知信息、领域适配和科研能力需要证据验证",
+      "body": "当前日期、最新商品或游戏可由系统上下文和工具提供，不能从训练截止推出模型永远无法使用新信息。LoRA 的低秩适配思路可用于不同模型，但多模态数据、目标模块和训练配置并非完全相同；领域模型也不是原则上不可能，只是需评估资源与数据。AlphaFold 是特定科学问题的预测系统，不足以证明通用语言模型必然解决任意未解问题。",
+      "citation_ids": [
+        "original-264",
+        "original-265",
+        "original-266",
+        "original-275",
+        "original-276",
+        "original-277",
+        "original-278",
+        "original-282"
+      ]
+    }
+  ],
+  "notes": [
+    "原文与时间戳未修改；正文引用表示课堂依据，外部校订不冒充讲师原话。导读中关于伦理、公正性等泛化段落不由原文充分支持，未直接沿用。",
+    "未知具体 Gemini/Qwen 版本和原文 GPT r 保留待核，不根据后来的型号目录反推课堂版本。游戏助手截图频率、模型训练影视数据及公司部署均未取得内部证据。",
+    "讲师转述的六十多个模型、百人研发、客户数、70% 数据开放率、平台 AI 内容占比、Cursor 估值与零毛利等未独立核实，不作为学习事实。",
+    "原文 AI 生成模特或品牌自有素材必然不存在版权问题的说法缺少授权与许可依据，未采纳其保证；本复核未核查具体媒体权利。产品广告台词不作为功效事实。",
+    "课堂 6000/60000 条标注数存在口头改动；样本数与标注对象数关系依每张图目标数而定，不保留为训练门槛。",
+    "pending_tokens 仅列影响理解的疑似 ASR 未决项；清晰的 YOLO、U-Net、JSON、inference 等在学习版规范表达，不改逐字稿。",
+    "外部核验：[Google Gemini 视频理解](https://ai.google.dev/gemini-api/docs/video-understanding)——视频采样、音视频处理与时间定位参数；不以 patch 否定帧采样。",
+    "外部核验：[YOLO 原始论文](https://arxiv.org/abs/1506.02640)——检测方法及版本特定的框和类别输出。",
+    "外部核验：[Ultralytics Predict](https://docs.ultralytics.com/modes/predict)——结果包含框、confidence 和类别，速度与具体推理配置相关。",
+    "外部核验：[Ultralytics 检测数据集格式](https://docs.ultralytics.com/datasets/detect)——class x_center y_center width height 标签格式，不含人工置信概率列表。",
+    "外部核验：[YOLO-World 官方文档](https://docs.ultralytics.com/models/yolo-world)——开放词汇检测是传统封闭类别之外的路径。",
+    "外部核验：[U-Net 原论文及作者页面](https://lmb.informatik.uni-freiburg.de/people/ronneber/u-net/index.html)——2015 年卷积神经网络分割架构，非传统手写规则算法。",
+    "外部核验：[CatVTON 官方仓库](https://github.com/Zheng-Chong/CatVTON)——虚拟试衣扩散方案、mask 输入及实现条件；不代表已复现课堂版本。",
+    "外部核验：[Diffusers Inpainting](https://huggingface.co/docs/diffusers/v0.33.0/en/using-diffusers/inpaint)——mask 控制重绘区域，输入图、mask 与条件共同影响输出。",
+    "外部核验：[DiT 原始论文](https://arxiv.org/abs/2212.09748)——用 Transformer 替换扩散模型骨干，扩散和 Transformer 并不互斥。",
+    "外部核验：[DeepSeek Janus 官方仓库](https://github.com/deepseek-ai/Janus)——自回归多模态理解与生成路线，反例于所有生成皆扩散。",
+    "外部核验：[火山引擎实时语音方案](https://docs.volcengine.com/docs/real_time_communication/IntegratedAIaudiovideointeractivesolution?lang=en)——级联 ASR/LLM/TTS 与端到端实时语音两类路径。",
+    "外部核验：[LoRA 原始论文](https://arxiv.org/abs/2106.09685)——冻结预训练权重并加入可训练低秩矩阵的适配机制。",
+    "外部核验：[DeepMind AlphaFold](https://deepmind.google/science/alphafold/)——蛋白质等结构预测的特定科学系统，非通用语言模型能力证明。"
+  ],
+  "review_audit": {
+    "original_segment_count": 294,
+    "read_ranges": [
+      [
+        1,
+        294
+      ]
+    ],
+    "summary_section_count": 33,
+    "summary_read_ranges": [
+      [
+        1,
+        33
+      ]
+    ],
+    "full_read_method": "原文按 1–50、51–100、101–150、151–200、201–250、251–294 全量分段阅读；导读标题、关键词、摘要及 1–17、18–33 节完整阅读。TXT 与 JSON 逐段一致性检查。",
+    "stage1": {
+      "performed_by": "主 agent 统一执行",
+      "applied": 0,
+      "deferred": 0,
+      "review_enqueued": 0,
+      "boundary_check_active": true
+    },
+    "coverage": [
+      "多模态定义与转译",
+      "视频采样和融合推理",
+      "检测分割选择",
+      "YOLO 输出标签训练",
+      "U-Net 边界",
+      "海报与漫剧一致性",
+      "工程投入决策",
+      "电商素材系统",
+      "切片与结构化标签",
+      "文本编排与渐进筛选",
+      "试衣 mask 及资产预处理",
+      "商品模特场景匹配",
+      "数据回流与结果交付",
+      "生成架构、语音、图像检索及适配答疑"
+    ],
+    "important_corrections": [
+      "视频帧采样与 patch 不矛盾；32 秒示例不是时长/精度承诺。",
+      "画框不证明 YOLO；YOLO/U-Net/VLM 无普遍精度速度排序；FPS 与硬件相关。",
+      "YOLO 非统一 5+C 输出且类别分数非必然和为 1；人类标签不是置信 100% 的 25 数字数组。",
+      "新增类别不一定全部从零训练；开放词汇检测存在。",
+      "U-Net 是神经分割架构，不是所有医疗影像的唯一方案；输出同尺寸和不能实时均非必然。",
+      "文本描述不无损；切片 JSON 要校验；固定流程不必工具调用，RAG 不必向量库。",
+      "试衣遮罩需与当前图像对齐，换姿态不能直接保证复用。",
+      "回流策略优化非自动权重训练，相关性不证明因果；商业数字未核实。",
+      "influence 语境应为 inference；生成非全部扩散；扩散生成不是单纯不断加噪。",
+      "领域 LLM 非原则上不可能；LoRA 机制相通但配置数据不同；AlphaFold 非通用语言模型无所不能的证据。"
+    ],
+    "pending_tokens": [
+      {
+        "citation_id": "original-24",
+        "original": "germany 3.1",
+        "suggested": "",
+        "reason": "Google AI Studio 语境支持 Gemini 产品族，但没有具体 API model ID 或画面证据，不确认版本。"
+      },
+      {
+        "citation_id": "original-72",
+        "original": "记事录",
+        "suggested": "",
+        "reason": "工具名称存在多种近音转写，缺软件链接/画面/官方拼写，不根据名称相似反猜。"
+      },
+      {
+        "citation_id": "original-159",
+        "original": "cat v ten",
+        "suggested": "CatVTON",
+        "reason": "官方同类项目的试衣与 mask 机制相符，是候选拼写；缺课堂仓库链接、音频及版本，原稿不替换。"
+      },
+      {
+        "citation_id": "original-189",
+        "original": "GPT r",
+        "suggested": "",
+        "reason": "生成模型名不完整，缺确切版本或产品标识，不补写型号。"
+      },
+      {
+        "citation_id": "original-221",
+        "original": "LLLLM viki",
+        "suggested": "",
+        "reason": "未来课程名或术语片段无法确认，缺课件拼写及足够解释，不纳入知识结论。"
+      }
+    ],
+    "unresolved_items": [
+      "模型精确版本、未明软件名与课程名见 pending_tokens。",
+      "CatVTON 仅作官方同类方案核验，未确认课堂部署版本或重现失败。",
+      "未提供可运行系统、原始媒体与测试集，未测FPS、显存、时长上限、准确率。",
+      "市场数据、版权保证、就业与编程绝对观点均未转写为确定知识。"
+    ],
+    "official_sources": [
+      {
+        "title": "Google Gemini 视频理解",
+        "url": "https://ai.google.dev/gemini-api/docs/video-understanding",
+        "supports": "视频采样、音视频处理与时间定位参数；不以 patch 否定帧采样。"
+      },
+      {
+        "title": "YOLO 原始论文",
+        "url": "https://arxiv.org/abs/1506.02640",
+        "supports": "检测方法及版本特定的框和类别输出。"
+      },
+      {
+        "title": "Ultralytics Predict",
+        "url": "https://docs.ultralytics.com/modes/predict",
+        "supports": "结果包含框、confidence 和类别，速度与具体推理配置相关。"
+      },
+      {
+        "title": "Ultralytics 检测数据集格式",
+        "url": "https://docs.ultralytics.com/datasets/detect",
+        "supports": "class x_center y_center width height 标签格式，不含人工置信概率列表。"
+      },
+      {
+        "title": "YOLO-World 官方文档",
+        "url": "https://docs.ultralytics.com/models/yolo-world",
+        "supports": "开放词汇检测是传统封闭类别之外的路径。"
+      },
+      {
+        "title": "U-Net 原论文及作者页面",
+        "url": "https://lmb.informatik.uni-freiburg.de/people/ronneber/u-net/index.html",
+        "supports": "2015 年卷积神经网络分割架构，非传统手写规则算法。"
+      },
+      {
+        "title": "CatVTON 官方仓库",
+        "url": "https://github.com/Zheng-Chong/CatVTON",
+        "supports": "虚拟试衣扩散方案、mask 输入及实现条件；不代表已复现课堂版本。"
+      },
+      {
+        "title": "Diffusers Inpainting",
+        "url": "https://huggingface.co/docs/diffusers/v0.33.0/en/using-diffusers/inpaint",
+        "supports": "mask 控制重绘区域，输入图、mask 与条件共同影响输出。"
+      },
+      {
+        "title": "DiT 原始论文",
+        "url": "https://arxiv.org/abs/2212.09748",
+        "supports": "用 Transformer 替换扩散模型骨干，扩散和 Transformer 并不互斥。"
+      },
+      {
+        "title": "DeepSeek Janus 官方仓库",
+        "url": "https://github.com/deepseek-ai/Janus",
+        "supports": "自回归多模态理解与生成路线，反例于所有生成皆扩散。"
+      },
+      {
+        "title": "火山引擎实时语音方案",
+        "url": "https://docs.volcengine.com/docs/real_time_communication/IntegratedAIaudiovideointeractivesolution?lang=en",
+        "supports": "级联 ASR/LLM/TTS 与端到端实时语音两类路径。"
+      },
+      {
+        "title": "LoRA 原始论文",
+        "url": "https://arxiv.org/abs/2106.09685",
+        "supports": "冻结预训练权重并加入可训练低秩矩阵的适配机制。"
+      },
+      {
+        "title": "DeepMind AlphaFold",
+        "url": "https://deepmind.google/science/alphafold/",
+        "supports": "蛋白质等结构预测的特定科学系统，非通用语言模型能力证明。"
+      }
+    ],
+    "excluded_content": [
+      "儿童节寒暄、发课、排课、API 领取、讲师姓名与收尾运营：不成知识主题。",
+      "转行焦虑、薪资比较、AI 编程必然不可维护及就业预测：属于观点，不稀释多模态主线。",
+      "广告功效台词、未核实公司数字与平台政策：仅作为素材或转述背景。"
+    ],
+    "limits": "完成全文语境和官方资料复核；未访问私密配置、未执行视频或图像模型、未验证原始演示媒体；仅修改指定学习资产，待主 agent 冷复核。",
+    "status": "learning_review_complete_source_uncertainties_retained",
+    "independent_review": {
+      "date": "2026-10-21",
+      "scope": "完整冷读学习资产；疑点对照原始片段及一手资料，非第二遍音频校对",
+      "coverage_verified": true,
+      "confirmed_findings": [],
+      "disposition": "已逐项核实并修正；未改原文时间、编号及原始DOCX。",
+      "pending_source_tokens": 5,
+      "queue_domain": "ai-study-course"
+    }
+  }
+}

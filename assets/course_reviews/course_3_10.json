@@ -1,0 +1,885 @@
+{
+  "course_key": "14.就业服务：Agent相关简历+面试问题辅导",
+  "source_sha256": "3e48fdd143aaf159e5f1f2b8827e62c3f6bf0582ff314ac84ce5a0754f4b6cb5",
+  "review_date": "2026-10-21",
+  "method": "transcript-fixer Stage 1词典初筛 + Native AI全文语境复核 + 官方一手资料事实校订 + 学习版整理；独立冷复核由主流程安排 + 独立学习版冷复核及逐项裁定",
+  "keywords": [
+    "agent",
+    "项目简历",
+    "面试",
+    "MCP",
+    "Hit Rate",
+    "MRR",
+    "RRF",
+    "Playwright",
+    "LangGraph",
+    "评估",
+    "人在回路",
+    "Prompt管理",
+    "GraphRAG"
+  ],
+  "summary_points": [
+    "课程围绕Agent项目展示与面试方案能力，覆盖可用性、工具、检索评估、浏览器自动化、安全、成本和工程排错。",
+    "简历应展示真实任务、本人职责、实测效果及证据，清楚标注课程复现和个人POC，不能把教学示例、客户或指标写成自己的任职成果。",
+    "检索命中、相关文档召回、首相关结果排名和多路排序融合是不同概念；测试集、K、标注和统计口径必须明确。",
+    "可靠Agent依赖可测试工具、权限边界、调用追踪与有限循环；浏览器框架和模型审核都不提供万能安全或成功保证。",
+    "实战用LangGraph状态图连接规划、风险确认、执行和复核；人工参与还可澄清影响结果的重要需求。",
+    "课后应整理问题分类笔记，并把一个实际完成的Agent或RAG作品补齐测试、文档和演示，按岗位调整表达而不改变事实。"
+  ],
+  "interview_points": [
+    "如何区分超时、限流、鉴权错误，设计有上限的重试与降级，并验证备用模型？",
+    "Function Calling、MCP和Skills怎样配合？为何公开性与固定端口不是区分依据？",
+    "Hit Rate@K、Recall@K、MRR和RRF分别是什么？哪些属于评估，哪些属于排序？",
+    "如何为工具和开放式回答构建测试集与验收标准？为什么自报置信度不等于正确概率？",
+    "动态网页如何等待和验证动作？Playwright与Selenium的真实浏览器、连接和版本边界是什么？",
+    "状态图怎样处理高风险审批、循环终止、失败恢复和重复副作用？",
+    "怎样从追踪数据定位延迟和成本，并对Prompt版本进行可复现比较？",
+    "RAG、微调、蒸馏与GraphRAG各解决什么问题，如何用证据决定投入？",
+    "如何诚实说明开源基座、本人改动、课程原型与企业经历，给出可复核指标而非照抄示例？"
+  ],
+  "sections": [
+    {
+      "ts": "09:41",
+      "title": "稳定性：区分故障、重试与降级",
+      "body": "面试回答可先界定稳定性：接口可用性、超时、限流、延迟与输出质量是不同指标。记录错误类型和成功率，再设计重试或备用模型。校订：限流不意味着一律禁止重试，应遵循服务端要求，采用有上限的退避和抖动；鉴权、参数等永久错误不宜盲目重试。90%阈值只是课堂举例，降级模型的质量、权限和输出兼容性也要验证。",
+      "citation_ids": [
+        "original-6",
+        "original-7",
+        "original-8",
+        "original-9"
+      ]
+    },
+    {
+      "ts": "12:22",
+      "title": "岗位匹配与真实项目经历",
+      "body": "先看岗位职责和业务问题，再突出已有工程经验，例如前端的设计稿转代码、浏览器测试，或数据工作的处理与建模能力。面试通常同时考察方案能力和本人项目细节。校订：可以用公开数据改造课堂原型，但应标明课程复现、个人练习或POC，不能虚构公司项目、客户、职责或上线经历；根据岗位调整表达不等于改写事实。讲师对职业趋势和胜任比例的判断不是就业保证。",
+      "citation_ids": [
+        "original-12",
+        "original-13",
+        "original-14",
+        "original-15",
+        "original-16",
+        "original-17",
+        "original-18",
+        "original-19",
+        "original-20",
+        "original-21",
+        "original-22",
+        "original-23",
+        "original-24",
+        "original-25"
+      ]
+    },
+    {
+      "ts": "20:10",
+      "title": "工具能力、MCP与可迁移的业务封装",
+      "body": "Agent通常需要模型、工具、知识、上下文和执行控制；从本地文件统计练习迁移到OA或物流查询，应真正实现并验证新的接口。校订：Function Calling、MCP与Skills不是三选一；函数调用不必私有，MCP也不要求公开服务。MCP标准化连接，FastMCP帮助封装工具；stdio无需TCP端口，课堂猜测的6278/6237不应记作固定端口。旧Inspector代理6277也不是FastMCP通用端口。",
+      "citation_ids": [
+        "original-26",
+        "original-27",
+        "original-28",
+        "original-29",
+        "original-30",
+        "original-31",
+        "original-32",
+        "original-33",
+        "original-34",
+        "original-35",
+        "original-36",
+        "original-37",
+        "original-38",
+        "original-39"
+      ]
+    },
+    {
+      "ts": "27:29",
+      "title": "按业务需求平衡响应与深入处理",
+      "body": "课堂用快速事实查询和综合分析说明请求路由：简单问题调用合适工具，复杂问题组织多步骤工作流，并准备相关数据、规则与验证。业务理解影响工具配置和交付标准。校订：反应式、深思熟虑式与混合式是教学设计视角，不等同某个框架或仅由耗时划分；回答慢不保证更深入，回答快也不证明浅薄。金融案例仅用于说明工程需求，不作为投资建议或效果保证。",
+      "citation_ids": [
+        "original-40",
+        "original-41",
+        "original-42",
+        "original-43",
+        "original-44",
+        "original-45",
+        "original-46",
+        "original-47",
+        "original-48",
+        "original-49",
+        "original-50",
+        "original-51",
+        "original-52"
+      ]
+    },
+    {
+      "ts": "35:28",
+      "title": "长上下文、检索与存储选型",
+      "body": "海量资料不应全部塞进上下文，可把会话状态和外部知识存储分开，按需检索相关片段；长期记忆也不等同RAG一个组件。课堂讨论Elasticsearch的关键词与向量混合检索以及FAISS。校订：FAISS主要是向量相似度搜索与聚类库，不等于完整数据库。约21亿文档是Lucene相关的每分片硬限制，不能写作ES单索引保证容量或性能；容量与延迟仍需按数据和硬件测试。",
+      "citation_ids": [
+        "original-53",
+        "original-54",
+        "original-55",
+        "original-56",
+        "original-57",
+        "original-58",
+        "original-59",
+        "original-60",
+        "original-61",
+        "original-62",
+        "original-63",
+        "original-64",
+        "original-65"
+      ]
+    },
+    {
+      "ts": "42:19",
+      "title": "正确解释Hit Rate、Recall、MRR与RRF",
+      "body": "课堂50个问题由35题命中到43题命中，算术上是70%到86%，属于教学示例。校订：Top-K中至少有一个相关结果记1，跨问题平均是Hit Rate@K；Recall@K计算找回相关文档占全部相关文档比例，二者不能普遍混用。MRR是各问题首个相关结果排名倒数的平均，未命中记0；RRF是融合多路排名的方法，不是MRR。0.5不是通用优秀门槛，检索命中也不保证生成答案正确。",
+      "citation_ids": [
+        "original-66",
+        "original-67",
+        "original-68",
+        "original-69",
+        "original-70",
+        "original-71",
+        "original-72",
+        "original-73",
+        "original-74"
+      ]
+    },
+    {
+      "ts": "50:58",
+      "title": "计算与预测交给可测试工具",
+      "body": "重复的数值任务可封装为经过验证的代码或模型，让Agent传参并解释结果；二手车价格预测可用真实输入与价格数据训练、评估专用模型。将工具看作输入到输出的接口，准备独立测试集和边界案例。校订：代码可复现不等于结果正确，预测也存在误差与数据漂移；Skill本身不保证确定性。原文命理例子仅保留计算规则可测试的思想，不把命运预测写成科学事实。",
+      "citation_ids": [
+        "original-80",
+        "original-81",
+        "original-82",
+        "original-83",
+        "original-84",
+        "original-85",
+        "original-86",
+        "original-87",
+        "original-88",
+        "original-89",
+        "original-90",
+        "original-91",
+        "original-92",
+        "original-93",
+        "original-94",
+        "original-95",
+        "original-96"
+      ]
+    },
+    {
+      "ts": "01:00:34",
+      "title": "复杂网页案例与项目知识笔记",
+      "body": "课堂回顾OpenManus浏览器案例：复杂页面含重复元素、动态日历和弹出控件，单一定位策略容易失败。可保存经过验证的操作经验，并结合截图和视觉模型定位。校订：GUI-Plus输出可供外部系统执行的界面操作，模型自身不直接点击鼠标，具体版本和性能需实测。把错误、解决过程、截图及复现步骤整理为项目笔记；面试能否查阅资料应遵循面试约定，不能暗中用辅助工具代答。",
+      "citation_ids": [
+        "original-97",
+        "original-98",
+        "original-99",
+        "original-100",
+        "original-101",
+        "original-102",
+        "original-103",
+        "original-104",
+        "original-105",
+        "original-106"
+      ]
+    },
+    {
+      "ts": "01:06:44",
+      "title": "评估与验收：先定义可衡量的标准",
+      "body": "LangSmith、Langfuse等可帮助记录调用和组织评估，但核心是数据集、标准及评估器。事实问题可核对权威数据；开放问题可按相关性、完整性、可执行性等量表评审。校订：主观问题并非一概不考核，LLM-as-a-judge也需与人工判断校准。99.9%不能脱离任务、样本和误差定义讨论；课堂关于国内外工具采购的经验不构成行业统计。",
+      "citation_ids": [
+        "original-107",
+        "original-108",
+        "original-109",
+        "original-110",
+        "original-111",
+        "original-112",
+        "original-113",
+        "original-114",
+        "original-115"
+      ]
+    },
+    {
+      "ts": "01:12:24",
+      "title": "工作流、安全隔离与提示注入防护",
+      "body": "固定步骤可用明确工作流，开放任务再引入Agent规划；代码执行、数据访问和高风险操作需要权限边界，必要时有人确认。校订：沙箱要实际配置文件、网络、进程和资源限制，单独审核模型或分开system/user消息不能彻底防注入。外部文档也可能带攻击指令，应结合不可信数据隔离、工具参数校验、最小权限和审计；不据传闻断言某模型参数未变或拒答仅因审核层。",
+      "citation_ids": [
+        "original-116",
+        "original-117",
+        "original-118",
+        "original-119",
+        "original-120",
+        "original-121",
+        "original-122",
+        "original-123",
+        "original-124",
+        "original-125",
+        "original-126",
+        "original-127",
+        "original-128",
+        "original-129",
+        "original-130"
+      ]
+    },
+    {
+      "ts": "01:21:10",
+      "title": "Agent分工、错误恢复与工具颗粒度",
+      "body": "课堂偏好主控统筹、子Agent并行处理的结构，以减少主上下文中的过程信息；失败后可回传错误、修正再试。工具过细增加选择困难，过大又可能让参数复杂，应按职责设计并测试。校订：主Agent加子Agent也是多Agent模式之一；一次AutoGen体验不能证明框架普遍无效。16个工具、3个参数只是经验，不是技术上限；重试须有预算且防止重复副作用。",
+      "citation_ids": [
+        "original-131",
+        "original-132",
+        "original-133",
+        "original-134",
+        "original-135",
+        "original-136",
+        "original-137",
+        "original-138",
+        "original-139",
+        "original-140",
+        "original-141",
+        "original-142",
+        "original-143"
+      ]
+    },
+    {
+      "ts": "01:29:55",
+      "title": "浏览器自动化：等待条件与环境兼容",
+      "body": "动态页面优先等待可验证的元素状态或业务结果，避免只靠固定sleep；登录或扫码等可通过通知进入人工确认并在完成后恢复。校订：Playwright和Selenium都能驱动真实浏览器，Playwright既可启动浏览器也可连接兼容的现有实例，并非总共享用户浏览器。Playwright也有浏览器版本要求，Selenium Manager可管理驱动。可见窗口、模拟键速或工具选型都不保证绕过风控，应在授权范围内使用。",
+      "citation_ids": [
+        "original-144",
+        "original-145",
+        "original-146",
+        "original-147",
+        "original-148",
+        "original-149",
+        "original-150",
+        "original-151",
+        "original-152",
+        "original-153",
+        "original-154",
+        "original-155",
+        "original-156",
+        "original-157",
+        "original-158",
+        "original-159",
+        "original-160",
+        "original-161",
+        "original-162",
+        "original-163",
+        "original-164",
+        "original-165",
+        "original-166",
+        "original-167",
+        "original-168",
+        "original-169"
+      ]
+    },
+    {
+      "ts": "01:45:35",
+      "title": "成本分级与重复循环检测",
+      "body": "按任务复杂度评估模型路由、上下文长度、缓存及工具调用成本，不只比较单次Token价格。记录重复工具名称、参数和返回结果，发现没有进展时调整策略、停止或请求帮助。校订：连续三次只是讲师检测示例，还应设总轮数、时间和费用上限；价格、免费额度和模型强弱具有时效性，不保留原文未知型号及绝对排名。",
+      "citation_ids": [
+        "original-170",
+        "original-171",
+        "original-172",
+        "original-173",
+        "original-174",
+        "original-175",
+        "original-176",
+        "original-177"
+      ]
+    },
+    {
+      "ts": "01:50:18",
+      "title": "LangChain、LangGraph与Deep Agents",
+      "body": "课堂用LangGraph表达状态、节点、条件分支及循环，并提到Deep Agents的规划、文件与子Agent能力。校订：LangChain不是只能线性执行的旧框架，当前官方Agent构建与LangGraph等能力有关联；LangGraph更偏底层编排，Deep Agents提供更完整的Agent能力组合。不能据名称推荐无条件迁移，也不传播原文未经核实的源码、后门或国籍轶事。",
+      "citation_ids": [
+        "original-178",
+        "original-179",
+        "original-180",
+        "original-181",
+        "original-182",
+        "original-183",
+        "original-184"
+      ]
+    },
+    {
+      "ts": "01:56:01",
+      "title": "实战：带人工确认的状态图循环",
+      "body": "示例在状态中保存计划、风险标记、批准状态、执行结果和历史；planner决定下一步，高风险动作进入human review，批准后执行，再由review判断结束或继续。课堂演示列文件和删除文件两种路径。校订：input的yes/no只是终端原型，生产暂停恢复可结合持久化状态与中断；风险判断和实际路径权限不能只相信模型输出。每次批准应绑定具体操作，重复确认需排查状态和路由。",
+      "citation_ids": [
+        "original-185",
+        "original-186",
+        "original-187",
+        "original-188",
+        "original-189",
+        "original-190",
+        "original-191",
+        "original-192",
+        "original-193",
+        "original-194",
+        "original-195",
+        "original-196",
+        "original-197",
+        "original-198",
+        "original-199",
+        "original-200"
+      ]
+    },
+    {
+      "ts": "02:05:01",
+      "title": "人工介入不仅用于安全审批",
+      "body": "目标不明确、不同选择明显影响结果或决策价值较大时，先问少量关键问题可减少返工。不要让Agent沿未经确认的假设一直执行，也不要用反复提问代替进展。校订：模型自报0到100的置信度不是校准概率，90分阈值无法保证提问正确；应结合错误成本、信息缺口和用户负担评估，区分权限审批、需求澄清与质量复核。",
+      "citation_ids": [
+        "original-201",
+        "original-202",
+        "original-203",
+        "original-204",
+        "original-205",
+        "original-206",
+        "original-207",
+        "original-208",
+        "original-209",
+        "original-210",
+        "original-211",
+        "original-212"
+      ]
+    },
+    {
+      "ts": "02:13:10",
+      "title": "延迟排查从调用链证据开始",
+      "body": "对慢请求分解模型等待、推理、工具、网络与重试等阶段，并用追踪数据定位耗时。课堂举例总耗时30秒，其中工具占25秒，用于说明优化应针对瓶颈。校订：这些数字是示意，队列、并发限制和应用处理也可能造成延迟；报告首Token时间、总时延和分位数时应写明统计窗口。个人面试经历不作为技术证明。",
+      "citation_ids": [
+        "original-214",
+        "original-215",
+        "original-216",
+        "original-217",
+        "original-218",
+        "original-219",
+        "original-220",
+        "original-221",
+        "original-222",
+        "original-223"
+      ]
+    },
+    {
+      "ts": "02:17:54",
+      "title": "Prompt像代码一样管理与回归",
+      "body": "工作流中各节点的提示词可单独存放，记录版本、修改目的和关联测试，比较新旧版本在同一数据集上的表现。YAML是可选的数据序列化格式，也可使用代码仓库或提示管理平台。校订：提示词越短或约束越少不必然越好，Few-shot也并非天然有害；应去掉无效重复，同时保留业务、安全和输出契约，以回归结果决定修改是否有效。",
+      "citation_ids": [
+        "original-224",
+        "original-225",
+        "original-226",
+        "original-227",
+        "original-228",
+        "original-229",
+        "original-230",
+        "original-231",
+        "original-232",
+        "original-233",
+        "original-234"
+      ]
+    },
+    {
+      "ts": "02:25:34",
+      "title": "RAG、微调与蒸馏的选择",
+      "body": "RAG在推理时提供外部信息，微调继续训练参数以适应任务、风格或领域；先诊断检索、数据、提示和模型能力，再选择投入。校订：两者可组合，不是RAG失败就只能微调，95%企业不微调没有统计依据。蒸馏是利用教师信息训练学生的技术，不等同套取答案或所有微调；成本依方法、数据和模型规模而变，参数高效微调也有不同成本结构。",
+      "citation_ids": [
+        "original-235",
+        "original-236",
+        "original-237",
+        "original-238",
+        "original-239",
+        "original-240"
+      ]
+    },
+    {
+      "ts": "02:30:09",
+      "title": "GraphRAG重组知识关系",
+      "body": "课堂以人物、地点与关系图说明GraphRAG如何组织跨片段知识，并用社区摘要辅助综合问题。校订：微软GraphRAG流程包括文本切分、实体关系提取、图社区构建与摘要，属于索引及检索增强流程，不等于训练基础模型权重。关系必须有来源，不因故事人物同现就虚构边；质量、构建成本和更新成本需按任务实测，不能断言它始终更好或只适合昂贵项目。",
+      "citation_ids": [
+        "original-241",
+        "original-242",
+        "original-243",
+        "original-244",
+        "original-245",
+        "original-246",
+        "original-247",
+        "original-248"
+      ]
+    },
+    {
+      "ts": "02:35:44",
+      "title": "长上下文位置效应与部署取舍",
+      "body": "原文提到Lost in the Middle：一些长上下文任务对信息位置敏感，可通过检索、压缩与布局实验验证改善。校订：这是特定实验发现，不证明模型记忆与人类完全相同，也不保证重要内容放两端就正确。量化、显存、模型大小、并发和延迟应综合测试；不保留某款笔记本显卡性价比最高、vLLM只适合多人或Ollama只能单人的绝对建议。",
+      "citation_ids": [
+        "original-249",
+        "original-250",
+        "original-251",
+        "original-252"
+      ]
+    },
+    {
+      "ts": "02:38:04",
+      "title": "项目展示一：浏览器Agent的改造与证据",
+      "body": "浏览器Agent项目可说明基座、遇到的动态页面问题、定位策略、视觉辅助、执行控制及安全边界，并附流程图和运行截图。校订：课堂“定位成功率60%到95%”“20到30步”等是示例，不能写成本人的测量结果或框架能力保证。应披露基于OpenManus等开源项目复现、本人具体改动、测试任务和失败案例，避免把基座已有功能全算作原创。",
+      "citation_ids": [
+        "original-253",
+        "original-254",
+        "original-255",
+        "original-256"
+      ]
+    },
+    {
+      "ts": "02:40:40",
+      "title": "项目展示二：知识检索与可复现评测",
+      "body": "企业知识检索原型可描述资料处理、BM25与向量混合检索、重排、上下文组织和评估链路；规模小也可选择较轻的存储方案。校订：rerank不保证任何数据集都提升，亚秒检索与首Token时间需分别测量；50题可作起步，但不能随意把样本数写大。简历用项目目标、本人职责、实测成果及链接简洁展示，一页是讲师偏好，不是所有资历和岗位的硬标准。",
+      "citation_ids": [
+        "original-257",
+        "original-258",
+        "original-259",
+        "original-260",
+        "original-261",
+        "original-262",
+        "original-263",
+        "original-264"
+      ]
+    },
+    {
+      "ts": "02:47:44",
+      "title": "按岗位选择项目，区分业务指标与能力证明",
+      "body": "岗位名称可能不同，应看具体职责；既往数据、前端、管理或协作经验可提取真实的迁移能力。选择相关项目比堆数量更重要，课堂原型可以经过实际改造成为个人作品。校订：技术关键词不能替代真实实现；使用量、反馈与复购等业务指标须有记录，也不能直接证明医疗有效性。没有测量的效果、客户和上线规模不应补造，业务场景相似也不代表做过该公司的项目。",
+      "citation_ids": [
+        "original-265",
+        "original-266",
+        "original-267",
+        "original-268",
+        "original-269",
+        "original-270",
+        "original-271",
+        "original-272",
+        "original-273",
+        "original-274",
+        "original-275",
+        "original-276"
+      ]
+    },
+    {
+      "ts": "02:55:15",
+      "title": "课后交付：知识笔记与真实作品集",
+      "body": "将面试问题按架构、工具、检索、评估、安全和工程排错分类，积累本人实现与验证过的答案；选择一个Agent或RAG原型，补充测试、文档和演示，再写入个人作品集。校订：自动化应减少重复劳动，但不是必须取消所有人工控制，也不保证持续收益或求职成功。面向不同岗位可调整重点，始终保留课程来源、实际贡献和已知限制。",
+      "citation_ids": [
+        "original-277",
+        "original-278",
+        "original-279",
+        "original-280",
+        "original-281",
+        "original-282",
+        "original-283",
+        "original-284",
+        "original-285",
+        "original-286"
+      ]
+    }
+  ],
+  "notes": [
+    "简历诚信校订：本课多处“包装”整理为基于实际改造和验证的表达优化。课程复现、个人POC与任职项目必须区分；客户、职责、上线规模、评测数值和商业成果均不得由课堂示例转写为个人经历。招生措辞、学历刻板归因和就业/收入保证不保留。",
+    "指标校订：课堂35/50与43/50对应Hit Rate为70%与86%；Recall衡量找回的相关文档比例，MRR衡量首相关结果的倒数排名，RRF融合多路排名，三者含义不同。0.5优不优秀依数据与K而定。[排名评估](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/search-rank-eval) [RRF](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/reciprocal-rank-fusion)。",
+    "外部校订：ES约21亿文档指Lucene每分片硬上限而非ES单索引性能保证；FAISS是相似度搜索与聚类库，不能据名称等同完整数据库。[Elastic分片文档](https://www.elastic.co/guide/en/elasticsearch/reference/8.19/size-your-shards.html) [FAISS](https://github.com/facebookresearch/faiss)。",
+    "外部校订：MCP不要求公开部署，stdio无统一TCP端口；旧Inspector的6277为代理。Function Calling、MCP、Skills可组合而非三选一。[MCP传输](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports) [Inspector迁移](https://github.com/modelcontextprotocol/inspector/blob/main/docs/v1-to-v2-migration.md)。",
+    "外部校订：暂时限流也可有限退避重试，不应一律直接降级；具体错误与重试策略依提供商。风险权限需在模型外控制，角色分隔和审核模型均非单独可靠的注入防线。[AWS退避](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/retry-backoff.html) [OWASP防护](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html)。",
+    "浏览器校订：Playwright和Selenium均能控制真实浏览器；Playwright可启动或连接兼容实例，也需处理版本。自动等待检查元素条件，不保证业务已经成功，更不保证不触发平台风控。[自动等待](https://playwright.dev/docs/actionability) [版本](https://playwright.dev/docs/browsers) [连接API](https://playwright.dev/docs/api/class-browsertype) [Selenium Manager](https://www.selenium.dev/documentation/selenium_manager/)。",
+    "模型与框架校订：GUI-Plus根据截图与指令生成操作，需外部执行器；不补写课堂实际使用的快照。LangChain并非只能线性执行，Deep Agents与LangGraph等组件配合，选型应基于需求。[GUI-Plus](https://help.aliyun.com/zh/model-studio/gui-automation) [LangChain](https://docs.langchain.com/oss/python/langchain/overview) [Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview)。",
+    "评估与人工介入校订：主观任务可设评价量表，不是必然排除；LLM评审需校准，模型自报90分不是概率保证。课堂input审批是原型，生产应管理持久化状态与中断恢复。[评估类型](https://docs.langchain.com/langsmith/evaluation-types) [LangGraph中断](https://docs.langchain.com/oss/python/langgraph/interrupts)。",
+    "Prompt与性能校订：保留版本、应用代码和数据集定义，在相同条件下比较质量、延迟及成本；提示缩短或加约束均不是单调改善。[Langfuse A/B测试](https://langfuse.com/docs/prompt-management/features/a-b-testing) [实验比较](https://langfuse.com/docs/evaluation/experiments/compare-experiments)。",
+    "训练与知识工程校订：微调更新参数，蒸馏利用教师信息训练学生，RAG和微调可组合；参数高效方法也影响成本。GraphRAG组织实体关系与社区摘要，不等于训练基础模型。[微调](https://huggingface.co/docs/transformers/training) [PEFT](https://huggingface.co/docs/hub/peft) [蒸馏论文](https://arxiv.org/abs/1503.02531) [GraphRAG](https://microsoft.github.io/graphrag/)。",
+    "经验与证据边界：Lost in the Middle只支持特定任务中的位置效应，不能推广为所有模型等同人类记忆。OpenManus练习需披露开源来源；定位率60%到95%、50题检索改进、30秒耗时分解等均为课堂示例，没有本人的原始测试记录不得用于简历成果。[论文](https://arxiv.org/abs/2307.03172) [OpenManus](https://github.com/FoundationAgents/OpenManus)。",
+    "未核实边界：不猜型号、人名、沙箱品牌或内部插件；不确认厂商后门指控、客户合作数量、当前价格和免费额度。未运行课件、登录服务、发送邮件或读取任何私密配置；工程补充是学习版校订，不声称讲师代码已实现。"
+  ],
+  "review_audit": {
+    "scope": "仅写course_3_10.json；不修改原DOCX、原文、其他review、代码、身份名册或私密配置。",
+    "coverage": "完整阅读287段原文与37节导读，按原时间顺序整理25主题；保留Agent项目、技术面试、代码实战与真实作品集主线。",
+    "original_segment_count": 287,
+    "read_ranges": [
+      [
+        1,
+        287
+      ]
+    ],
+    "stage1": "主agent统一完成：applied=0，deferred=0，review_enqueued=0，boundary_check_active=true；source指纹由主流程重算核对。",
+    "native_review": "全读1—60（补读输出截断的1—19）、61—100、101—155、156—210、211—255、256—287，以及全部导读。",
+    "corrections": [
+      {
+        "anchors": [
+          "original-15",
+          "original-18",
+          "original-25",
+          "original-254",
+          "original-259",
+          "original-263",
+          "original-272"
+        ],
+        "type": "简历真实性边界",
+        "decision": "把包装限定为真实改造及表达；客户、指标和职责不得从课堂示例转作个人经历，样本数不能随意写大。"
+      },
+      {
+        "anchors": [
+          "original-9",
+          "original-14",
+          "original-29",
+          "original-37",
+          "original-38"
+        ],
+        "type": "系统与协议",
+        "decision": "限流可有限退避，固定重试次数未核实不推广；MCP非必须公开，无统一FastMCP端口。"
+      },
+      {
+        "anchors": [
+          "original-59",
+          "original-60",
+          "original-61",
+          "original-66",
+          "original-71",
+          "original-73",
+          "original-74"
+        ],
+        "type": "检索事实与ASR",
+        "decision": "ES为每分片限制；face→FAISS，DM25→BM25；MR2/ML2/M2结合倒数排名定义整理为MRR，区分Hit Rate/Recall与RRF。"
+      },
+      {
+        "anchors": [
+          "original-85",
+          "original-89",
+          "original-94",
+          "original-97",
+          "original-115"
+        ],
+        "type": "可测试性与评估",
+        "decision": "可复现不代表正确，命理预测非科学结论；主观任务也可评价，不将Skill视作确定性保证。"
+      },
+      {
+        "anchors": [
+          "original-120",
+          "original-123",
+          "original-130",
+          "original-131",
+          "original-142"
+        ],
+        "type": "安全与架构",
+        "decision": "权限在模型外落实；审核层或提示分隔不足独立防注入；主从子Agent属于多Agent模式，工具数非固定上限。"
+      },
+      {
+        "anchors": [
+          "original-152",
+          "original-153",
+          "original-156",
+          "original-163",
+          "original-168",
+          "original-169"
+        ],
+        "type": "浏览器事实",
+        "decision": "两种框架均可控制真实浏览器；Playwright有版本要求，Selenium可自动管驱动，不保证规避风控。"
+      },
+      {
+        "anchors": [
+          "original-179",
+          "original-180",
+          "original-188",
+          "original-210"
+        ],
+        "type": "框架与置信度",
+        "decision": "LangChain不只线性；Deep Agents按官方名称整理；input审批是原型，90分不是校准概率。"
+      },
+      {
+        "anchors": [
+          "original-236",
+          "original-238",
+          "original-241",
+          "original-244",
+          "original-249",
+          "original-250"
+        ],
+        "type": "训练与检索边界",
+        "decision": "RAG与微调可组合，蒸馏非套答案；GraphRAG索引非基础模型训练，位置效应非普遍人类记忆类比，删不实硬件绝对建议。"
+      }
+    ],
+    "unresolved_items": [
+      {
+        "anchors": [
+          "original-3",
+          "original-4",
+          "original-5",
+          "original-171",
+          "original-177",
+          "original-237",
+          "original-239"
+        ],
+        "issue": "型号、快照、价格和视觉能力的时效指代",
+        "handling": "不猜补型号或用当前信息反推录制状态；与理解相关的疑似token单列。"
+      },
+      {
+        "anchors": [
+          "original-121",
+          "original-123",
+          "original-258",
+          "original-270"
+        ],
+        "issue": "沙箱品牌、评估组件及工具比较对象转写不清",
+        "handling": "正文保留功能类别，不补造包名、服务名或API。"
+      },
+      {
+        "anchors": [
+          "original-74",
+          "original-75",
+          "original-108",
+          "original-126",
+          "original-127",
+          "original-165",
+          "original-182",
+          "original-218",
+          "original-220"
+        ],
+        "issue": "客户/履历/招聘轶事和产品后门指控缺一手证据",
+        "handling": "不查私密身份资料，不将轶事作为事实或进入ASR词典；删除与学习主线无关的指控和推广。"
+      },
+      {
+        "anchors": [
+          "original-63",
+          "original-70",
+          "original-216",
+          "original-254",
+          "original-257",
+          "original-259"
+        ],
+        "issue": "演示指标没有原始评测集、日志和测量条件",
+        "handling": "明确示例性质，禁止移植为个人项目成绩，保留方法和算术。"
+      }
+    ],
+    "pending_tokens": [
+      {
+        "citation_id": "original-4",
+        "original": "favo feber 5",
+        "suggested": "",
+        "reason": "型号转写不明，不能根据强弱评价推断产品。"
+      },
+      {
+        "citation_id": "original-4",
+        "original": "up 4.8",
+        "suggested": "",
+        "reason": "型号与版本近音不确定，未按上下文猜补。"
+      },
+      {
+        "citation_id": "original-121",
+        "original": "顶托纳",
+        "suggested": "",
+        "reason": "沙箱品牌疑似ASR，缺画面或代码证据。"
+      },
+      {
+        "citation_id": "original-123",
+        "original": "detonate",
+        "suggested": "",
+        "reason": "与沙箱品牌近音有关，无法仅凭频次确认身份。"
+      },
+      {
+        "citation_id": "original-171",
+        "original": "deep fake flash",
+        "suggested": "",
+        "reason": "模型系列与版本不明确，不据定价猜测。"
+      },
+      {
+        "citation_id": "original-237",
+        "original": "control 2.5",
+        "suggested": "",
+        "reason": "厂商与模型版本近音不明，训练来源亦未核实。"
+      },
+      {
+        "citation_id": "original-258",
+        "original": "open evil",
+        "suggested": "",
+        "reason": "评估组件名称疑似ASR，缺依赖或链接证据。"
+      },
+      {
+        "citation_id": "original-270",
+        "original": "thread",
+        "suggested": "",
+        "reason": "比较对象工具名不明，不猜成特定浏览器框架。"
+      }
+    ],
+    "external_sources": [
+      {
+        "publisher": "AWS",
+        "url": "https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/retry-backoff.html",
+        "used_for": "暂时限流与退避重试"
+      },
+      {
+        "publisher": "MCP规范",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports",
+        "used_for": "本地stdio和远程传输边界"
+      },
+      {
+        "publisher": "MCP Inspector",
+        "url": "https://github.com/modelcontextprotocol/inspector/blob/main/docs/v1-to-v2-migration.md",
+        "used_for": "旧版6277属于代理非固定MCP端口"
+      },
+      {
+        "publisher": "Elastic",
+        "url": "https://www.elastic.co/guide/en/elasticsearch/reference/8.19/size-your-shards.html",
+        "used_for": "每分片Lucene文档硬上限"
+      },
+      {
+        "publisher": "FAISS官方项目",
+        "url": "https://github.com/facebookresearch/faiss",
+        "used_for": "向量搜索与聚类库定位"
+      },
+      {
+        "publisher": "Elastic",
+        "url": "https://www.elastic.co/docs/reference/elasticsearch/rest-apis/search-rank-eval",
+        "used_for": "Recall与MRR定义"
+      },
+      {
+        "publisher": "Elastic",
+        "url": "https://www.elastic.co/docs/reference/elasticsearch/rest-apis/reciprocal-rank-fusion",
+        "used_for": "RRF是排序融合方法"
+      },
+      {
+        "publisher": "阿里云",
+        "url": "https://help.aliyun.com/zh/model-studio/gui-automation",
+        "used_for": "GUI-Plus将截图与指令转换为供外部执行的动作"
+      },
+      {
+        "publisher": "LangChain",
+        "url": "https://docs.langchain.com/langsmith/evaluation-types",
+        "used_for": "代码、LLM与主观评价及在线离线评估"
+      },
+      {
+        "publisher": "OWASP",
+        "url": "https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html",
+        "used_for": "注入防护和最小权限不能仅靠模型"
+      },
+      {
+        "publisher": "Playwright",
+        "url": "https://playwright.dev/docs/actionability",
+        "used_for": "元素可操作性与自动等待"
+      },
+      {
+        "publisher": "Playwright",
+        "url": "https://playwright.dev/docs/browsers",
+        "used_for": "浏览器版本要求"
+      },
+      {
+        "publisher": "Playwright",
+        "url": "https://playwright.dev/docs/api/class-browsertype",
+        "used_for": "启动及CDP连接方式"
+      },
+      {
+        "publisher": "Selenium",
+        "url": "https://www.selenium.dev/documentation/selenium_manager/",
+        "used_for": "真实浏览器自动化与驱动管理"
+      },
+      {
+        "publisher": "LangChain",
+        "url": "https://docs.langchain.com/oss/python/langchain/overview",
+        "used_for": "LangChain与LangGraph关系"
+      },
+      {
+        "publisher": "LangChain",
+        "url": "https://docs.langchain.com/oss/python/deepagents/overview",
+        "used_for": "Deep Agents定位与能力"
+      },
+      {
+        "publisher": "LangGraph",
+        "url": "https://docs.langchain.com/oss/python/langgraph/interrupts",
+        "used_for": "人工中断、状态和恢复"
+      },
+      {
+        "publisher": "Langfuse",
+        "url": "https://langfuse.com/docs/prompt-management/features/a-b-testing",
+        "used_for": "提示版本测试及延迟成本指标"
+      },
+      {
+        "publisher": "Langfuse",
+        "url": "https://langfuse.com/docs/evaluation/experiments/compare-experiments",
+        "used_for": "固定数据集版本和评估定义进行比较"
+      },
+      {
+        "publisher": "Hugging Face",
+        "url": "https://huggingface.co/docs/transformers/training",
+        "used_for": "微调继续训练参数"
+      },
+      {
+        "publisher": "Hugging Face",
+        "url": "https://huggingface.co/docs/hub/peft",
+        "used_for": "参数高效微调"
+      },
+      {
+        "publisher": "蒸馏论文作者",
+        "url": "https://arxiv.org/abs/1503.02531",
+        "used_for": "知识蒸馏定义"
+      },
+      {
+        "publisher": "Microsoft GraphRAG",
+        "url": "https://microsoft.github.io/graphrag/",
+        "used_for": "实体关系、社区摘要与检索流程"
+      },
+      {
+        "publisher": "Lost in the Middle论文作者",
+        "url": "https://arxiv.org/abs/2307.03172",
+        "used_for": "上下文位置效应与实验范围"
+      },
+      {
+        "publisher": "OpenManus官方项目",
+        "url": "https://github.com/FoundationAgents/OpenManus",
+        "used_for": "开源项目名称与来源归属"
+      }
+    ],
+    "omissions": [
+      {
+        "category": "开场互动与重复",
+        "ranges": "1—5、10—11、22及零散互动、287",
+        "reason": "删除声音检查、模型闲聊、重复收尾及学完即可就业暗示。"
+      },
+      {
+        "category": "招生、职业保证与学历归因",
+        "ranges": "19、52、74—79、108—109、126—127、218—221、266、279—281部分",
+        "reason": "保留岗位与工程经验，删缺证据的普遍化、培训营销、收入保证及学历刻板判断。"
+      },
+      {
+        "category": "金融行情及命理预测",
+        "ranges": "44—50、81—94、202—205部分",
+        "reason": "只保留业务需求、工具验证和澄清机制，不传播金融结论或命理科学性。"
+      },
+      {
+        "category": "型号、价格、硬件和品牌传闻",
+        "ranges": "3—5、14、123、140、149、171—177、180—182、237—240、250部分",
+        "reason": "部分ASR不确定且时效性强，不猜补当前产品或保留未经核实的安全指控。"
+      },
+      {
+        "category": "界面找寻与原型简化",
+        "ranges": "33—38、194—200、206—212、277—278部分",
+        "reason": "保留可复用流程与校订，删找按钮、等待和未证实配置细节。"
+      },
+      {
+        "category": "把练习包装成真实经历",
+        "ranges": "15—18、25、32、39、68、100、109、254、259、263、271—274、283—286部分",
+        "reason": "改为实际动手、标注来源和提供证据，删除冒充任职项目或随意改样本数的暗示。"
+      }
+    ],
+    "limitations": "基于文本及官方一手资料审校，未核验音频、代码运行或教学指标；无个人求职者背景，本文仅整理课程，不代写虚构简历。外部事实与工程补充在正文及notes显式标注。",
+    "first_pass_second_pass": "本agent完成字段、引用和未决词锚点自检；独立冷复核待主流程统一安排。",
+    "status": "learning_review_complete_source_uncertainties_retained",
+    "independent_review": {
+      "date": "2026-10-21",
+      "scope": "完整冷读学习资产；疑点对照原始片段及一手资料，非第二遍音频校对",
+      "coverage_verified": true,
+      "confirmed_findings": [],
+      "disposition": "已逐项核实并修正；未改原文时间、编号及原始DOCX。",
+      "pending_source_tokens": 8,
+      "queue_domain": "ai-study-course"
+    }
+  }
+}

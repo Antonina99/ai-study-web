@@ -1141,11 +1141,20 @@ def build_qa_request(item, question, section=None):
 
     evidence = course_evidence(item, question, section if isinstance(section, dict) else None, limit=4)
     evidence_block = evidence_text(evidence) or "（当前范围没有可用的课程原文依据）"
+    review_notes = (course.get("reviewed_assets") or {}).get("notes", [])
+    review_block = ""
+    if review_notes:
+        review_block = (
+            "【课程校订说明（外部核对与待核项，不是讲师原话）】\n"
+            + "\n".join(review_notes)
+            + "\n如原文与校订冲突，明确区分原话和校订；待核实体不可推断为确定事实。\n\n"
+        )
     user = (
         f"当前课程：《{item.get('name', '')}》\n"
         f"【当前学习范围】{scope_desc}\n\n"
         f"【已验证课程原文依据】\n{evidence_block}\n\n"
         f"【课程导读/整理内容（只能辅助理解，不能作为原文引用）】\n{ctx}\n\n"
+        f"{review_block}"
         f"【最近对话】\n{hist_txt}\n\n"
         f"用户问题：{question}"
     )

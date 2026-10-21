@@ -1,0 +1,587 @@
+{
+  "course_key": "Loop Engineering：由目标驱动的复杂智能体实现原理分析",
+  "source_sha256": "692ff5c6e6dab2625b72b3e495a62a679ca650c8dabf5ba4d75d0ae7b3006b45",
+  "review_date": "2026-10-21",
+  "method": "transcript-fixer Stage 1 词典初筛 + 234 段原文及完整导读全语境复核 + 一手技术资料事实校订 + 学习版整理 + 独立学习版冷复核及逐项裁定",
+  "keywords": [
+    "loop",
+    "Loop Engineering",
+    "Harness",
+    "任务板",
+    "目标驱动",
+    "ReAct",
+    "反馈",
+    "验收标准",
+    "上下文学习",
+    "工具调用",
+    "权限预算",
+    "Trace"
+  ],
+  "summary_points": [
+    "本课讨论目标驱动的持续任务系统：观察真实结果、更新状态并改变下一步，直到完成、受阻或触及权限等边界。",
+    "任务板把目标、待办和证据持久化，但不能单独保证收敛；验收、预算及失败处理同样必要。",
+    "Prompt、Context、工具、工作流、Harness 与 Loop 是可组合的职责视角，不是新词依次淘汰旧词。",
+    "ReAct 提供交错推理与行动方法；长期目标循环可与局部回路嵌套，外围工程承担执行、存储和控制。",
+    "上下文学习不自动更新权重；RAG、早期 NLP、Skill 与 ACP 的几处绝对或混淆表述按一手资料校订。",
+    "演示展示了规划和失败修复，但没有完整交付验收；招聘统计和工业案例不作为已验证现实结果，运营宣传不纳入学习主题。"
+  ],
+  "interview_points": [
+    "如何区分重复调用、固定多步流程与目标反馈循环？怎样证明下一步由新证据驱动？",
+    "一个可执行目标应包含哪些验收标准、交付物和停止条件？",
+    "任务板如何表示依赖、进展和证据？为什么标记完成仍需独立验证？",
+    "ReAct 与长期目标管理是什么关系？怎样设计局部循环和阶段循环？",
+    "Harness 应为循环提供哪些状态、执行环境、权限、预算和可观测能力？",
+    "为什么 ICL 不等于 RAG，也不等于微调？错误上下文如何通过持久化状态继续影响后续任务？",
+    "何时需要用户补充信息或授权？如何避免把未知条件默认成许可？",
+    "如何用最终效果和过程轨迹评价 Agent，并定位计划、检索、执行或验证失败？"
+  ],
+  "sections": [
+    {
+      "ts": "04:39",
+      "title": "把 Loop Engineering 当作设计问题，而非背诵热词",
+      "body": "本课关注怎样让模型驱动的系统围绕目标持续工作，而不是仅追逐新词。Loop Engineering 在这里采用讲师的工程讨论口径，并非有统一边界的正式标准。有关词语首次出现的月份、具体提出者及某次访谈，原文没有足够一手证据，学习版不将其作为技术史定论。",
+      "citation_ids": [
+        "original-5",
+        "original-6",
+        "original-7",
+        "original-8",
+        "original-9",
+        "original-10",
+        "original-11",
+        "original-139",
+        "original-206",
+        "original-207"
+      ]
+    },
+    {
+      "ts": "08:17",
+      "title": "循环要有退出条件：完成、受阻或触及边界",
+      "body": "目标推进不意味着一直重试。系统应判断目标已完成、缺少必要条件而受阻，或下一步超出允许范围。权限检查应发生在执行前；根目录只是文件边界的一部分，网络、凭证、外部写入和执行环境也会影响授权。需要额外权限时应停下或进入明确的确认流程，不能把权限拒绝当普通错误反复绕过。",
+      "citation_ids": [
+        "original-11",
+        "original-13",
+        "original-14",
+        "original-15",
+        "original-154",
+        "original-156"
+      ]
+    },
+    {
+      "ts": "12:27",
+      "title": "演示展示了推进过程，未证明任务最终成功",
+      "body": "课堂以研究概念、生成文档的目标启动本地 Agent，展示规划、任务列表、文件写入失败和后续验证修复。讲师说明存在本地权限或环境问题，以及已知 warning；演示没有完整验收最终交付。应从中学习如何记录失败和调整计划，而不能把持续输出日志或任务板变长当作已经完成目标。",
+      "citation_ids": [
+        "original-17",
+        "original-18",
+        "original-19",
+        "original-20",
+        "original-21",
+        "original-22",
+        "original-23",
+        "original-24",
+        "original-25",
+        "original-26",
+        "original-27",
+        "original-38",
+        "original-162"
+      ]
+    },
+    {
+      "ts": "19:50",
+      "title": "区分一次动作与持续目标",
+      "body": "招聘调研可能需要界定岗位、搜索、阅读多个页面、判断相关性、去重、统计并写报告。一次搜索可以是外层任务中的一个动作，内部仍可能含多步处理。动作粒度由任务边界决定；把若干调用顺序串起来还不够，必须根据当前结果决定是否继续、修复或结束。",
+      "citation_ids": [
+        "original-27",
+        "original-28",
+        "original-29",
+        "original-30",
+        "original-31",
+        "original-32",
+        "original-33",
+        "original-34",
+        "original-35",
+        "original-36"
+      ]
+    },
+    {
+      "ts": "26:36",
+      "title": "反馈必须实际影响下一步",
+      "body": "每完成一个阶段，比较结果与要求：方向不对就重规划，方向正确但未完成就推进下一步，证据支持完成才结束。观察、判断和状态回写形成闭环。工程上的 for 或 while 只是实现形式；若相同输入与失败结果被重复调用而没有策略变化，不能视为有效进展。",
+      "citation_ids": [
+        "original-37",
+        "original-38",
+        "original-45",
+        "original-126",
+        "original-129",
+        "original-130"
+      ]
+    },
+    {
+      "ts": "29:07",
+      "title": "ReAct 提供行动与观察方法，任务板是进一步设计选择",
+      "body": "ReAct 交错推理和行动，再用环境观察指导下一步，并不规定唯一代码结构或必须使用全局任务板。外部校订：原论文发表于 2022 年，而非把 2024 年当作起源；ReAct 与前端 React 不同。课程强调的长期目标、任务板和运行控制可以建立在 ReAct 思路上，但不能因此认定普通 ReAct 无法结合全局规划或工程设施。",
+      "citation_ids": [
+        "original-39",
+        "original-40",
+        "original-41",
+        "original-42",
+        "original-43",
+        "original-44",
+        "original-125",
+        "original-126",
+        "original-131"
+      ]
+    },
+    {
+      "ts": "34:32",
+      "title": "提示词表达目标，真实资料与执行能力还要由系统提供",
+      "body": "仅有一句调研要求，模型无法凭空知道当前职位、薪酬或页面可访问性，也无法证明已经完成去重和报告交付。提示词负责表达意图和约束；上下文提供证据，工具与运行时提供实际动作。课程的 Prompt→Context→工具→工作流→Harness→Loop 是理解职责扩展的教学线索，不是所有系统都严格经历的历史阶段。",
+      "citation_ids": [
+        "original-47",
+        "original-48",
+        "original-49",
+        "original-50",
+        "original-51",
+        "original-52",
+        "original-53",
+        "original-54",
+        "original-62",
+        "original-63",
+        "original-76",
+        "original-97",
+        "original-98"
+      ]
+    },
+    {
+      "ts": "39:40",
+      "title": "上下文学习改变本次行为，不等于修改模型参数",
+      "body": "课堂通过岗位定义及几个 JD 的例子说明模型可利用输入资料进行语义推断。外部校订：in-context learning 通常指在提示或示例条件下适应任务、无需梯度更新；利用资料回答与 ICL 有关联，但不应把所有上下文读取都等同于完整的学习机制。错误资料可能带偏；下一次修正输入可去除该处影响，但若错误已写入历史、记忆或外部产物，仍需清理这些状态。",
+      "citation_ids": [
+        "original-55",
+        "original-56",
+        "original-57",
+        "original-58",
+        "original-59",
+        "original-60",
+        "original-61",
+        "original-72"
+      ]
+    },
+    {
+      "ts": "46:05",
+      "title": "ICL、RAG 与旧式问答不是同一个概念",
+      "body": "ICL 是模型在上下文中适应任务的能力描述；RAG 是检索信息与生成相结合的方法。外部校订：2020 年 RAG 原论文已组合预训练生成模型与非参数检索记忆，不是单纯“找标准答案模板”。早期 NLP 也不全是规则引擎；微软小冰的公开论文描述了神经生成等组件。因此课堂小鸡问答只适合说明某类固定题库系统的局限。",
+      "citation_ids": [
+        "original-63",
+        "original-64",
+        "original-65",
+        "original-66",
+        "original-67",
+        "original-68",
+        "original-69",
+        "original-70",
+        "original-71",
+        "original-72",
+        "original-73",
+        "original-74",
+        "original-75"
+      ]
+    },
+    {
+      "ts": "55:50",
+      "title": "从回答到行动：模型提出请求，运行时执行并回收结果",
+      "body": "外部信息既可预先整理，也可在运行中通过工具获取。模型输出工具请求，外围工程执行搜索、读写或其他操作，返回真实观察。不能把一句“我将去做”当作动作已经发生。外部校订：RAG 不必始终只用静态预处理资料，检索资料更新频率取决于数据管线。",
+      "citation_ids": [
+        "original-77",
+        "original-78",
+        "original-79",
+        "original-80",
+        "original-81",
+        "original-82",
+        "original-83",
+        "original-84",
+        "original-85"
+      ]
+    },
+    {
+      "ts": "01:02:30",
+      "title": "工作流管理多步状态，也能包含模型决策回路",
+      "body": "预设流程可处理复杂任务，负责节点关系、条件、并发、循环和状态存储。课堂进一步把 ReAct 表示成规划、执行、观察回传的运行图，说明动态决策可以嵌入工作流。需要区分“编排图有结构”和“所有行动顺序事先固定”。低代码界面降低操作门槛，并不免除对模型能力和业务复杂度的理解。",
+      "citation_ids": [
+        "original-86",
+        "original-87",
+        "original-88",
+        "original-89",
+        "original-90",
+        "original-91",
+        "original-92",
+        "original-93",
+        "original-94",
+        "original-99",
+        "original-100",
+        "original-101",
+        "original-102",
+        "original-103",
+        "original-104",
+        "original-105",
+        "original-106",
+        "original-107"
+      ]
+    },
+    {
+      "ts": "01:18:45",
+      "title": "Harness 提供运行支撑，Loop 组织目标反馈",
+      "body": "课程把模型调用、上下文、执行环境、状态、工具、制品和控制机制归入 Harness，把目标与反馈驱动的推进策略称为 Loop。两者是相互配合的设计视角，不是新词替代旧词。外部补充：官方工程实践也会把工具循环直接归入 harness，术语边界并不统一；重要的是能指出每项职责由哪个组件承担。",
+      "citation_ids": [
+        "original-109",
+        "original-110",
+        "original-119",
+        "original-120",
+        "original-121",
+        "original-122",
+        "original-123",
+        "original-124",
+        "original-126",
+        "original-151",
+        "original-155"
+      ]
+    },
+    {
+      "ts": "01:20:00",
+      "title": "Skill 是指令与资源包，不能简化成一次函数调用",
+      "body": "Skill 可以包含说明、脚本、参考资料和模板；使用时需要发现相关技能、加载指令，并按需读取附属文件或执行代码。外部校订：开放规范通常在激活时读取完整 SKILL.md，再按需加载资源，不能因某段看似不相关就跳过验证等强制要求。也不必每次由模型上网安装；可预先部署并复用兼容运行时。ReAct 可以参与加载流程，但文件访问和执行能力要真实存在。",
+      "citation_ids": [
+        "original-111",
+        "original-112",
+        "original-113",
+        "original-114",
+        "original-115",
+        "original-116",
+        "original-117",
+        "original-118",
+        "original-180",
+        "original-181",
+        "original-182"
+      ]
+    },
+    {
+      "ts": "01:32:35",
+      "title": "招聘调研反馈要体现样本和证据缺口",
+      "body": "课堂假设检索到 20 个页面，其中 12 个可访问、3 个重复，得到 9 个独立样本，只有 2 个披露薪酬。下一步应由报告要求决定：继续搜集薪酬、调整结论范围，或报告数据不足。这些数字是教学示例，不是实际市场调查结果。页面数量、可用样本量与支撑某个结论的证据量应分开记录。",
+      "citation_ids": [
+        "original-127",
+        "original-128"
+      ]
+    },
+    {
+      "ts": "01:37:36",
+      "title": "局部反馈循环与跨阶段目标循环可以嵌套",
+      "body": "一个阶段内部可以读取状态、执行动作、记录证据并验证；更长的任务则在调研、规划、实现、验收之间推进。任务板可组织阶段依赖，小回路解决当前具体问题。是否需要用户确认由缺失信息、影响和授权决定，不能因为使用了某种 Skill 就认为每一步必须确认，也不能因开启目标模式就把未知条件视为已获批准。",
+      "citation_ids": [
+        "original-135",
+        "original-136",
+        "original-137",
+        "original-138",
+        "original-139",
+        "original-140",
+        "original-141",
+        "original-142",
+        "original-143",
+        "original-216",
+        "original-217"
+      ]
+    },
+    {
+      "ts": "01:40:36",
+      "title": "少人值守不等于不需要外部信息",
+      "body": "目标描述不能创造缺失的业务事实、凭证或权限。调研范围、国家币种、付费数据库访问和外发信息等可能需要补充；错误方向也需要过程纠偏。无人值守是否可行取决于任务边界与环境可观测性，不能从个别案例推导“所有长任务都无解”。可预设合理默认值，但影响验收或授权的未知条件必须显式处理。",
+      "citation_ids": [
+        "original-140",
+        "original-141",
+        "original-142",
+        "original-143",
+        "original-144"
+      ]
+    },
+    {
+      "ts": "01:43:21",
+      "title": "可执行目标要写清方向、验收条件和交付形态",
+      "body": "课程归纳三项输入：追逐什么目标、用什么条件判定完成、最终交付报告还是代码等产物。验收条件应可观察，例如文件确实存在、结论具有来源、样本经过规定的去重，而不是“模型认为很好”。交付格式与目标一起持续保留，避免任务推进中只完成局部动作而偏离最终需求。",
+      "citation_ids": [
+        "original-144",
+        "original-145",
+        "original-146",
+        "original-147"
+      ]
+    },
+    {
+      "ts": "01:45:30",
+      "title": "任务板驱动循环，但任务板本身不保证收敛",
+      "body": "读取目标和当前状态，选择待办事项，执行并记录反馈、错误与产物，再依据成功标准回写状态，重复直到满足退出条件。任务板为进展提供持久化表示。外部校订：任务被打勾不等于真实完成，仍要检查证据；还需预算、重复失败检测和停止条件，不能宣称加了任务板就必然退出或成功。",
+      "citation_ids": [
+        "original-147",
+        "original-148",
+        "original-149",
+        "original-150",
+        "original-152",
+        "original-153",
+        "original-154"
+      ]
+    },
+    {
+      "ts": "01:49:27",
+      "title": "可靠运行依赖结构化状态、调度、工具、存储和控制",
+      "body": "课堂列出的支撑包括结构化请求与上下文、复杂任务调度、工具与沙盒、工作区及状态存储、权限预算和人工介入，以及观测评估。工程补充：模型生成的状态更新要解析、校验并受规则约束；执行与状态回写应能处理失败和重试。结构化格式只解决可解析性，不自动证明内容正确。",
+      "citation_ids": [
+        "original-152",
+        "original-153",
+        "original-154",
+        "original-155",
+        "original-156",
+        "original-172",
+        "original-173"
+      ]
+    },
+    {
+      "ts": "01:52:51",
+      "title": "评估既看交付，也用轨迹定位失败",
+      "body": "Trace 记录调用、动作、反馈和状态变化，评估则判断任务效果并支持改进。端到端结果检验不可少，过程轨迹帮助区分检索、规划、工具、上下文或验证环节的问题。用户输入可以变短，但内部每次模型调用仍需设计提示与上下文。外部校订：LangChain 并非只依赖供应商原生 JSON 输出，也支持工具调用形式的结构化输出策略。",
+      "citation_ids": [
+        "original-157",
+        "original-158",
+        "original-159",
+        "original-160",
+        "original-172",
+        "original-173",
+        "original-188",
+        "original-204",
+        "original-205"
+      ]
+    },
+    {
+      "ts": "02:11:48",
+      "title": "协议选择先确认 ACP 的全称和交互对象",
+      "body": "课堂讨论模块间任务分派。外部校订：Agent Client Protocol 的 ACP 用于编辑器/IDE 与编码 Agent，适用于本地及远程场景，但官方说明远程 Agent 的完整支持仍在推进中；另一个 Agent Communication Protocol 面向 Agent 互操作，其官网已公告并入 A2A。A2A 也不能只定义为跨企业订阅协议。原文未明确 ACP 全称与版本，不能断言所有被提到的产品内部都使用同一种 ACP。",
+      "citation_ids": [
+        "original-160",
+        "original-186",
+        "original-187"
+      ]
+    },
+    {
+      "ts": "02:27:55",
+      "title": "微调解决特定能力或输出倾向，不能替代评估",
+      "body": "课堂用角色语气与专门代码语言说明可能的微调需求。应先验证问题来自知识缺失、提示与工具、数据质量，还是模型稳定能力不足，再比较优化方案；不能把行业名或一次测试表现当作必须微调的证据。原文关于具体千问版本的表现是转述的局部测试，缺任务、配置和指标，不写成型号能力排行榜。",
+      "citation_ids": [
+        "original-209",
+        "original-210",
+        "original-211",
+        "original-212"
+      ]
+    },
+    {
+      "ts": "02:33:41",
+      "title": "多模态应用同样需要可验证的管线与局部循环",
+      "body": "短剧例子包含剧本、人物和台词、生成提示、画面生成与评估；会议例子先将语音转文字，再整理会议内容。文字规划、外部模型和人工或 VLM 评审可以组合，但自动评审结果仍需要验证。课堂在语音例子中随即把 TTS 纠正为 STT，应按语音转文字理解；不把误识别的产品名补成确定型号。",
+      "citation_ids": [
+        "original-218",
+        "original-219",
+        "original-220"
+      ]
+    },
+    {
+      "ts": "02:38:07",
+      "title": "企业落地围绕工作流程，成本要对应真实产出",
+      "body": "工厂案例讨论电路设计辅助、设计检查和质检代码生成等环节，重点是拆解业务任务，不是给每个岗位一对一复制“数字员工”。这些是讲师描述的需求或设想，未提供部署与验证证据。POC 能运行不等于可持续生产；要评价质量、时间、维护成本与产出，不能把消耗更多 token 本身当作业务成效。",
+      "citation_ids": [
+        "original-214",
+        "original-215",
+        "original-223",
+        "original-224",
+        "original-225",
+        "original-226",
+        "original-230"
+      ]
+    }
+  ],
+  "notes": [
+    "保留原始 SHA、引用及时间戳，不修改逐字稿。外部校订和工程补充不冒充课堂原话；课程中的 Loop/Harness 边界是教学口径，不是统一行业标准。",
+    "未决：新词首创时间及作者身份、dear flow、IDO、andy bosman、p agent 缺少可确认来源；具体“千问3.5/3.6”性能说法只属转述局部观察，不反猜型号或宣称能力优劣。",
+    "ACP 原文缺全称与版本，已按两种官方协议区分；未证实课堂提及产品实际用了哪一种协议。",
+    "未取得课堂代码、完整日志或交付产物，已知 warning 和权限失败不能解释为最终成功。没有核查讲师课程定价、额度、雇用承诺、产品版权声明或传闻。",
+    "外部核验：[ReAct 原始论文](https://arxiv.org/abs/2210.03629)——2022 年提出推理、行动和环境反馈相结合的方法。",
+    "外部核验：[GPT-3 Few-Shot Learners 原论文](https://arxiv.org/abs/2005.14165)——上下文示例适应任务无需梯度更新。",
+    "外部核验：[RAG 原始论文](https://arxiv.org/abs/2005.11401)——2020 年检索增强生成结合参数化生成器与非参数记忆，不是纯模板查询。",
+    "外部核验：[Microsoft 小冰原始系统论文](https://www.microsoft.com/en-us/research/publication/the-design-and-implementation-of-xiaoice-an-empathetic-social-chatbot/)——小冰含神经生成等组件，不能概括为没有神经网络的纯规则系统。",
+    "外部核验：[Anthropic 长任务 Harness 实践](https://www.anthropic.com/research/effective-harnesses-for-long-running-agents)——跨上下文增量推进、环境准备和进度管理是工程实践，非成功保证。",
+    "外部核验：[Anthropic Managed Agents 架构](https://www.anthropic.com/engineering/managed-agents)——session、harness 与 sandbox 的职责；harness 可包含调用及路由循环。",
+    "外部核验：[Agent Skills 开放规范概览](https://agentskills.io/home)——SKILL.md、可选资源、跨产品复用与渐进加载阶段。",
+    "外部核验：[LangChain structured output](https://github.com/langchain-ai/docs/blob/main/src/oss/langchain/structured-output.mdx)——ProviderStrategy 与 ToolStrategy 不同实现路径。",
+    "外部核验：[Agent Client Protocol](https://agentclientprotocol.com/get-started/introduction)——编辑器/IDE 与编码 Agent 通信，适用于本地与远程。",
+    "外部核验：[Agent Communication Protocol](https://agentcommunicationprotocol.dev/introduction/welcome)——另一同名 ACP，互操作用途及并入 A2A 公告。",
+    "外部核验：[A2A 官方概览](https://a2a-protocol.org/latest/)——独立 Agent 应用间通信与互操作，不限跨企业订阅。"
+  ],
+  "review_audit": {
+    "original_segment_count": 234,
+    "read_ranges": [
+      [
+        1,
+        234
+      ]
+    ],
+    "summary_section_count": 30,
+    "summary_read_ranges": [
+      [
+        1,
+        30
+      ]
+    ],
+    "full_read_method": "按 1–50、51–100、101–150、151–195、196–234 分段全读；末批输出中 223–226 被截断，已独立完整重读补齐。完整阅读导读标题、关键词、摘要及 30 节。TXT 与 JSON 原文逐段比较。",
+    "stage1": {
+      "performed_by": "主 agent 统一执行",
+      "applied": 0,
+      "deferred": 0,
+      "review_enqueued": 0,
+      "boundary_check_active": true
+    },
+    "coverage": [
+      "术语讨论与边界",
+      "权限及停止条件",
+      "失败演示与目标拆解",
+      "观察重规划与 ReAct",
+      "Prompt/Context/ICL/RAG",
+      "工具执行与工作流状态",
+      "Harness 与 Skills",
+      "招聘证据缺口",
+      "嵌套循环与人工输入",
+      "目标验收和任务板",
+      "六类工程支撑",
+      "Trace 与结构化输出",
+      "ACP/A2A",
+      "微调讨论",
+      "多模态与企业流程价值"
+    ],
+    "important_corrections": [
+      "ReAct 起源为 2022 年；任务板不是划分 ReAct 与 Loop 的绝对标准。",
+      "ICL 不更新参数，但错误可能已进入历史或外部状态，不能保证下一次天然无影响。",
+      "早期 NLP 并非全是规则引擎；小冰有神经生成；2020 RAG 已结合生成模型。",
+      "Skill 激活按规范读取指令并按需加载资源，不能任意略去强制步骤；不要求每次联网安装。",
+      "任务板和循环不保证进展或收敛；权限拒绝不应无限重试。",
+      "LangChain 可采用工具调用结构化输出，非必须供应商原生 JSON 能力。",
+      "ACP 有不同全称和用途，A2A 非仅跨企业；原文统一产品归属断言无证据。",
+      "无人值守可行性取决任务与环境，不能绝对宣称长任务都无解。"
+    ],
+    "pending_tokens": [
+      {
+        "citation_id": "original-21",
+        "original": "dear flow",
+        "suggested": "",
+        "reason": "可能是技能或项目名称，未提供仓库、准确拼写或音频；不按近音反猜。"
+      },
+      {
+        "citation_id": "original-134",
+        "original": "IDO",
+        "suggested": "",
+        "reason": "疑似作者或机构缩写，缺一手引文与音频，无法确认身份。"
+      },
+      {
+        "citation_id": "original-139",
+        "original": "andy bosman",
+        "suggested": "",
+        "reason": "疑似人名识别，未找到与具体原始文章对应的可靠证据，不按相近姓名替换。"
+      },
+      {
+        "citation_id": "original-202",
+        "original": "p agent",
+        "suggested": "",
+        "reason": "产品名称片段不稳定，缺仓库和准确拼写，不把近似产品身份当事实。"
+      }
+    ],
+    "unresolved_items": [
+      "未确认 Loop Engineering 提出者、首创日期及访谈来源。",
+      "疑似名称识别见 pending_tokens，不推断人物身份。",
+      "课堂具体协议实现、模型比较、演示最终产物未核验。",
+      "工业案例是需求举例，非部署成功报告。"
+    ],
+    "official_sources": [
+      {
+        "title": "ReAct 原始论文",
+        "url": "https://arxiv.org/abs/2210.03629",
+        "supports": "2022 年提出推理、行动和环境反馈相结合的方法。"
+      },
+      {
+        "title": "GPT-3 Few-Shot Learners 原论文",
+        "url": "https://arxiv.org/abs/2005.14165",
+        "supports": "上下文示例适应任务无需梯度更新。"
+      },
+      {
+        "title": "RAG 原始论文",
+        "url": "https://arxiv.org/abs/2005.11401",
+        "supports": "2020 年检索增强生成结合参数化生成器与非参数记忆，不是纯模板查询。"
+      },
+      {
+        "title": "Microsoft 小冰原始系统论文",
+        "url": "https://www.microsoft.com/en-us/research/publication/the-design-and-implementation-of-xiaoice-an-empathetic-social-chatbot/",
+        "supports": "小冰含神经生成等组件，不能概括为没有神经网络的纯规则系统。"
+      },
+      {
+        "title": "Anthropic 长任务 Harness 实践",
+        "url": "https://www.anthropic.com/research/effective-harnesses-for-long-running-agents",
+        "supports": "跨上下文增量推进、环境准备和进度管理是工程实践，非成功保证。"
+      },
+      {
+        "title": "Anthropic Managed Agents 架构",
+        "url": "https://www.anthropic.com/engineering/managed-agents",
+        "supports": "session、harness 与 sandbox 的职责；harness 可包含调用及路由循环。"
+      },
+      {
+        "title": "Agent Skills 开放规范概览",
+        "url": "https://agentskills.io/home",
+        "supports": "SKILL.md、可选资源、跨产品复用与渐进加载阶段。"
+      },
+      {
+        "title": "LangChain structured output",
+        "url": "https://github.com/langchain-ai/docs/blob/main/src/oss/langchain/structured-output.mdx",
+        "supports": "ProviderStrategy 与 ToolStrategy 不同实现路径。"
+      },
+      {
+        "title": "Agent Client Protocol",
+        "url": "https://agentclientprotocol.com/get-started/introduction",
+        "supports": "编辑器/IDE 与编码 Agent 通信，适用于本地与远程。"
+      },
+      {
+        "title": "Agent Communication Protocol",
+        "url": "https://agentcommunicationprotocol.dev/introduction/welcome",
+        "supports": "另一同名 ACP，互操作用途及并入 A2A 公告。"
+      },
+      {
+        "title": "A2A 官方概览",
+        "url": "https://a2a-protocol.org/latest/",
+        "supports": "独立 Agent 应用间通信与互操作，不限跨企业订阅。"
+      }
+    ],
+    "excluded_content": [
+      "音频测试、鼠标解释、开班排期、价格优惠、剩余名额、扫码购买及反复运营提醒：不构成学习知识。",
+      "课程培养与就业承诺、免费额度和版权保证：缺独立证据且不影响技术主线。",
+      "未核实人物归属、新词营销时间线、泄露源码传闻及产品能力排行：不作为事实传播。"
+    ],
+    "limits": "完成全文语境复核和学习资产；未运行课堂代码、未核实业务部署结果；仅写指定 review 文件，待主 agent 冷复核。",
+    "status": "learning_review_complete_source_uncertainties_retained",
+    "independent_review": {
+      "date": "2026-10-21",
+      "scope": "完整冷读学习资产；疑点对照原始片段及一手资料，非第二遍音频校对",
+      "coverage_verified": true,
+      "confirmed_findings": [
+        {
+          "line": 364,
+          "original": "支持本地及远程",
+          "suggested": "适用于本地及远程场景，但官方说明远程 Agent 的完整支持仍在推进中",
+          "reason": "官方 Introduction（https://agentclientprotocol.com/get-started/introduction）既写 suitable for both local and remote scenarios，也在 Overview 明确 Full support for remote agents is a work in progress。原文没有协议全称，学习版这部分属于外部校订；现有“支持”省略成熟度边界，容易让选型读者误认为远程能力已完整落地。应补限定，不改源转写。"
+        }
+      ],
+      "disposition": "已逐项核实并修正；未改原文时间、编号及原始DOCX。",
+      "pending_source_tokens": 4,
+      "queue_domain": "ai-study-course"
+    }
+  }
+}

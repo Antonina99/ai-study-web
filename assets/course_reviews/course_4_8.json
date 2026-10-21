@@ -1,0 +1,631 @@
+{
+  "course_key": "15. 企业级AI部署：从硬件选型到框架选择",
+  "source_sha256": "f57fc78b0a301b6e654b6ab6ef6a98acc619653b15ae29a8a11b304fcbac5f54",
+  "review_date": "2026-10-21",
+  "method": "transcript-fixer Stage 1 由主审执行；283 段原文及 37 节导读完整语境复核，结合官方文档与原论文事实校订；仅生成学习版，不改原文。 + 独立学习版冷复核及逐项裁定",
+  "keywords": [
+    "大模型",
+    "GPU",
+    "显存估算",
+    "KV cache",
+    "量化",
+    "Ollama",
+    "vLLM",
+    "SGLang",
+    "持续批处理",
+    "前缀缓存",
+    "Outlines",
+    "结构化输出"
+  ],
+  "summary_points": [
+    "部署链路是业务任务与模型选择、硬件容量和性能预算、推理引擎、API 接入及结构化结果验收；能启动模型只是第一步。",
+    "显存需分别考虑权重、KV cache、运行时工作空间等。参数量乘每参数字节数仅估算权重；长上下文、并发和模型结构会改变总需求，不能统一乘 2.2。",
+    "GPU 适合大规模并行计算，但推理也受访存、互联和调度影响。量化能降低部分存储开销，速度与质量收益须在目标硬件及任务上验证。",
+    "课堂用 Ollama 跑通小模型和 HTTP API，再用 vLLM 演示环境准备、模型路径、服务启动及请求验证。SGLang 的前缀复用是另一个选型维度，不能据此宣布普遍更快。",
+    "持续批处理减少等待整批结束的空闲，PagedAttention 优化 KV cache 管理，前缀缓存减少共享输入的重复计算；这些机制解决不同瓶颈。",
+    "用 JSON Schema、枚举、正则或语法约束生成结果，仍需验证业务含义、完整响应及错误状态。不能由 response_format 推断服务商内部必用 vLLM 或 Outlines。"
+  ],
+  "interview_points": [
+    "为什么 8B 模型不是固定占用 24GB？请分别估算 FP16/BF16 权重、KV cache 和运行开销，并说明 GB 与 GiB 的差别。",
+    "为何低并发 decode 往往受带宽限制？怎样同时比较首 token 延迟、每 token 延迟、总吞吐与错误率？",
+    "静态批处理、持续批处理、PagedAttention 和前缀缓存各解决什么问题？为什么单次请求不能证明服务吞吐优势？",
+    "如何排查 vLLM 启动失败：环境未激活、版本不匹配、路径或模型名错误、显存不足分别看什么证据？",
+    "MoE 激活参数量为什么不能直接代替总权重容量？多卡部署还需考虑哪些通信和分片条件？",
+    "结构化生成如何屏蔽非法 token？格式正确为何仍可能事实错误？如何验收枚举、嵌套订单、IP 地址和食谱示例？"
+  ],
+  "sections": [
+    {
+      "ts": "14:09",
+      "title": "从业务目标确定部署边界",
+      "body": "课程把部署目标概括为在可接受成本下服务更多请求。先明确任务、模型质量、数据是否允许外发及响应需求，再选择模型和基础设施；展示项目时应说明场景、演示结果和架构。课堂关于企业至少需要某个参数规模的判断属于经验，不能替代业务评测。",
+      "citation_ids": [
+        "original-18",
+        "original-25",
+        "original-26",
+        "original-210",
+        "original-211",
+        "original-216"
+      ]
+    },
+    {
+      "ts": "18:26",
+      "title": "CPU、GPU 与矩阵计算的分工",
+      "body": "GPU 适合并行矩阵运算，CPU 仍负责请求处理、控制和调度等工作。课堂用多条流水线说明并行性；CPU 核与 GPU 核不能直接等量比较，20×20 矩阵也不能据此推出固定 400 倍加速。实际性能取决于算子、精度、数据规模和搬运开销。",
+      "citation_ids": [
+        "original-33",
+        "original-34",
+        "original-35",
+        "original-36",
+        "original-96"
+      ]
+    },
+    {
+      "ts": "20:48",
+      "title": "token 表示与句向量不是同一个对象",
+      "body": "若一段输入有 100 个 token，隐藏维度为 4096，某层表示可以写成 100×4096，共 409600 个元素；这只是示意张量，既不是模型参数量，也不是完整推理显存。句向量可把序列表示聚合为固定维度，服务相似度检索；生成模型的内部表示不能称为无损保存原文。",
+      "citation_ids": [
+        "original-37",
+        "original-38",
+        "original-39",
+        "original-40",
+        "original-41",
+        "original-42",
+        "original-47"
+      ]
+    },
+    {
+      "ts": "24:41",
+      "title": "Embedding 的池化、维度与检索质量",
+      "body": "课程用平均池化解释将不同长度切片表示为固定长度向量。校订：平均只是池化方法之一，Embedding 模型也可使用最后 token 等策略，不能统一定义为大模型加平均、不能理解顺序；4096 也不是统一维度。选择时查看模型卡的输入限制、输出维度和任务评测，维度更大不保证更准确。",
+      "citation_ids": [
+        "original-44",
+        "original-45",
+        "original-48",
+        "original-49",
+        "original-50",
+        "original-51",
+        "original-52",
+        "original-53",
+        "original-54",
+        "original-56"
+      ]
+    },
+    {
+      "ts": "31:13",
+      "title": "容量瓶颈与带宽瓶颈要分别诊断",
+      "body": "显存容量决定能否容纳权重和运行状态，带宽决定数据搬运速率。课程强调数据搬运的重要性，但“95% 时间等待”不是通用比例。外部校订：prefill 与逐 token decode 的瓶颈可能不同，小批次 decode 常受访存限制，因此推理选卡不能只看显存大小而忽略带宽。",
+      "citation_ids": [
+        "original-57",
+        "original-58",
+        "original-63",
+        "original-73",
+        "original-97"
+      ]
+    },
+    {
+      "ts": "32:03",
+      "title": "SSD、DRAM、HBM 与统一内存",
+      "body": "模型文件存于持久存储，推理时加载到可计算使用的内存。校订：常见系统内存条是 DRAM，不是 SRAM；HBM 是高带宽堆叠 DRAM，不是把十条普通 DDR 简单拼接。统一内存使 CPU/GPU 共享内存池、减少某些复制，但仍有访存和同步开销；它不同于 GPU 内部 shared memory，也不意味着所有容量都可供模型独占。",
+      "citation_ids": [
+        "original-59",
+        "original-61",
+        "original-62",
+        "original-63",
+        "original-66",
+        "original-67",
+        "original-68",
+        "original-69",
+        "original-70"
+      ]
+    },
+    {
+      "ts": "39:47",
+      "title": "互联、供电与散热也是部署约束",
+      "body": "课程以光模块说明数据传输，并提醒大集群考虑供电与散热。应评估链路带宽、延迟、功耗及拓扑；不能只以光速类比断言光互联必然更快。千卡规模是否相当于某城市用电，取决于设备功率、利用率和基础设施，课堂比喻不是容量规划数据。",
+      "citation_ids": [
+        "original-71",
+        "original-72",
+        "original-93",
+        "original-95",
+        "original-96",
+        "original-99"
+      ]
+    },
+    {
+      "ts": "45:26",
+      "title": "硬件选型依据工作负载，而非系列标签",
+      "body": "课程比较消费级 GPU 与数据中心 GPU，关注容量、带宽、互联及使用成本。H 系列并非只能推理，B 系列也并非只能训练；模型可否部署不能仅由 H100、H200、B200 名称对应 30B、70B 等规模决定。租用小实例验证可行性后，再结合实际规格、软件支持和测量结果规划。课堂报价、性价比百分比及散热建议不作为当前采购承诺。",
+      "citation_ids": [
+        "original-79",
+        "original-80",
+        "original-81",
+        "original-83",
+        "original-84",
+        "original-85",
+        "original-88",
+        "original-89",
+        "original-90",
+        "original-91",
+        "original-92",
+        "original-100",
+        "original-101"
+      ]
+    },
+    {
+      "ts": "48:39",
+      "title": "精度与量化改变的是表示成本",
+      "body": "FP32、FP16/BF16、FP8 的理想单元素存储分别约 4、2、1 字节；FP8 相对 FP32 为四分之一，相对 FP16 为一半。INT4 或 FP4 等四位格式也存在，八位不是最小单位。量化通常减少权重的存储位数，不等于参数个数减少；缩放因子、未量化部分和运行状态仍占空间，兼容内核与任务质量决定实际收益。",
+      "citation_ids": [
+        "original-86",
+        "original-87",
+        "original-92",
+        "original-124",
+        "original-141",
+        "original-156",
+        "original-158",
+        "original-171"
+      ]
+    },
+    {
+      "ts": "01:03:58",
+      "title": "Ollama 入门：先用小模型跑通流程",
+      "body": "课堂从安装客户端、选择模型标签、pull 下载到 run 对话，采用较小模型降低试验门槛。下载和运行须使用准确模型 ID，并预留文件空间；实际版本、量化和标签以模型库为准，不凭语音拼写照抄。Windows 可使用官方原生版本，WSL 是另一种环境选择。CPU 或统一内存设备可运行适配的小模型，速度需要实测。",
+      "citation_ids": [
+        "original-111",
+        "original-113",
+        "original-114",
+        "original-115",
+        "original-117",
+        "original-119",
+        "original-122",
+        "original-125",
+        "original-127",
+        "original-128",
+        "original-133"
+      ]
+    },
+    {
+      "ts": "01:11:58",
+      "title": "把权重容量和总显存分开估算",
+      "body": "以 8×10^9 个参数、全部按两字节存储为前提，权重约 16GB（约 14.9GiB）；32B 同样约 64GB（约 59.6GiB）。还需加 KV cache、激活和框架工作空间。课堂的乘 2.2、8B 配 24G 只能视为特定设置的粗估；32×2.2 是 70.4，不能再概括成 64G 足够。磁盘下载大小也不直接等于运行占用。",
+      "citation_ids": [
+        "original-123",
+        "original-124",
+        "original-133",
+        "original-155",
+        "original-156",
+        "original-157"
+      ]
+    },
+    {
+      "ts": "01:16:28",
+      "title": "从本地模型接入应用 API",
+      "body": "Ollama 本地 API 默认基址为 localhost:11434；请求提供正确模型名、消息和流式选项。课堂先直接 POST，再用 FastAPI 在 8000 端口封装业务接口，让 Agent 调用。包装层不意味着重新训练或再次部署权重；本机监听也不自动保证同事能访问，需要按部署网络配置绑定地址及访问控制。API 外层元数据和模型正文应分别解析。",
+      "citation_ids": [
+        "original-131",
+        "original-132",
+        "original-134",
+        "original-135",
+        "original-136",
+        "original-137",
+        "original-138",
+        "original-139",
+        "original-277"
+      ]
+    },
+    {
+      "ts": "01:25:20",
+      "title": "持续批处理减少整批等待",
+      "body": "课程用三张餐桌说明静态批次等待最慢请求的问题。持续批处理可在迭代间移出已完成请求、加入新请求，让可用计算资源继续处理工作。并发 API 请求数、批处理中的活跃序列数和真实用户人数是不同指标，多 Agent 同样会形成并发。外部校订：Ollama 官方也支持并行请求，不能把它写成永远只处理一个请求或完全没有批处理能力。",
+      "citation_ids": [
+        "original-145",
+        "original-146",
+        "original-147",
+        "original-148",
+        "original-149",
+        "original-150",
+        "original-151",
+        "original-269"
+      ]
+    },
+    {
+      "ts": "01:28:46",
+      "title": "PagedAttention 与前缀缓存各自解决什么",
+      "body": "PagedAttention 通过分页式 KV cache 管理减少碎片和重复占用，有利于增加可服务批次。前缀缓存则复用相同输入前缀已算出的 KV，降低重复 prefill 计算；不是直接复用答案，也不必然加快新 token 解码。vLLM 和 SGLang 都具有前缀复用机制，不能以“vLLM 没有前缀缓存”区分它们。",
+      "citation_ids": [
+        "original-109",
+        "original-110",
+        "original-149",
+        "original-201",
+        "original-202"
+      ]
+    },
+    {
+      "ts": "01:31:23",
+      "title": "vLLM：模型来源、路径和环境准备",
+      "body": "课堂先从 ModelScope 下载模型，再用本地完整路径启动；也可在受支持环境用模型仓库 ID。确保模型格式及架构被引擎支持，下载目录有足够空间，模型名和路径大小写正确。使用独立虚拟环境或受控容器，先激活环境再确认命令，避免把环境未激活误认为未安装。",
+      "citation_ids": [
+        "original-153",
+        "original-154",
+        "original-161",
+        "original-162",
+        "original-163",
+        "original-164",
+        "original-165",
+        "original-166",
+        "original-168",
+        "original-169",
+        "original-172",
+        "original-173",
+        "original-183"
+      ]
+    },
+    {
+      "ts": "01:33:38",
+      "title": "上下文、并发与 KV cache 的容量预算",
+      "body": "课程要求预留显存、设置最大长度并检查其他占用。外部补充其缺失的原因：标准 Transformer 解码缓存各层 K/V，未压缩的常见估算是 2×层数×KV 头数×头维度×缓存 token 总数×每元素字节数。并发序列更长、更大通常增加缓存；GQA、滑窗、MLA 等结构或缓存量化会改变估算。该式不是所有模型通式，应使用模型配置及引擎实测。",
+      "citation_ids": [
+        "original-157",
+        "original-165",
+        "original-174",
+        "original-190",
+        "original-193"
+      ]
+    },
+    {
+      "ts": "01:44:39",
+      "title": "兼容性与启动失败的排查顺序",
+      "body": "课程遇到依赖及环境问题，提醒检查 Python、PyTorch、Transformers 和 vLLM 的版本关联。应保存实际版本、GPU/驱动信息和完整错误，再核对对应版本官方安装要求；课堂某个 torch 版本不是通用组合。启动还需检查模型路径、dtype、最大上下文、并行配置和已有显存占用。AI 可辅助查错，安装后仍以实际日志和请求验收。",
+      "citation_ids": [
+        "original-174",
+        "original-175",
+        "original-176",
+        "original-177",
+        "original-178",
+        "original-179",
+        "original-180",
+        "original-188",
+        "original-189",
+        "original-198"
+      ]
+    },
+    {
+      "ts": "01:47:51",
+      "title": "服务验收与性能评估不能混为一谈",
+      "body": "课堂保持服务终端运行，用新终端 curl 访问默认 8000 端口及兼容 API 路径，核对模型名与返回正文。非流式要等待完整响应；思考模式、输出上限需按模型和服务支持配置。单请求通畅只能证明链路可用，不能证明高吞吐优势；比较时固定硬件、模型、精度、输入输出长度和负载，记录首 token 延迟、每 token 延迟、总吞吐及错误率，课堂两三倍提升不作保证。",
+      "citation_ids": [
+        "original-181",
+        "original-182",
+        "original-183",
+        "original-184",
+        "original-185",
+        "original-186",
+        "original-190"
+      ]
+    },
+    {
+      "ts": "01:55:13",
+      "title": "MoE、微调模型与本地部署边界",
+      "body": "课程正确提醒 A3B 一类激活规模不能当作全部权重容量：即使每 token 只调用部分专家，其他专家仍需可访问；可通过分片或卸载改变存放位置，但不会凭空消失。微调后的兼容模型可再由推理框架加载。本地小模型适合受限环境或明确窄任务，效果需验证；纯 CPU 推理可行性依赖系统内存和后端支持，并非没有独立显存就绝对无法运行。",
+      "citation_ids": [
+        "original-193",
+        "original-194",
+        "original-195",
+        "original-204",
+        "original-210",
+        "original-211",
+        "original-214",
+        "original-215",
+        "original-216"
+      ]
+    },
+    {
+      "ts": "01:58:34",
+      "title": "SGLang 与框架选择的评测维度",
+      "body": "SGLang 的运行时包括 RadixAttention 前缀复用及结构化生成等机制，适合纳入多轮对话、共享长前缀和 Agent 请求的候选。vLLM、SGLang、Ollama 的选择应同时比较模型硬件支持、维护成本及真实负载，不按 star 数或一句“更快”决定。SGLang 与 vLLM 有研究者交集，不等于完全同一开发团队；省多少美元或性能上限需具体测量。",
+      "citation_ids": [
+        "original-200",
+        "original-201",
+        "original-202",
+        "original-203",
+        "original-205",
+        "original-206",
+        "original-207",
+        "original-208"
+      ]
+    },
+    {
+      "ts": "02:07:43",
+      "title": "多卡与分离部署需要显式规划",
+      "body": "课堂提到多卡和 prefill/decode 分离。多卡可采用张量、流水线或其他受支持的并行策略，需配置分片并考虑互联开销；单机多 GPU 也能优化，不是单机就无法协作。四张 4090 放某个 32B 是课堂示例，不是必要卡数，也不是只插卡就会自动最优分配。",
+      "citation_ids": [
+        "original-212",
+        "original-213",
+        "original-268",
+        "original-269"
+      ]
+    },
+    {
+      "ts": "02:10:27",
+      "title": "结构化输出解决接口格式不稳定",
+      "body": "保单、周报和简报案例要求固定字段。仅在提示词里给 JSON 示例属于软约束，仍可能出现引号、逗号或多余文本问题；逐个修补输出难以覆盖全部情况。Outlines 等工具或服务内置结构化功能可在生成时约束格式。格式合法只解决接口的一部分，仍需检查字段含义、来源、业务范围及中断失败。",
+      "citation_ids": [
+        "original-24",
+        "original-217",
+        "original-218",
+        "original-219",
+        "original-220",
+        "original-222",
+        "original-223",
+        "original-224",
+        "original-225",
+        "original-226"
+      ]
+    },
+    {
+      "ts": "02:16:42",
+      "title": "Schema、有限状态机与 token 约束",
+      "body": "课堂用姓名枚举、年龄及角色定义说明 Pydantic/JSON Schema，再用状态图解释合法输出路径。约束解码依据当前合法状态屏蔽不允许的 token，再在剩余候选中采样；不需要改变模型权重。字符图是教学示意，实际 token 可包含多个字符；正则有限状态机不是所有递归 JSON 或语法约束的唯一实现。提示词仍负责说明字段业务意义，不应因有 schema 就省略任务要求。",
+      "citation_ids": [
+        "original-227",
+        "original-228",
+        "original-231",
+        "original-232",
+        "original-233",
+        "original-234",
+        "original-235",
+        "original-236",
+        "original-237",
+        "original-239",
+        "original-240",
+        "original-241",
+        "original-243",
+        "original-244",
+        "original-271",
+        "original-276",
+        "original-283"
+      ]
+    },
+    {
+      "ts": "02:30:54",
+      "title": "内置结构化 API 与独立工具的边界",
+      "body": "可直接调用服务支持的 response_format 或使用独立 Outlines 适配器。当前 vLLM 官方文档列出 xgrammar、guidance 等后端，旧示例参数须按版本迁移；Ollama 本地也支持 schema。不能从 API 形状反推通义等服务内部一定跑 vLLM、一定使用 Outlines；远程 API 的约束能力仍由提供商及适配器支持决定。",
+      "citation_ids": [
+        "original-245",
+        "original-246",
+        "original-247",
+        "original-248",
+        "original-249",
+        "original-257",
+        "original-258",
+        "original-264",
+        "original-267",
+        "original-273",
+        "original-274",
+        "original-275",
+        "original-278"
+      ]
+    },
+    {
+      "ts": "02:33:47",
+      "title": "用枚举、正则和嵌套对象验收结果",
+      "body": "姓名限定集合、舆情三分类适合枚举；IP 地址可按格式约束，但还需保证数值范围和业务有效性。订单及食谱可用对象嵌套数组，定义商品、数量、单价或食材、数量、卡路里；自由说明可放在字符串字段中。验收既检查 schema，又核对事实与业务值，格式正确不代表卡路里或价格准确。课堂练习保留为跑通部署 API 并完成结构化案例验证，不保留截图提交要求。",
+      "citation_ids": [
+        "original-250",
+        "original-251",
+        "original-252",
+        "original-253",
+        "original-254",
+        "original-255",
+        "original-256",
+        "original-259",
+        "original-260",
+        "original-261",
+        "original-262",
+        "original-263",
+        "original-272",
+        "original-279",
+        "original-280",
+        "original-281",
+        "original-282"
+      ]
+    }
+  ],
+  "notes": [
+    "本学习版保留原始时间及引用；外部资料核验时间为 2026-10-21，未获课程录制日期。当前文档用于校订技术机制和版本边界，不倒推讲师当日所用软件版本。",
+    "容量校订依据 [Transformers KV cache](https://huggingface.co/docs/transformers/kv_cache) 与[量化文档](https://huggingface.co/docs/transformers/quantization/bitsandbytes)。FP16/BF16 估算、GB/GiB 换算及 32×2.2=70.4 是学习版显式算例；KV cache 公式为标准结构的补充说明，不冒充课堂已展开内容。",
+    "硬件概念核对 [Micron HBM](https://www.micron.com/products/memory/hbm)、[Apple M1](https://www.apple.com/newsroom/2020/11/apple-unleashes-m1/) 与 [NVIDIA 推理分离说明](https://www.nvidia.com/en-eu/glossary/disaggregated-serving/)。SRAM/DRAM、统一内存/shared memory、容量/带宽已区分；不复述统一 95% 等待比例。",
+    "Embedding 不能统一归结为平均池化：[Qwen3-Embedding-4B 官方模型卡](https://huggingface.co/Qwen/Qwen3-Embedding-4B)给出最后 token 池化示例。维度与质量不建立无条件单调关系。",
+    "并行能力按 [Ollama FAQ](https://docs.ollama.com/faq) 校订，CPU 后端依据 [llama.cpp](https://github.com/ggml-org/llama.cpp)。[vLLM 前缀缓存](https://docs.vllm.ai/en/latest/features/automatic_prefix_caching.html)也支持共享输入复用；[PagedAttention 论文](https://arxiv.org/abs/2309.06180)及 [SGLang 论文](https://arxiv.org/abs/2312.07104)的性能倍数仅属于其测试设置。",
+    "结构化生成核对 [Outlines](https://github.com/dottxt-ai/outlines)、[vLLM 官方文档](https://docs.vllm.ai/en/latest/features/structured_outputs/)及 [Ollama schema 示例](https://docs.ollama.com/capabilities/structured-outputs)。支持的语法、schema 子集及失败模式依版本而异；不接受“无需任何验证”“几乎无开销”“所有服务底层都是 Outlines”的泛化。",
+    "型号价格、租机费、供应份额、股票涨幅、产能与未来缺货、太空数据中心合作等缺少课堂一手附件或可复现实验，本版不当作部署事实或采购建议。RDS6000、MP4 等不凭读音认定具体硬件/格式。课程中的部分模型版本标签未获下载记录，不判断其真假或替换成熟悉版本。",
+    "讲师的银行、保险、周报与工控场景作为教学案例保留，不声称已独立核实客户生产效果。模型强弱、固定省费和倍数均需同等条件评测。未读取私密配置；原始 DOCX 未改。"
+  ],
+  "review_audit": {
+    "original_segment_count": 283,
+    "summary_section_count": 37,
+    "read_ranges": [
+      "original-1—40",
+      "original-41—85",
+      "original-86—130",
+      "original-131—180",
+      "original-181—230",
+      "original-231—266",
+      "original-267—283（截断后单独重读）",
+      "导读标题、关键词、总摘要；summary-1—18、summary-19—37完整重读"
+    ],
+    "coverage": "完整原文与导读逐段阅读；涵盖硬件、向量表示、内存、量化容量、Ollama、vLLM、SGLang、多卡、结构化生成及尾部问答；以原文重建，导读错误未继承。",
+    "stage1": {
+      "executed_by": "主审代理",
+      "applied": 0,
+      "deferred": 0,
+      "interpretation": "零命中不等于原文无错；已完成独立整课语义及事实复核。"
+    },
+    "corrections": [
+      "规范 Ollama、vLLM、SGLang、llama.cpp、Embedding、continuous batching、PagedAttention、Outlines、Pydantic、JSON Schema 等语境明确术语，不改源转写。",
+      "去除 CPU/GPU 核数直接换算加速倍数、LLM 无损推理、Embedding 必为平均池化及维度越大越准的断言。",
+      "纠正 SRAM 等于内存条、HBM 等于十条 DDR、统一内存等于片上 shared memory、推理不需要带宽等混淆。",
+      "量化降低表示位宽而非必然减少参数数；8B/32B 权重算例明确 dtype 与单位，纠正 32×2.2 的结果，补充运行时及 KV 缓存预算。",
+      "Ollama 并行请求与本地结构化输出、vLLM 前缀缓存依官方文档校订；不把框架选型写成普遍性能排名。",
+      "vLLM/SGLang 论文作者有交集不等于完全同一团队；未继承羊驼项目归属轶事。",
+      "结构化生成与采样约束、业务校验、状态机能力及后端版本边界已区分；服务商私有实现不由接口反推。",
+      "不采纳无独立显存绝对无法推理、单机无法优化、多卡自动最优调度等绝对化说法。"
+    ],
+    "unresolved": [
+      "课堂未提供完整课件代码、安装锁定版本、模型下载标签或负载测试结果，无法复现固定性能倍数及硬件成本。",
+      "RDS6000 等转写不足以确定硬件代际；若需采购规格须查原始画面与确切 SKU。",
+      "模型版本名、太空合作、市场与客户轶事缺少原始附件，不作真假推断或部署依据。"
+    ],
+    "pending_tokens": [
+      {
+        "citation_id": "original-101",
+        "original": "RDS6000",
+        "suggested": "",
+        "reason": "不同代际与型号规格差异显著，缺少原始画面/SKU，不能按读音指定某款 RTX 6000。"
+      },
+      {
+        "citation_id": "original-92",
+        "original": "MP4",
+        "suggested": "",
+        "reason": "四位格式语境明确，但缺少课件不能确定 FP4、MXFP4 或 NVFP4；正文只保留四位量化概念。"
+      },
+      {
+        "citation_id": "original-160",
+        "original": "麒麟系列",
+        "suggested": "",
+        "reason": "与随后 910B 的产品语境疑有混淆，缺原课件不擅自替换系列；正文不据此推荐型号。"
+      }
+    ],
+    "external_sources": [
+      {
+        "url": "https://huggingface.co/docs/transformers/kv_cache",
+        "purpose": "KV cache 增长、卸载、量化及模型差异",
+        "checked_on": "2026-10-21"
+      },
+      {
+        "url": "https://huggingface.co/docs/transformers/quantization/bitsandbytes",
+        "purpose": "低位表示和混合精度开销",
+        "checked_on": "2026-10-21"
+      },
+      {
+        "url": "https://huggingface.co/Qwen/Qwen3-Embedding-4B",
+        "purpose": "最后 token 池化而非统一平均",
+        "checked_on": "2026-10-21"
+      },
+      {
+        "url": "https://www.micron.com/products/memory/hbm",
+        "purpose": "HBM 内存类型及带宽定位",
+        "checked_on": "2026-10-21"
+      },
+      {
+        "url": "https://www.apple.com/newsroom/2020/11/apple-unleashes-m1/",
+        "purpose": "统一内存架构",
+        "checked_on": "2026-10-21"
+      },
+      {
+        "url": "https://www.nvidia.com/en-eu/glossary/disaggregated-serving/",
+        "purpose": "prefill/decode 资源差别",
+        "checked_on": "2026-10-21"
+      },
+      {
+        "url": "https://docs.ollama.com/faq",
+        "purpose": "并行、队列、容量与多 GPU",
+        "checked_on": "2026-10-21"
+      },
+      {
+        "url": "https://docs.ollama.com/api/introduction",
+        "purpose": "本地 API 基址和请求",
+        "checked_on": "2026-10-21"
+      },
+      {
+        "url": "https://docs.ollama.com/capabilities/structured-outputs",
+        "purpose": "schema、提示及客户端校验",
+        "checked_on": "2026-10-21"
+      },
+      {
+        "url": "https://github.com/ggml-org/llama.cpp",
+        "purpose": "CPU/GPU 后端和本地推理",
+        "checked_on": "2026-10-21"
+      },
+      {
+        "url": "https://docs.vllm.ai/en/latest/getting_started/installation/gpu/",
+        "purpose": "版本依赖与隔离环境",
+        "checked_on": "2026-10-21"
+      },
+      {
+        "url": "https://docs.vllm.ai/en/latest/features/automatic_prefix_caching.html",
+        "purpose": "vLLM 前缀复用",
+        "checked_on": "2026-10-21"
+      },
+      {
+        "url": "https://arxiv.org/abs/2309.06180",
+        "purpose": "PagedAttention 和测试条件",
+        "checked_on": "2026-10-21"
+      },
+      {
+        "url": "https://arxiv.org/abs/2312.07104",
+        "purpose": "SGLang RadixAttention 与状态机",
+        "checked_on": "2026-10-21"
+      },
+      {
+        "url": "https://docs.sglang.io/",
+        "purpose": "框架定位",
+        "checked_on": "2026-10-21"
+      },
+      {
+        "url": "https://github.com/dottxt-ai/outlines",
+        "purpose": "结构化生成工具",
+        "checked_on": "2026-10-21"
+      },
+      {
+        "url": "https://docs.vllm.ai/en/latest/features/structured_outputs/",
+        "purpose": "结构化后端与参数迁移",
+        "checked_on": "2026-10-21"
+      }
+    ],
+    "removed_or_merged": [
+      {
+        "range": "original-1—24",
+        "reason": "删声音检查、注册与零散聊天；保留业务任务和结构化输出问题。"
+      },
+      {
+        "range": "original-30—32、60、75—78、82、94—100",
+        "reason": "产业、股价、涨价、合作与固定硬件报价缺证据且偏离部署教学；仅保留互联、能耗与选型约束。"
+      },
+      {
+        "range": "original-37—56",
+        "reason": "重复向量池化说明合并，修正概念而不删教学主线。"
+      },
+      {
+        "range": "original-111—130、159—180、187—198",
+        "reason": "安装等待、找文件、发链接等流程噪声合并；保留命令流程、环境激活及实际报错教训。"
+      },
+      {
+        "range": "original-207、265—266、280—283",
+        "reason": "删除打卡截图、群提交和结束客套；保留技术练习验收和课程链路。"
+      },
+      {
+        "range": "original-231—249、257—279",
+        "reason": "重复状态机讲解与问答合并；保留独立工具/服务内置、嵌套格式及解析边界。"
+      }
+    ],
+    "first_pass_validation": "已按 schema 组织；引用、时间戳、首关键词、pending token 原文锚点及 source 身份在落盘后程序检查。未运行部署代码，未声称硬件或吞吐实测。",
+    "status": "learning_review_complete_source_uncertainties_retained",
+    "independent_review": {
+      "date": "2026-10-21",
+      "scope": "完整冷读学习资产；疑点对照原始片段及一手资料，非第二遍音频校对",
+      "coverage_verified": true,
+      "confirmed_findings": [
+        {
+          "line": 211,
+          "original": "\"ts\": \"01:03:58\"",
+          "suggested": "保留全部 ts 原值，将 sections 按时间换算成秒后升序排列；此 Ollama 节移至 48:39 节之后、01:11:58 节之前。",
+          "reason": "完整通读 1—614 行。原始 original-111 确为 01:03:58 且直接介绍 Ollama 入门；original-124 为 01:11:58 权重粗估，original-157 为 01:33:38 运行显存预算，original-193 为 01:55:13 MoE。学习版将后三节前置，导致第195行 01:55:13 后倒退到本行 01:03:58。25个章节时间均能对应原始段落；这是章节顺序问题，不应改源时间。将所有章节按秒排序，同时保留正文和引用。"
+        }
+      ],
+      "disposition": "已逐项核实并修正；未改原文时间、编号及原始DOCX。",
+      "pending_source_tokens": 3,
+      "queue_domain": "ai-study-course"
+    }
+  }
+}

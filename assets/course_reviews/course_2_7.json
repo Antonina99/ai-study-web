@@ -1,0 +1,518 @@
+{
+  "course_key": "20.AI框架设计与选型",
+  "source_sha256": "5663995345b0a27b103567c02c8873baf7b8e12b2000d867b220aafb60d8d03d",
+  "review_date": "2026-10-21",
+  "method": "transcript-fixer Stage 1 初筛（主审执行）+ 全部原文与导读的 Native AI 语境复核 + 官方资料事实核验；原始转写不改 + 独立学习版冷复核及逐项裁定",
+  "keywords": [
+    "框架",
+    "LangChain",
+    "LangGraph",
+    "LlamaIndex",
+    "Qwen-Agent",
+    "工具调用",
+    "上下文管理",
+    "LCEL",
+    "RAG",
+    "AutoGen",
+    "多智能体"
+  ],
+  "summary_points": [
+    "Agent 框架主要组织模型接口、工具、上下文与执行流程。统一接口降低接入成本，但不保证不同模型具有相同能力或参数支持。",
+    "工具调用通常向模型提供工具描述与参数结构，由应用运行实际函数并返回结果；Function Calling、MCP 和 Skills 分属不同抽象，不能排列成简单升级关系。",
+    "课程以保险文档问答比较 LangChain、LlamaIndex 与 Qwen-Agent，核心链路是资料读取、切片、检索与基于证据回答；演示目录包含 PDF，但 LangChain 展示时实际只读取了七个 TXT。",
+    "LangGraph 提供状态与图编排；顺序管道、并行分支和智能体循环需分别设计。多个角色轮流发言不能自动带来可靠结论，执行还需有终止条件。",
+    "框架选择应依据数据格式、模型能力、流程复杂度与可验收的业务目标。课程中的固定切片值、检索条数和性能判断均不作为通用标准。"
+  ],
+  "interview_points": [
+    "模型适配层能统一什么，不能统一什么？换模型后应重新验证哪些能力？",
+    "一次工具调用从描述注册到结果回传如何运行？为什么模型通常不需要看到工具源码？",
+    "会话历史、持久化状态和外部知识检索有什么区别？如何避免不同用户的上下文混用？",
+    "LCEL 顺序管道、并行分支、LangGraph 图与 ReAct 循环各适合什么执行需求？",
+    "如何比较三个框架的多文件问答：实际加载文件、切片、召回证据、来源定位和最终回答分别怎样验收？",
+    "为什么 PDF 解析、Embedding、检索和生成不是同一能力？如何判断错误来自哪一环？",
+    "多智能体的角色、工具、消息传递和终止条件如何设计？何时明确工作流已足够？"
+  ],
+  "sections": [
+    {
+      "ts": "18:45",
+      "title": "框架的四项职责",
+      "body": "课程把 Agent 框架拆成模型统一接口、工具注册、上下文管理和流程编排四部分。框架组织这些组件协同工作，模型负责相应推理或生成能力。先用这四项职责阅读代码，更容易比较不同框架的抽象与项目边界。",
+      "citation_ids": [
+        "original-17",
+        "original-18",
+        "original-20",
+        "original-21",
+        "original-22"
+      ]
+    },
+    {
+      "ts": "22:14",
+      "title": "模型适配层与提示词管理",
+      "body": "适配层把不同服务的调用方式封装为相对一致的接口；课程分别展示类实例和模型配置字典。提示模板或系统指令再组织任务与输入。统一接口不能消除模型能力差异，切换服务仍需核对工具调用、输入模态、参数支持、成本和实际效果；不能由开源或闭源直接推定是否支持 temperature。",
+      "citation_ids": [
+        "original-22",
+        "original-24",
+        "original-25",
+        "original-26",
+        "original-27",
+        "original-28",
+        "original-29",
+        "original-68"
+      ]
+    },
+    {
+      "ts": "28:49",
+      "title": "工具调用、MCP 与 Skills 的边界",
+      "body": "Function Calling 让模型提出结构化的工具请求；MCP 提供客户端与服务端交换工具、资源等能力的协议；Skills 则组织可按需加载的操作指令及可选脚本、资料。它们可以配合使用，不是由低级到高级的单一路线。工具通常不必向模型暴露源码；有授权接口或数据访问能力，也可以封装 MCP 服务。",
+      "citation_ids": [
+        "original-13",
+        "original-31",
+        "original-32",
+        "original-33",
+        "original-34",
+        "original-66",
+        "original-67",
+        "original-71"
+      ]
+    },
+    {
+      "ts": "30:59",
+      "title": "注册工具：描述、参数和执行入口",
+      "body": "LangChain 示例通过 @tool 注册函数，并用文档字符串和类型信息表达用途与参数。Qwen-Agent 示例使用 register_tool 与 BaseTool；LlamaIndex 可将函数包装为 FunctionTool。不同写法都需要清楚说明工具能做什么、接收什么，以及实际执行后返回什么。",
+      "citation_ids": [
+        "original-35",
+        "original-36",
+        "original-37",
+        "original-38",
+        "original-39",
+        "original-40",
+        "original-41"
+      ]
+    },
+    {
+      "ts": "37:43",
+      "title": "从模型请求到应用执行的闭环",
+      "body": "应用提供工具名称、描述和参数结构；模型返回需要调用的工具及参数；运行时解析请求、执行函数，再把结果加入消息交回模型。随后模型可能继续调用工具，也可能直接回答。课程后续说明无需传源码，纠正了前面把源码与工具描述混在一起的说法。",
+      "citation_ids": [
+        "original-44",
+        "original-45",
+        "original-46",
+        "original-47",
+        "original-48",
+        "original-49",
+        "original-52",
+        "original-66",
+        "original-67"
+      ]
+    },
+    {
+      "ts": "46:36",
+      "title": "会话历史与外部知识分别管理",
+      "body": "短期上下文可以通过保存并追加历史消息实现，多个会话需按会话标识分开。长期可复用的信息可以放在持久化存储或外部知识库中，按需检索进入上下文；RAG 是一种机制，不能等同于全部长期记忆。保存历史不代表模型参数发生更新，会话标识本身也不替代访问权限控制。",
+      "citation_ids": [
+        "original-57",
+        "original-58",
+        "original-59",
+        "original-60",
+        "original-61",
+        "original-62",
+        "original-63",
+        "original-64"
+      ]
+    },
+    {
+      "ts": "52:10",
+      "title": "从业务需求与小型原型确定方案",
+      "body": "模型、工具和知识来源的选择影响方案能否满足需求及其成本。课程建议先以较简单的实现验证关键链路，需求增长后再划分模块和团队职责。把核心能力跑通与维护清楚的模块边界结合，避免只比较框架名称或认为框架越多越好。",
+      "citation_ids": [
+        "original-11",
+        "original-68",
+        "original-69",
+        "original-70"
+      ]
+    },
+    {
+      "ts": "55:15",
+      "title": "顺序管道与并行分支要明确区分",
+      "body": "LCEL 可组合可运行组件，但用竖线连接的 RunnableSequence 是顺序执行，前一步输出交给后一步；并行分支需要相应的 RunnableParallel 等结构。图同样要依据依赖关系安排执行，画出图或使用某个版本并不意味着全部节点自动并行。",
+      "citation_ids": [
+        "original-73",
+        "original-79",
+        "original-80",
+        "original-200"
+      ]
+    },
+    {
+      "ts": "55:59",
+      "title": "ReAct 循环与流程编排",
+      "body": "当任务需要依据中间结果决定下一步，可采用推理、行动、观察再决策的循环。这里的 ReAct 指智能体模式，不是前端 React。固定步骤可用明确工作流，动态选择工具可放在循环或图节点中；实际运行应有完成条件及资源上限。",
+      "citation_ids": [
+        "original-74",
+        "original-75",
+        "original-76",
+        "original-77",
+        "original-78",
+        "original-81",
+        "original-82"
+      ]
+    },
+    {
+      "ts": "01:10:31",
+      "title": "LangChain、LangGraph 与组件组合",
+      "body": "LangChain 提供模型、工具和较高层的智能体接口；LangGraph 提供有状态、长运行任务的底层图编排，可独立于 LangChain 使用。当前 LangChain 智能体建立在 LangGraph 上，不能把关系概括为 LangGraph 必须以内置 LangChain 为内核。图节点也可以调用其他框架组件，例如 LlamaIndex 检索。",
+      "citation_ids": [
+        "original-97",
+        "original-98",
+        "original-99",
+        "original-100",
+        "original-101",
+        "original-102"
+      ]
+    },
+    {
+      "ts": "01:13:56",
+      "title": "LlamaIndex 的数据与检索抽象",
+      "body": "课程用 LlamaIndex 说明资料读取、Document、索引和检索器的衔接：先加载资料，建立索引，再把检索能力包装成函数或工具供问答调用。这种数据组织取向可用于 RAG，但不能由课堂的个人使用感受推导框架市场份额或优劣排名。",
+      "citation_ids": [
+        "original-104",
+        "original-105",
+        "original-106",
+        "original-107",
+        "original-108",
+        "original-109",
+        "original-110",
+        "original-111",
+        "original-112"
+      ]
+    },
+    {
+      "ts": "01:19:02",
+      "title": "多文件保险问答：先确认实际输入",
+      "body": "案例希望用保险资料回答客户问题，目录展示六个 PDF 与七个 TXT。后续 LangChain 演示明确只读取了七个 TXT，因此不能宣称该运行已验证 PDF 解析。RAG 先检索问题相关片段，再提供给模型回答；流畅的回答或列出五条结果并不能单独证明答案正确。",
+      "citation_ids": [
+        "original-113",
+        "original-114",
+        "original-115",
+        "original-116",
+        "original-117",
+        "original-118",
+        "original-133",
+        "original-134",
+        "original-135"
+      ]
+    },
+    {
+      "ts": "01:25:29",
+      "title": "创建索引：切片、向量与 FAISS",
+      "body": "示例检查已有索引，若不存在则读取文本、切片、计算 Embedding 并保存 FAISS 索引。课堂的切片长度 1000、重叠 200 是代码示例，应按所用切分器确认单位，再结合语义边界验证。FAISS 是向量相似性检索库，不能等同于完整数据库服务；其距离可采用 L2 或内积，使用余弦相似度时需相应归一化处理。",
+      "citation_ids": [
+        "original-124",
+        "original-125",
+        "original-126",
+        "original-136",
+        "original-137",
+        "original-138",
+        "original-139",
+        "original-140"
+      ]
+    },
+    {
+      "ts": "01:27:41",
+      "title": "问答链与知识维护",
+      "body": "问答链将检索上下文和用户问题放入提示模板，交给生成模型并返回结果。检查问题、召回内容与答案的对应关系，有助于区分检索错误和生成错误。需要新增论文等资料时，应由工具获取真实文件并更新知识来源，不能把模型生成的文献名称当作已存在的证据。",
+      "citation_ids": [
+        "original-119",
+        "original-120",
+        "original-121",
+        "original-122",
+        "original-127",
+        "original-128",
+        "original-129",
+        "original-130",
+        "original-131"
+      ]
+    },
+    {
+      "ts": "01:36:52",
+      "title": "索引复用、检索结果与来源定位",
+      "body": "LlamaIndex 示例分别配置生成模型和 Embedding，检查存储目录后选择加载索引或重新建立。持久化用于复用已保存的数据，并不自动保证资料仍然最新。检索结果应关联原文与来源信息；文件名、页码等字段能否得到，取决于读取器和入库过程是否保留，不能认为所有结果天然带齐这些元数据。",
+      "citation_ids": [
+        "original-144",
+        "original-145",
+        "original-146",
+        "original-147",
+        "original-149",
+        "original-150"
+      ]
+    },
+    {
+      "ts": "01:44:01",
+      "title": "文件解析与多模态能力分层选型",
+      "body": "框架负责组织流程，解析器负责提取文件内容，模型再处理其支持的输入。可搜索文字的 PDF、扫描件、表格和图文混排资料需要不同解析策略。MinerU 是可用于文档内容提取的工具，能与应用流程衔接；不能仅凭安装体积或是否带模型就判定解析质量，也不能把某个简单读取器当作整个框架的能力上限。",
+      "citation_ids": [
+        "original-151",
+        "original-152",
+        "original-153",
+        "original-154",
+        "original-155",
+        "original-156",
+        "original-157",
+        "original-158",
+        "original-171",
+        "original-172",
+        "original-173"
+      ]
+    },
+    {
+      "ts": "01:44:58",
+      "title": "Qwen-Agent 的配置与调试入口",
+      "body": "课程展示用模型配置、系统指令、工具列表与文件列表构造 Assistant，并通过命令行或界面调试。Qwen-Agent 可接入相应的模型服务，也支持符合要求的兼容接口；具体功能取决于模型和服务能力。Gradio GUI 是可选入口，不能据此推定所有 Agent 框架都自带相同界面。",
+      "citation_ids": [
+        "original-159",
+        "original-160",
+        "original-161",
+        "original-162",
+        "original-163",
+        "original-164",
+        "original-165",
+        "original-166",
+        "original-167",
+        "original-203"
+      ]
+    },
+    {
+      "ts": "01:54:29",
+      "title": "Qwen-Agent 的检索与逐块阅读模式",
+      "body": "课堂描述把资料切块、判断相关性、提取证据，并在需要时拆解子问题。官方示例区分快速关键词检索与调用模型逐块阅读的文档问答，不能将二者归为所有 Qwen-Agent 请求都执行的固定算法。逐块阅读通常会增加模型调用量；切片大小、文件数和是否使用 Embedding 应依据选用实现及版本核对。",
+      "citation_ids": [
+        "original-174",
+        "original-175",
+        "original-176",
+        "original-177",
+        "original-178",
+        "original-179",
+        "original-181",
+        "original-182",
+        "original-183"
+      ]
+    },
+    {
+      "ts": "01:57:56",
+      "title": "服务化与数据流向",
+      "body": "本地跑通的智能体可以用 Web 服务接口封装，课程举 FastAPI 为例，调用方通过接口使用能力。解析服务或模型放在云端时，需要明确哪些文档内容会被发出；文档要求不出本地时，应选符合该约束的解析和模型部署方式。",
+      "citation_ids": [
+        "original-180"
+      ]
+    },
+    {
+      "ts": "02:00:07",
+      "title": "依据资料类型设计选型与验收",
+      "body": "面对 PPT、PDF、Word、Excel 和图文资料，先确定内容如何提取、怎样定位原始素材，再选择读取器、索引和模型。课程的实践主线是用三种框架实现同一多文件问答。比较时应检查文件是否实际读取、关键内容是否保留、问题是否召回正确证据，以及答案能否回到来源；再扩展 PDF 等格式。",
+      "citation_ids": [
+        "original-184",
+        "original-185",
+        "original-186",
+        "original-187",
+        "original-188",
+        "original-189",
+        "original-190",
+        "original-360"
+      ]
+    },
+    {
+      "ts": "02:03:32",
+      "title": "多智能体角色与终止机制",
+      "body": "AutoGen 演示为数据、分析、风险和交易等角色设置名称、指令与工具，并通过轮流发言推进。角色分工是编排方式，不能证明投资结论有效。重复多轮也不代表框架无法终止，AutoGen 支持消息数量、文本条件等终止机制。课程所说并入 Semantic Kernel 不准确，微软将 Microsoft Agent Framework 定位为结合 AutoGen 与 Semantic Kernel 的后继框架。",
+      "citation_ids": [
+        "original-191",
+        "original-192",
+        "original-193",
+        "original-194",
+        "original-195",
+        "original-196",
+        "original-197",
+        "original-198",
+        "original-199"
+      ]
+    },
+    {
+      "ts": "02:09:40",
+      "title": "图的依赖、动态路由与子流程",
+      "body": "图节点可以表示普通函数、工具、智能体或子流程，边表达执行依赖。只有允许独立执行的分支才适合并行；图也不局限于 DAG，智能体流程可能包含循环。LangGraph 支持条件路由与动态分发，不能把预先定义节点误解为所有执行路径必须固定。",
+      "citation_ids": [
+        "original-14",
+        "original-84",
+        "original-85",
+        "original-86",
+        "original-200",
+        "original-201",
+        "original-202",
+        "original-204"
+      ]
+    },
+    {
+      "ts": "02:13:41",
+      "title": "业务方案与技术抽象层次",
+      "body": "产品方案先描述用户痛点、使用场景和用户旅程，再落实模型、工具、知识库、交互和验证方法。Agent 框架侧重应用编排，TensorFlow、PyTorch 等偏向模型计算与训练层，二者解决的问题不同。学习深度应由岗位和项目要求决定，不能把课堂职业建议理解为底层框架已无用途。",
+      "citation_ids": [
+        "original-207",
+        "original-208",
+        "original-209",
+        "original-343",
+        "original-344",
+        "original-354"
+      ]
+    }
+  ],
+  "notes": [
+    "本学习版依据全部原文重建。导读过度突出后半段招生与量化课程宣传；原文确有这部分，但它不是本课框架设计教学的主要知识结构。运营信息、收益展示及销售承诺未作为知识结论保留。",
+    "外部校订：工具描述与参数结构不等于源码，参见[LangChain 工具文档](https://docs.langchain.com/oss/python/langchain/tools)；MCP 可包装外部 API，参见[官方服务端示例](https://modelcontextprotocol.io/docs/2026-07-28/develop/build-server)；Skills 的组织形式参见[Agent Skills](https://agentskills.io/home)。这些解释用于修正概念，不冒充讲师原话。",
+    "外部校订：LangGraph 可独立使用，LangChain 智能体基于 LangGraph，参见[LangGraph 概览](https://docs.langchain.com/oss/python/langgraph/overview)。竖线组合表示顺序链，参见[RunnableSequence](https://reference.langchain.com/python/langchain-core/runnables/base/RunnableSequence)；动态分发参见[Graph API](https://docs.langchain.com/oss/python/langgraph/graph-api)。",
+    "外部校订：FAISS 的 L2、内积及归一化与余弦关系参见[官方度量说明](https://github.com/facebookresearch/faiss/wiki/MetricType-and-distances)。未采用“亿级数据毫秒完成”等缺少索引、硬件和准确率条件的速度承诺，也未采用 SQLite 完全不能向量检索的绝对判断。",
+    "实现边界：[LlamaIndex 持久化文档](https://developers.llamaindex.ai/python/framework/module_guides/storing/save_load/)说明存储及加载依赖配置；[MinerU 官方项目](https://github.com/opendatalab/MinerU)说明文档提取能力。课上未提供可核验的解析器横向评测，学习版不宣称某一工具普遍更优。",
+    "Qwen-Agent 的配置与可选 GUI 参见[官方项目](https://github.com/QwenLM/Qwen-Agent)。[官方长文档方案](https://qwenlm.github.io/blog/qwen-agent-2405/)分别讨论 BM25 检索、逐块阅读和多步问答；其历史示例不等于当前所有接口的默认实现。课堂约 500 token 和千文件经验不能作为统一容量保证。",
+    "外部校订：微软官方将 [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/)描述为 AutoGen 与 Semantic Kernel 的后继方案；[AutoGen 终止条件文档](https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/tutorial/termination.html)表明多智能体可设置停止条件。未把演示中的重复发言泛化为框架缺陷。",
+    "原文中的部分模型代号、参数规模、未具名 AAAI 论文及其复杂度结论缺乏可确认身份，未猜补名称或写成确定事实。未核验私人代码、账号、券商权限或内部配置。课程数据、价格、职位薪资与交易收益均不作为普遍事实。",
+    "切片、Top-k、流程轮数和框架优先级是示例或经验。来源页会更新；本文于 2026-10-21 核验概念及官方接口说明，复现实验仍需检查项目实际依赖版本。"
+  ],
+  "review_audit": {
+    "original_segment_count": 360,
+    "read_ranges": [
+      "original-1—50",
+      "original-51—100",
+      "original-101—150",
+      "original-151—200",
+      "original-201—250",
+      "original-251—305",
+      "original-306—339",
+      "original-340—360（单独补读，避免组合输出截断）",
+      "导读标题、关键词、摘要与全部 36 节；末三节补读核对"
+    ],
+    "coverage": "完整阅读 07:20—03:34:47 的 360 段及全部导读；没有只据摘要推断。23 个主题覆盖四项框架职责、三框架多文件问答、解析和索引、多智能体、服务化与业务选型。",
+    "stage1": {
+      "executed_by": "主审代理",
+      "applied": 0,
+      "deferred": 0,
+      "interpretation": "词典未命中不表示原文没有错误；已另行完成整课语境与事实复核。"
+    },
+    "corrections": [
+      "依据同课后文与代码语境统一 LangChain、LangGraph、LlamaIndex、Qwen-Agent、Function Calling、ReAct、Embedding、FAISS、MinerU 等反复出现的转写变体；原文不改。",
+      "original-31 的源码暴露说法用 original-66、67、71 的后续解释与官方工具机制校订。",
+      "original-73、200 的管道/图自动并行说法改为明确顺序、并行与依赖关系。",
+      "original-97—102 的 LangGraph/LangChain 内核关系改用官方抽象层次。",
+      "original-114 的目录 PDF 数量与 original-133 的实际 TXT 加载范围明确区分。",
+      "original-136—140 的 FAISS 类别、距离和性能泛化予以限定。",
+      "original-174—183 的快速检索与逐块阅读混用按官方不同实现区分。",
+      "original-191 的 AutoGen 并入 Semantic Kernel 改为 Microsoft Agent Framework 后继关系；original-197—199 的循环演示补充终止机制边界。",
+      "导读不作为课程事实来源，依原文重新组织主题，削弱招生宣传造成的结构偏移。"
+    ],
+    "unresolved": [
+      "课堂确切依赖版本和完整示例代码未提供，API 拼写以可确认概念表达，不声称代码已复现。",
+      "部分模型代号、参数数值及未具名论文身份未证实；不猜测。",
+      "没有真实检索评测集或性能测试记录，框架优劣、容量与准确率未定论。"
+    ],
+    "pending_tokens": [
+      {
+        "citation_id": "original-15",
+        "original": "spack SDBTVD",
+        "suggested": "",
+        "reason": "软件工程缩写疑似连续误识别；需求文档与测试红绿灯语境不足以逐字确认各缩写，未猜补具体方法名称。"
+      },
+      {
+        "citation_id": "original-206",
+        "original": "kimi k3",
+        "suggested": "",
+        "reason": "型号与紧随的参数规模描述尚不能确认，可能混合型号或转写错误；未凭参数反猜产品，学习版不保留该型号结论。"
+      },
+      {
+        "citation_id": "original-206",
+        "original": "PIT注册",
+        "suggested": "",
+        "reason": "提问中缩写与动作搭配不清，缺音频及屏幕证据，未推定为某个接口或框架。"
+      }
+    ],
+    "external_sources": [
+      {
+        "url": "https://docs.langchain.com/oss/python/langchain/tools",
+        "purpose": "工具描述、schema 与运行时执行"
+      },
+      {
+        "url": "https://modelcontextprotocol.io/docs/2026-07-28/develop/build-server",
+        "purpose": "MCP 服务包装 API 的官方示例"
+      },
+      {
+        "url": "https://agentskills.io/home",
+        "purpose": "Skills 定义与材料组织"
+      },
+      {
+        "url": "https://docs.langchain.com/oss/python/langgraph/overview",
+        "purpose": "LangGraph 与 LangChain 抽象关系"
+      },
+      {
+        "url": "https://reference.langchain.com/python/langchain-core/runnables/base/RunnableSequence",
+        "purpose": "LCEL 顺序组合"
+      },
+      {
+        "url": "https://docs.langchain.com/oss/python/langgraph/graph-api",
+        "purpose": "图、动态 Send 与 Command"
+      },
+      {
+        "url": "https://github.com/facebookresearch/faiss/wiki/MetricType-and-distances",
+        "purpose": "向量距离和余弦归一化"
+      },
+      {
+        "url": "https://developers.llamaindex.ai/python/framework/module_guides/storing/save_load/",
+        "purpose": "索引持久化与加载"
+      },
+      {
+        "url": "https://github.com/opendatalab/MinerU",
+        "purpose": "解析工具职责"
+      },
+      {
+        "url": "https://github.com/QwenLM/Qwen-Agent",
+        "purpose": "配置、工具和 GUI"
+      },
+      {
+        "url": "https://qwenlm.github.io/blog/qwen-agent-2405/",
+        "purpose": "检索、逐块阅读与多步问答的区别"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/agent-framework/overview/",
+        "purpose": "微软框架后继关系"
+      },
+      {
+        "url": "https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/tutorial/termination.html",
+        "purpose": "多智能体终止机制"
+      }
+    ],
+    "removed_or_merged": [
+      {
+        "range": "original-1—7 及穿插的音量、等待、找代码等内容",
+        "reason": "设备与课堂等待不构成知识；代码查找只保留理解抽象的方法。"
+      },
+      {
+        "range": "original-8—16、53—56、87—96、168—173 等穿插答疑",
+        "reason": "保留架构、工具与解析相关内容，合并重复解释；去掉未经证实的型号和个人排名。"
+      },
+      {
+        "range": "original-210—359 大部分招生与量化宣传",
+        "reason": "价格、名额、账号渠道、赠品、职业收入、收益展示和销售承诺不属于框架教学；未具名论文不能验证。保留 original-343、344、354 的技术层次问题并限定其职业建议。"
+      },
+      {
+        "range": "original-188—190、360 的练习运营安排",
+        "reason": "保留多文件问答的技术实践与验收，不保留截图打卡、群提交等运营动作，不单独设资源领取主题。"
+      }
+    ],
+    "first_pass_validation": "待主审独立冷复核；本代理负责结构、来源锚点与全量阅读记录，不将 Stage 1 零命中视为质量证明。",
+    "status": "learning_review_complete_source_uncertainties_retained",
+    "independent_review": {
+      "date": "2026-10-21",
+      "scope": "完整冷读学习资产；疑点对照原始片段及一手资料，非第二遍音频校对",
+      "coverage_verified": true,
+      "confirmed_findings": [],
+      "disposition": "已逐项核实并修正；未改原文时间、编号及原始DOCX。",
+      "pending_source_tokens": 3,
+      "queue_domain": "ai-study-course"
+    }
+  }
+}

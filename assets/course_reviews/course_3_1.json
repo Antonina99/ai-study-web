@@ -1,0 +1,807 @@
+{
+  "course_key": "7.Function Calling与MCP",
+  "source_sha256": "ab2ddced219aefb695dfe957b6c02332c6d8dc4f4de524692e8a5e7328eb8399",
+  "review_date": "2026-10-21",
+  "method": "transcript-fixer Stage 1词典初筛 + Native AI全文语境复核 + 官方一手资料事实校订 + 学习版整理；独立冷复核由主流程安排 + 独立学习版冷复核及逐项裁定",
+  "keywords": [
+    "MCP",
+    "Function Calling",
+    "Qwen-Agent",
+    "Text-to-SQL",
+    "FastMCP",
+    "stdio",
+    "SSE",
+    "Streamable HTTP",
+    "Skills",
+    "SQLAlchemy",
+    "工具调用",
+    "数据可视化"
+  ],
+  "summary_points": [
+    "课程以门票查询和本地文件服务两个案例，串联工具定义、模型选择、应用执行、结果回传与验证。",
+    "Text-to-SQL需要表结构、业务口径和示例支持；查询结果与模型解释应区分，执行权限不能交给模型自行决定。",
+    "查询结果直接交给绘图代码，减少大表经模型转述的成本与数字错误；图像展示还取决于应用界面。",
+    "MCP统一应用与能力提供方之间的连接，既支持本地进程也支持远程服务；stdio、SSE与网络API访问不可混为一谈。",
+    "高德、网页抓取与搜索服务展示第三方能力接入；FastMCP和Inspector展示自建工具及独立调试。",
+    "Skills提供按需读取的任务说明，MCP提供标准连接，Function Calling组织模型提出工具调用，三者可组合。",
+    "作业二选一：用自备数据运行查询助手，或用测试目录运行文件MCP；再按个人需求扩展并验证。"
+  ],
+  "interview_points": [
+    "一次工具调用中，模型、框架和执行器各负责什么？为什么模型输出参数不等于已执行操作？",
+    "Function Calling与MCP分别解决什么问题？为什么不能按本地和在线区分它们？",
+    "Host、Client、Server如何分工？初始化、tools/list和tools/call有什么差别？",
+    "stdio、旧HTTP+SSE及Streamable HTTP有哪些区别？6277为什么不能作为MCP固定端口？",
+    "Text-to-SQL怎样表达业务口径、检验SQL，并限制数据库权限与执行规模？",
+    "为什么SQLAlchemy与参数化值不能自动保证模型生成的整条SQL安全？",
+    "绘图工具如何复用原始查询数据，避免模型转述数值？如何分别验证数据和展示？",
+    "Skills的渐进加载如何与工具发现、调用配合？如何定位配置、初始化、工具执行和模型规划各阶段错误？"
+  ],
+  "sections": [
+    {
+      "ts": "07:35",
+      "title": "先明确目标，再约束和验证Agent",
+      "body": "课前讨论强调先让Agent提出计划，再补足目标、输入、边界与验收条件；已有项目要避免修改时破坏原功能，并用回归检查发现问题。工具选型、SDD与TDD服务于迭代，不能代替需求澄清。校订：提示词是软约束，权限控制和自动检查才可形成可执行边界；Skill不是Function Calling的简单升级版，框架优劣和覆盖比例只是讲师经验。",
+      "citation_ids": [
+        "original-2",
+        "original-4",
+        "original-6",
+        "original-7",
+        "original-8",
+        "original-17",
+        "original-18",
+        "original-19",
+        "original-20",
+        "original-21"
+      ]
+    },
+    {
+      "ts": "21:33",
+      "title": "Agent中的模型、工具与知识",
+      "body": "课堂用模型、工具和知识三个组成部分解释Agent：模型理解请求和组织输出，工具连接数据库或外部服务，检索把相关知识送入上下文。这个组合便于入门，但不穷尽Agent架构，还需考虑状态、执行控制、错误处理与验证。RAG提供上下文，并不等于模型参数已学习这些资料。",
+      "citation_ids": [
+        "original-24",
+        "original-25",
+        "original-26",
+        "original-27",
+        "original-28",
+        "original-29"
+      ]
+    },
+    {
+      "ts": "24:30",
+      "title": "Function Calling与MCP的边界",
+      "body": "函数调用让模型提出结构化工具名称与参数，由应用执行；工具可以查询数据库、天气或触发业务动作，也可能无需调用。MCP用标准协议连接应用与工具、资源等能力，USB接口是帮助理解互操作性的类比。校订：函数调用不限定本地执行，MCP也可连接本地进程；MCP不是必须公开部署的在线函数调用，也不自动保存完整会话。隐私取决于实际数据流、提供商和权限，协议本身不保证数据不出本机。",
+      "citation_ids": [
+        "original-31",
+        "original-32",
+        "original-33",
+        "original-34",
+        "original-35",
+        "original-36",
+        "original-38",
+        "original-39",
+        "original-40",
+        "original-41",
+        "original-42"
+      ]
+    },
+    {
+      "ts": "31:41",
+      "title": "门票案例：从业务问题到Text-to-SQL",
+      "body": "固定报表可由确定性程序处理；临时提出的统计问题适合演示自然语言转SQL。案例按日期范围、周粒度和票种查询销量，先确认表、字段、业务口径及输出要求。生成SQL只是中间步骤，结果还需核对；应区分售票张数、收入与人数，避免把不同口径混用。",
+      "citation_ids": [
+        "original-43",
+        "original-44",
+        "original-45",
+        "original-46",
+        "original-47",
+        "original-48",
+        "original-49"
+      ]
+    },
+    {
+      "ts": "36:48",
+      "title": "系统提示中的角色、表结构与业务词典",
+      "body": "提示中交代助手职责、DDL表结构、业务术语与必要示例，让模型知道字段和票种如何对应。课堂中的两日票与1.5日编码属于该案例的内部口径，应写入业务词典而不是据常识猜测；它不是现行景区票务政策。把已核实的错误及正确示例整理成错题本，可帮助回归评估；Few-shot示例并非每个任务都必须提供。",
+      "citation_ids": [
+        "original-50",
+        "original-51",
+        "original-52",
+        "original-53",
+        "original-54",
+        "original-55",
+        "original-56",
+        "original-57"
+      ]
+    },
+    {
+      "ts": "41:47",
+      "title": "Qwen-Agent工具注册与执行SQL",
+      "body": "案例用Qwen-Agent定义工具名称、描述、参数和执行方法，模型生成必填的SQL参数，应用执行数据库查询。讲师选择注册一个执行工具，把生成SQL留给模型，而非额外再注册一个生成工具。校订：register_tool是框架提供的装饰器，不是Python保留字，也不意味着只能配某一个模型；连接示例数据库仍须具有相应授权，本学习版不复制账户信息。",
+      "citation_ids": [
+        "original-58",
+        "original-59",
+        "original-60",
+        "original-61",
+        "original-62",
+        "original-63",
+        "original-64",
+        "original-65",
+        "original-66",
+        "original-67"
+      ]
+    },
+    {
+      "ts": "46:37",
+      "title": "运行查询并检查模型解释",
+      "body": "安装依赖后运行Web界面，检查API访问、模型名称、生成SQL和结果。课堂通过更换模型配置排除一次错误，不能把该操作视为所有环境的修复方案。减少不必要工具或模型往返可能降低开销，但应按准确率、延迟和复杂度实测。模型对销量变化原因的说明只是待验证假设，查询出的数字本身不能证明节假日、活动等因果关系。",
+      "citation_ids": [
+        "original-68",
+        "original-69",
+        "original-70",
+        "original-71",
+        "original-72",
+        "original-73",
+        "original-74",
+        "original-75",
+        "original-76",
+        "original-77",
+        "original-78",
+        "original-79",
+        "original-80"
+      ]
+    },
+    {
+      "ts": "52:54",
+      "title": "理解框架配置后迁移到自己的数据",
+      "body": "阅读工具描述、参数和call方法，再检查Assistant的模型配置、系统消息和function_list；先跑通，再替换表与业务规则。课堂给出从门票改为餐饮查询、改用本地MySQL或SQLite的练习方向。校订：7860是演示Web界面的配置情境，不是Agent协议规定端口；依赖安装、模型兼容性和数据库连接必须以实际环境为准。",
+      "citation_ids": [
+        "original-81",
+        "original-82",
+        "original-83",
+        "original-84",
+        "original-85",
+        "original-86",
+        "original-87",
+        "original-88",
+        "original-89",
+        "original-90",
+        "original-91",
+        "original-92",
+        "original-93",
+        "original-94",
+        "original-95",
+        "original-96",
+        "original-97",
+        "original-98",
+        "original-99",
+        "original-101",
+        "original-102"
+      ]
+    },
+    {
+      "ts": "01:08:16",
+      "title": "把调用链画清楚并逐层调试",
+      "body": "核心流程是业务问题与提示、工具定义送入模型，模型提出调用，应用执行并回传结果，模型整理答复。可让编码助手解释代码或画流程图，自己检查每一环。错误SQL应定位到表结构、语义口径、示例或执行逻辑。切换本地模型需确认接口及工具调用兼容性；SDD、TDD也能用于已有项目，不能限定为只能从零开发。",
+      "citation_ids": [
+        "original-103",
+        "original-104",
+        "original-105",
+        "original-106",
+        "original-107",
+        "original-108",
+        "original-109",
+        "original-110",
+        "original-111",
+        "original-112",
+        "original-113",
+        "original-114",
+        "original-115",
+        "original-116",
+        "original-117"
+      ]
+    },
+    {
+      "ts": "01:18:16",
+      "title": "图表生成：让原始数据直接进入绘图代码",
+      "body": "课堂比较两个方案：单独绘图工具接收模型转述的数据，或在查询工具内部直接把结果交给绘图函数。大表经过模型容易增加上下文成本并产生数字转写错误，因此案例改为同一执行链返回表格和图像。内部绘图函数不必全部注册成模型可见工具。校订：Matplotlib是第三方Python库；工具结果中显示图片与模型正文展示图片是不同的界面处理问题。",
+      "citation_ids": [
+        "original-118",
+        "original-119",
+        "original-120",
+        "original-121",
+        "original-122",
+        "original-123",
+        "original-124",
+        "original-125",
+        "original-126",
+        "original-127",
+        "original-128",
+        "original-129",
+        "original-130",
+        "original-131"
+      ]
+    },
+    {
+      "ts": "01:27:00",
+      "title": "环境排错与私有数据替代",
+      "body": "把依赖、网络、模型配置、数据库和绘图分别验证，不要把一次界面报错归结为模型能力。课堂提醒客户数据不能随意分发，学习者可建立自己的测试表或合成数据；查询结果直接转换为DataFrame并绘图，保留可核验的数据路径。框架轻重和开发速度属于讲师实践体验，需结合项目验证。",
+      "citation_ids": [
+        "original-132",
+        "original-133",
+        "original-134",
+        "original-135",
+        "original-136",
+        "original-137",
+        "original-138",
+        "original-139",
+        "original-140",
+        "original-141",
+        "original-142"
+      ]
+    },
+    {
+      "ts": "01:35:07",
+      "title": "MCP的Host、Client与Server",
+      "body": "Host是用户使用的AI应用，负责编排、上下文与权限；Client连接MCP Server，Server提供工具、资源或提示等能力。校订：按2025-11-25规范理解，Host为服务器连接创建Client，Server既可为本地进程，也可为远程服务。Server只应收到所需信息，并非天然掌握用户全部会话；这些职责不能简化为模型直接控制所有服务。",
+      "citation_ids": [
+        "original-143",
+        "original-144",
+        "original-145",
+        "original-146",
+        "original-147"
+      ]
+    },
+    {
+      "ts": "01:37:49",
+      "title": "接入高德服务并编排旅行任务",
+      "body": "案例从高德开发者应用和服务凭证开始，在支持MCP的应用中配置服务，再以城市行程请求串联天气、地点搜索与路线规划。需检查工具输出、地点和路线是否满足需求，演示中的天气与日期不是可复用的实时事实。校订：连接初始化协商版本与能力，工具列表另由tools/list获取；标准协议不保证任意客户端和服务无条件兼容，服务额度与费用也不保证免费。",
+      "citation_ids": [
+        "original-148",
+        "original-149",
+        "original-150",
+        "original-151",
+        "original-152",
+        "original-153",
+        "original-154",
+        "original-155",
+        "original-156",
+        "original-157",
+        "original-158",
+        "original-159",
+        "original-160",
+        "original-161",
+        "original-162",
+        "original-163"
+      ]
+    },
+    {
+      "ts": "01:46:57",
+      "title": "stdio、SSE与网络服务不是同一层概念",
+      "body": "课堂比较本地进程配置与远程服务连接。校订：stdio由客户端启动子进程，通过标准输入输出传递协议消息；进程仍可另行访问互联网API。SSE是服务器向客户端发送事件的机制，不是ModelScope专有代理。2025-11-25规范包含stdio和Streamable HTTP，后者可使用SSE并替代旧HTTP+SSE传输。MCP兼容与服务公开可访问、免鉴权是不同问题，插件也不一定采用MCP。",
+      "citation_ids": [
+        "original-164",
+        "original-165",
+        "original-166",
+        "original-168",
+        "original-169",
+        "original-170",
+        "original-171",
+        "original-172"
+      ]
+    },
+    {
+      "ts": "01:51:24",
+      "title": "在Qwen-Agent中接入MCP",
+      "body": "除了IDE，也可在Qwen-Agent的工具配置中接入mcpServers，与本地工具一起使用。通过工具列表和实际调用结果验证接入，而不是仅看配置被接受。课堂出现只调用一个工具的情况，补充任务要求后继续测试；这不足以断定框架或模型存在固定限制，应结合完整请求、可见工具、调用轨迹和错误信息诊断。",
+      "citation_ids": [
+        "original-173",
+        "original-174",
+        "original-175",
+        "original-176",
+        "original-177",
+        "original-178",
+        "original-179",
+        "original-180",
+        "original-181"
+      ]
+    },
+    {
+      "ts": "01:56:39",
+      "title": "网页检索与抓取服务的接入排错",
+      "body": "课堂尝试网页抓取及搜索类MCP服务，展示命令启动、环境变量凭证和连接测试。校订：官方Fetch服务按URL抓取网页并转为文本，不等于按关键词搜索；Tavily官方MCP提供搜索等能力，但原文多种近音称呼无法仅凭文字确认每次指代。配置解析成功不等于初始化或调用成功，不能把课堂失败直接认定为缺少Token；需核对进程、依赖、凭证、网络与日志。",
+      "citation_ids": [
+        "original-182",
+        "original-183",
+        "original-184",
+        "original-185",
+        "original-186",
+        "original-187",
+        "original-188",
+        "original-189",
+        "original-190",
+        "original-191",
+        "original-192",
+        "original-193",
+        "original-194",
+        "original-195",
+        "original-196",
+        "original-197",
+        "original-198",
+        "original-199",
+        "original-200"
+      ]
+    },
+    {
+      "ts": "02:07:06",
+      "title": "Skills的渐进加载与工具调用的配合",
+      "body": "Skills将某类任务的方法、说明及可选脚本组织为可按需使用的资料，框架根据需要读取并调用工具。校订：Agent Skills标准的核心元数据是name与description，keywords不是通用必填字段；约100 Token是元数据规模的示意，并非固定预算。MCP发现工具、模型选择工具和应用执行工具是不同环节；普通API不会自动变成MCP服务，stdio在这里是程序消息通道而非让用户敲键盘。",
+      "citation_ids": [
+        "original-201",
+        "original-202",
+        "original-203",
+        "original-204",
+        "original-205",
+        "original-206",
+        "original-207",
+        "original-208",
+        "original-209",
+        "original-210",
+        "original-211",
+        "original-212",
+        "original-213",
+        "original-214"
+      ]
+    },
+    {
+      "ts": "02:15:38",
+      "title": "自建桌面文件MCP：统计、列出和读取",
+      "body": "第二个案例用FastMCP封装桌面文本文件操作：统计数量、列出文件、读取指定文件，并用工具装饰器暴露能力。校订：MCP是协议，FastMCP是实现工具；Python官方SDK内的FastMCP与独立同名项目须按实际导入和版本区分，原文不足以确定安装版本。启动服务不代表公开发布；文件路径是服务运行机器上的路径，应限定允许目录及读取权限。",
+      "citation_ids": [
+        "original-215",
+        "original-216",
+        "original-217",
+        "original-218",
+        "original-219",
+        "original-220",
+        "original-221",
+        "original-222",
+        "original-223",
+        "original-224",
+        "original-225"
+      ]
+    },
+    {
+      "ts": "02:22:34",
+      "title": "Inspector用于独立验证工具",
+      "body": "在接入Agent之前，调试界面可以列出工具并填写参数直接调用，以区分服务实现问题和模型编排问题。课堂中的连接失败没有完整日志，无法断定Windows不兼容。校订：原文dive等结合调试语境整理为dev；具体命令需匹配SDK版本。6277是旧版Inspector代理默认端口，不是stdio或FastMCP统一默认端口；stdio本身不要求TCP监听。",
+      "citation_ids": [
+        "original-226",
+        "original-227",
+        "original-228",
+        "original-229",
+        "original-230",
+        "original-231",
+        "original-232",
+        "original-233",
+        "original-234"
+      ]
+    },
+    {
+      "ts": "02:27:49",
+      "title": "把本地MCP连接到Agent并验证结果",
+      "body": "接入Qwen-Agent后，分别测试文件计数、列表和内容读取，与本地实际文件对照，确认模型回答来自工具结果。区分开发调试器与服务运行进程，检查客户端启动命令和工作目录。该模式可扩展到内部系统或知识文件，但只能访问服务身份获准访问的资源；不能把桌面演示推论为自动访问用户任意设备。",
+      "citation_ids": [
+        "original-235",
+        "original-236",
+        "original-237",
+        "original-238",
+        "original-239",
+        "original-240",
+        "original-241",
+        "original-242",
+        "original-243",
+        "original-244",
+        "original-245"
+      ]
+    },
+    {
+      "ts": "02:34:28",
+      "title": "从演示走向应用：数据与工具质量",
+      "body": "讲师以个人分析系统说明，模型效果还受到数据完整性、更新时间和工具可用性的影响。可把适用任务拆成数据获取、清洗、计算与解释，并检查来源及失败情况。个人系统投入、模型排名和收益说法没有形成可验证基准，本学习版只保留工程层面的数据质量与工具链经验，不将其写成收益承诺或选型定论。",
+      "citation_ids": [
+        "original-246",
+        "original-247",
+        "original-248",
+        "original-249",
+        "original-250",
+        "original-251",
+        "original-252",
+        "original-253",
+        "original-254",
+        "original-255",
+        "original-256",
+        "original-257",
+        "original-258"
+      ]
+    },
+    {
+      "ts": "02:41:32",
+      "title": "按任务组织能力并控制上下文",
+      "body": "Function Calling关注模型提出调用与应用执行，MCP统一能力连接，Skills提供任务方法和可按需加载的材料，三者可以配合。校订：并非所有应用每次都会把全部工具完整放入上下文，是否筛选或延迟加载取决于实现。SQLite可用于练习，MCP也不只支持Python，已有官方Java SDK；选型应看业务评估，个人任务表现不能推论普遍优劣。",
+      "citation_ids": [
+        "original-259",
+        "original-260",
+        "original-261",
+        "original-262",
+        "original-263",
+        "original-264",
+        "original-265",
+        "original-266",
+        "original-267",
+        "original-268",
+        "original-269",
+        "original-270",
+        "original-271",
+        "original-272",
+        "original-273"
+      ]
+    },
+    {
+      "ts": "02:51:26",
+      "title": "发布、验证与协议分工的边界",
+      "body": "课堂问答建议用错题记录、规则检查与测试补充提示词约束，并核验同名实体后再调用业务工具。Agent框架把手工构造请求、调度与结果回传组织起来，但开发者仍需检查执行结果。校订：A2A用于Agent之间的信息、任务与结果协作，不只是发现地址；MCP市场发布流程、收费及原文未解释的ANP不据猜测补全。Qwen-Agent是可集成的Python框架，并非安装后自动具备所有业务能力的独立产品。",
+      "citation_ids": [
+        "original-274",
+        "original-275",
+        "original-276",
+        "original-277",
+        "original-278",
+        "original-279",
+        "original-280",
+        "original-281",
+        "original-282",
+        "original-283",
+        "original-284",
+        "original-285"
+      ]
+    },
+    {
+      "ts": "02:59:21",
+      "title": "作业前的SQL执行边界",
+      "body": "作业可选门票助手或桌面MCP，进阶者更换业务数据并增加能力。校订：使用SQLAlchemy不自动防止SQL注入，更不能把任意模型生成SQL直接视为安全。对值使用绑定参数，同时限制允许查询的语句、表和字段，使用最小权限数据库账户，检查超时与结果规模；参数化值不能替代对整条模型生成语句的验证。危险写操作应由应用权限与审批机制控制，不能仅依赖提示词禁止。",
+      "citation_ids": [
+        "original-287",
+        "original-288",
+        "original-289",
+        "original-290",
+        "original-291",
+        "original-292",
+        "original-293"
+      ]
+    },
+    {
+      "ts": "03:03:27",
+      "title": "用个人需求完成可复现练习",
+      "body": "选择一个具体任务先跑通，门票案例可建立合成数据和自己的表，文件案例可准备小型测试目录，再比较请求、工具调用和实际结果。基础要求二选一，熟练者可继续接入第三方服务或改造为自己的需求。保留运行环境、输入输出和失败案例，才能区分偶然成功与稳定可用。",
+      "citation_ids": [
+        "original-294",
+        "original-295",
+        "original-296",
+        "original-297",
+        "original-298",
+        "original-299",
+        "original-300"
+      ]
+    }
+  ],
+  "notes": [
+    "外部校订：MCP职责和传输以2025-11-25规范为明确版本基线，未将课堂用语当成当前规范原句。Host管理上下文，MCP可本地或远程；初始化与工具发现分开。[架构](https://modelcontextprotocol.io/specification/2025-11-25/architecture) [传输](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports) [生命周期](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle) [工具](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)。",
+    "外部校订：旧版Inspector的6277为代理服务端口，不能称为stdio或FastMCP默认端口；工具版本变化还会改变调试方式。[Inspector迁移说明](https://github.com/modelcontextprotocol/inspector/blob/main/docs/v1-to-v2-migration.md)。",
+    "外部校订：工具注册与执行方法是Qwen-Agent框架API；MCP是协议，SDK是实现。原文没有足够导入代码锁定FastMCP版本；Java已有官方SDK。[Qwen-Agent](https://github.com/QwenLM/Qwen-Agent) [Python SDK](https://github.com/modelcontextprotocol/python-sdk) [Java SDK](https://github.com/modelcontextprotocol/java-sdk)。",
+    "外部校订：Skills的name、description及按需加载资料与Function Calling、MCP各有职责；keywords不是标准通用必填项，Token示例不是固定消耗。[Agent Skills规范](https://agentskills.io/specification)。",
+    "外部校订：高德提供地图相关能力；Fetch按URL获取网页，搜索则是另一类服务。Tavily官方文档只能证明该产品能力，不能确认转写中的所有近音词都指向它。服务额度、密钥要求与工具清单需在实际使用时核对。[高德](https://lbs.amap.com/api/mcp-server/summary) [Fetch](https://github.com/modelcontextprotocol/servers/tree/main/src/fetch) [Tavily](https://docs.tavily.com/documentation/mcp)。",
+    "外部校订：SQLAlchemy不会自动审核整条模型生成SQL；绑定参数保护值的传递，允许列表、最小权限及执行边界仍须应用实现。这是对讲师简化安全说法的补充，未声称课堂已实现这些控制。[SQLAlchemy](https://docs.sqlalchemy.org/en/20/faq/sqlexpressions.html) [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html)。",
+    "外部校订：A2A不止发现其他Agent，还定义协作消息、任务和结果等交互；原文未回答的ANP保留未决。[A2A规范](https://a2a-protocol.org/latest/specification/)。",
+    "讲师经验边界：框架轻重、一次模型响应、工具数量、80%覆盖、个人收益、模型排名及花费均非普遍实测结论。保留先跑通再修改、减少不必要数据转述和验证工具结果的方法；不传播收益、价格或未核实型号。",
+    "案例边界：票种编码、样例日期、销量、文件数量和天气仅属课堂演示；不推定现行票务政策或实时状态。未连接讲师数据库、未读取密钥或私密配置、未执行本课代码；图表与SQL的正确性仍需实际测试。"
+  ],
+  "review_audit": {
+    "scope": "仅写course_3_1.json学习版；不修改DOCX、原文、代码、配置或全局词典。",
+    "coverage": "完整阅读原文302段与全部30节导读；按原时间顺序重组为25个主题，尾部问答与作业纳入。",
+    "original_segment_count": 302,
+    "read_ranges": [
+      [
+        1,
+        302
+      ]
+    ],
+    "stage1": "主agent统一执行已完成：applied=0，deferred=0，review_enqueued=0，boundary_check_active=true；source指纹由主流程重新解析DOCX核对一致。",
+    "native_review": "分段全读1—60、61—120、121—180、181—240、241—302；结合上下文修复术语并区分课堂经验、演示结果与外部校订。",
+    "corrections": [
+      {
+        "anchors": [
+          "original-44",
+          "original-59",
+          "original-226"
+        ],
+        "type": "ASR术语",
+        "decision": "test to circle按自然语言生成SQL语境整理为Text-to-SQL；工具注册归为register_tool；dive结合Inspector调试语境整理为dev，但不锁定SDK版本。"
+      },
+      {
+        "anchors": [
+          "original-35",
+          "original-40",
+          "original-41"
+        ],
+        "type": "技术事实",
+        "decision": "纠正FC仅本地、MCP必须在线公开部署及自动维护完整历史的说法。"
+      },
+      {
+        "anchors": [
+          "original-154",
+          "original-164",
+          "original-210",
+          "original-218",
+          "original-234",
+          "original-243",
+          "original-277"
+        ],
+        "type": "协议与版本",
+        "decision": "区分初始化与工具列表、stdio与联网API、SSE与平台代理；补Streamable HTTP版本背景，纠正6277端口归属。"
+      },
+      {
+        "anchors": [
+          "original-205",
+          "original-206",
+          "original-259",
+          "original-262"
+        ],
+        "type": "能力边界",
+        "decision": "Skills不是FC替代或升级，keywords不为通用必填项，工具列表是否全量入上下文取决于实现。"
+      },
+      {
+        "anchors": [
+          "original-184",
+          "original-185",
+          "original-189",
+          "original-193"
+        ],
+        "type": "服务与排错",
+        "decision": "URL抓取不等于搜索，连接失败归因缺少Token缺证据，不将猜测写成事实。"
+      },
+      {
+        "anchors": [
+          "original-265",
+          "original-280",
+          "original-292",
+          "original-293"
+        ],
+        "type": "事实补充",
+        "decision": "核实官方Java SDK与A2A协作语义；补充SQLAlchemy、参数化和执行权限的边界。"
+      }
+    ],
+    "unresolved_items": [
+      {
+        "anchors": [
+          "original-5",
+          "original-9",
+          "original-246",
+          "original-267"
+        ],
+        "issue": "型号近音、个人称呼与排名/收益不可仅凭文字验证",
+        "handling": "不猜型号或人名，不查私密配置，删去非教学时效细节。"
+      },
+      {
+        "anchors": [
+          "original-184",
+          "original-186",
+          "original-194",
+          "original-195",
+          "original-196",
+          "original-198"
+        ],
+        "issue": "heavy、TV、Timely、tally、tablet等近音服务称呼",
+        "handling": "正文使用抓取/搜索类别并引用Tavily作为外部能力例证，不断言每次指代身份。"
+      },
+      {
+        "anchors": [
+          "original-193",
+          "original-220",
+          "original-229",
+          "original-230"
+        ],
+        "issue": "工具失败根因与FastMCP/SDK确切版本缺日志和导入信息",
+        "handling": "保留排查路径，不能断言缺Token、系统不兼容或指定版本。"
+      },
+      {
+        "anchors": [
+          "original-274",
+          "original-280"
+        ],
+        "issue": "ModelScope发布步骤与ANP未获完整回答",
+        "handling": "不补造教程；A2A按官方规范有限校订。"
+      },
+      {
+        "anchors": [
+          "original-37"
+        ],
+        "issue": "Function Calling发明归于LangChain的历史说法缺一手依据",
+        "handling": "不保留发明者结论，不将课程相对时间推定为确切录制日期。"
+      }
+    ],
+    "external_sources": [
+      {
+        "publisher": "MCP规范",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/architecture",
+        "used_for": "Host、Client、Server及上下文隔离"
+      },
+      {
+        "publisher": "MCP规范",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports",
+        "used_for": "stdio及Streamable HTTP与旧SSE传输"
+      },
+      {
+        "publisher": "MCP规范",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle",
+        "used_for": "初始化协商"
+      },
+      {
+        "publisher": "MCP规范",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools",
+        "used_for": "tools/list与tools/call"
+      },
+      {
+        "publisher": "QwenLM",
+        "url": "https://github.com/QwenLM/Qwen-Agent",
+        "used_for": "工具注册、Assistant配置与MCP接入"
+      },
+      {
+        "publisher": "Agent Skills",
+        "url": "https://agentskills.io/specification",
+        "used_for": "元数据和渐进披露"
+      },
+      {
+        "publisher": "MCP Inspector",
+        "url": "https://github.com/modelcontextprotocol/inspector/blob/main/docs/v1-to-v2-migration.md",
+        "used_for": "旧版6277为代理端口而非MCP端口"
+      },
+      {
+        "publisher": "MCP Python SDK",
+        "url": "https://github.com/modelcontextprotocol/python-sdk",
+        "used_for": "官方SDK与FastMCP实现"
+      },
+      {
+        "publisher": "MCP Java SDK",
+        "url": "https://github.com/modelcontextprotocol/java-sdk",
+        "used_for": "Java实现存在"
+      },
+      {
+        "publisher": "高德开放平台",
+        "url": "https://lbs.amap.com/api/mcp-server/summary",
+        "used_for": "地图、路线与天气工具"
+      },
+      {
+        "publisher": "Tavily",
+        "url": "https://docs.tavily.com/documentation/mcp",
+        "used_for": "搜索服务能力，不证明原文所有近音身份"
+      },
+      {
+        "publisher": "MCP官方Fetch服务",
+        "url": "https://github.com/modelcontextprotocol/servers/tree/main/src/fetch",
+        "used_for": "URL抓取与搜索区别"
+      },
+      {
+        "publisher": "SQLAlchemy",
+        "url": "https://docs.sqlalchemy.org/en/20/faq/sqlexpressions.html",
+        "used_for": "绑定参数与不可信输入边界"
+      },
+      {
+        "publisher": "OWASP",
+        "url": "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+        "used_for": "参数化、允许列表和最小权限"
+      },
+      {
+        "publisher": "A2A协议",
+        "url": "https://a2a-protocol.org/latest/specification/",
+        "used_for": "Agent间任务与消息协作"
+      }
+    ],
+    "omissions": [
+      {
+        "category": "课堂组织与重复",
+        "ranges": "1、3、23、30、100、286、301—302及分散重复",
+        "reason": "删除问候、等待、宣传和重复收尾；保留排错与作业要求。"
+      },
+      {
+        "category": "旁支工具与时效型号",
+        "ranges": "5、9—16、22及相关闲聊",
+        "reason": "图像产品、套餐价格和不明型号不构成本课工具协议主线，不猜补。"
+      },
+      {
+        "category": "个人金融收益与营销",
+        "ranges": "246—258、267—273、281—283部分",
+        "reason": "仅保留数据与工程质量思想，不把收益、排名和个人投入作为事实依据或建议。"
+      },
+      {
+        "category": "重复界面操作与归因猜测",
+        "ranges": "68—74、87—99、128—140、189—200、226—243部分",
+        "reason": "压缩点击、等待及重复配置；保留可复用分层诊断，不传播未证实根因。"
+      },
+      {
+        "category": "凭证及客户数据",
+        "ranges": "66、132—136、149—153、165—170、194—198部分",
+        "reason": "保留配置原则和自建测试数据方法，不复制秘密或访问实际账户。"
+      }
+    ],
+    "limitations": "基于文字和官方一手资料复核，不是音频重转写；未运行代码或连接第三方服务，未验证案例数据及运行版本。外部规范校订在正文和notes明示，不归于讲师。",
+    "pending_tokens": [
+      {
+        "citation_id": "original-5",
+        "original": "off 4.8",
+        "suggested": "",
+        "reason": "模型名近音且版本不明，不根据性能或价格猜型号。"
+      },
+      {
+        "citation_id": "original-5",
+        "original": "vivo",
+        "suggested": "",
+        "reason": "上下文作模型名使用，缺音频或界面证据。"
+      },
+      {
+        "citation_id": "original-184",
+        "original": "heavy",
+        "suggested": "",
+        "reason": "搜索服务名疑似ASR，无法据文字确认。"
+      },
+      {
+        "citation_id": "original-186",
+        "original": "TV",
+        "suggested": "",
+        "reason": "搜索服务名指代不明，不能将邻近多个产品混同。"
+      },
+      {
+        "citation_id": "original-194",
+        "original": "Timely flash",
+        "suggested": "",
+        "reason": "可能混有服务名与工具名，缺原界面证据。"
+      },
+      {
+        "citation_id": "original-194",
+        "original": "tally",
+        "suggested": "",
+        "reason": "与后文搜索服务近音相关，尚不足确定为Tavily。"
+      },
+      {
+        "citation_id": "original-195",
+        "original": "tablet",
+        "suggested": "",
+        "reason": "搜索服务凭证相关近音，未据私密配置确认。"
+      },
+      {
+        "citation_id": "original-196",
+        "original": "W点com",
+        "suggested": "",
+        "reason": "服务域名转写缺失，不能据猜测补URL。"
+      }
+    ],
+    "first_pass_second_pass": "本agent完成引用、时间顺序、字段及边界自检；独立冷复核由主agent安排，尚不宣称已完成。",
+    "status": "learning_review_complete_source_uncertainties_retained",
+    "independent_review": {
+      "date": "2026-10-21",
+      "scope": "完整冷读学习资产；疑点对照原始片段及一手资料，非第二遍音频校对",
+      "coverage_verified": true,
+      "confirmed_findings": [
+        {
+          "line": 286,
+          "original": "\"original-167\",",
+          "suggested": "删除该引用项",
+          "reason": "原始original-167（01:48:36）正文仅“好。”，不包含stdio、SSE或网络服务相关证据；不应作为本节知识依据，其他有效引用保留。"
+        }
+      ],
+      "disposition": "已逐项核实并修正；未改原文时间、编号及原始DOCX。",
+      "pending_source_tokens": 8,
+      "queue_domain": "ai-study-course"
+    }
+  }
+}

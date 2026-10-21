@@ -29,7 +29,7 @@ KB_DIR = os.path.join(_PROJECT_ROOT, "课程原文及导读")
 # 解析缓存文件
 CACHE_FILE = os.path.join(_PROJECT_ROOT, "_knowledge_cache.json")
 # 解析规则版本；升级后自动忽略旧文件指纹并重新解析全部源文件。
-CACHE_VERSION = 4
+CACHE_VERSION = 5
 
 # 时间戳匹配，如 "00:05" / "01:09:23"
 TS_RE = re.compile(r"^\s*(\d{1,2})[:：](\d{2})(?:[:：](\d{2}))?\s*(.*)$")
@@ -136,7 +136,7 @@ def parse_summary(paras):
     mode = None            # "keywords" | "summary" | "sections"
     cur_section = None     # 当前正在拼接的章节
     for p in paras[2:]:    # 跳过标题行与日期行
-        if p.strip() in {"要点回顾", "提取PPT", "提取 PPT", "智能纪要", "会议纪要"}:
+        if p.strip() in {"要点回顾", "问答回顾", "提取PPT", "提取 PPT", "智能纪要", "会议纪要"}:
             # 导读的后续问答/PPT 常重复同一组时间戳，不属于章节正文。
             if cur_section is not None:
                 sections.append(cur_section)

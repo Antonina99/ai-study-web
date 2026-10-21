@@ -1,0 +1,867 @@
+{
+  "course_key": "13. 搭建Hermes Agent 中的长期记忆和自进化能力",
+  "source_sha256": "42477ead8cb3585a08c0dde37489e6dcfb96fd371869cedaa4f254e8dfd4514c",
+  "review_date": "2026-10-21",
+  "method": "transcript-fixer Stage 1词典初筛 + Native AI全文语境复核 + 官方一手资料事实校订 + 学习版整理；独立冷复核由主流程安排 + 独立学习版冷复核及逐项裁定",
+  "keywords": [
+    "主agent",
+    "多Agent协作",
+    "任务板",
+    "上下文隔离",
+    "Agent Client Protocol",
+    "Agently",
+    "TriggerFlow",
+    "DAG",
+    "asyncio",
+    "权限",
+    "ReAct",
+    "人工确认"
+  ],
+  "summary_points": [
+    "正文实际讲多Agent调度，围绕任务拆解、Worker选择、执行、结果回收和最终验收展开；源文件题名保留但不代替内容判定。",
+    "主Agent掌握整体目标，Worker维护局部运行状态；分工可以减少上下文干扰，但需保留结果证据、权限和失败信息。",
+    "ACP在本课指Agent Client Protocol，可连接兼容Agent；规划与调度仍属于应用，协议负责消息、会话和相关交互。",
+    "实战先验证ACP往返，再使用Agently内的角色演示任务板到Worker再到总结的链路；后半段简化流程未实际接入ACP。",
+    "结构化结果需要形状和业务双重验证；依赖字段、协程并发、结果关联、权限回调和循环预算都需要可执行规则。",
+    "尾部问答覆盖人工门控、会话与记忆管理、容错、通信拓扑和动态Agent配置；作业从最小连接与分步运行开始。"
+  ],
+  "interview_points": [
+    "主Agent与Worker各需要哪些上下文？为什么结论摘要仍需附来源与失败说明？",
+    "DAG、状态机与LangGraph有什么区别？为何新增after字段还不足以完成依赖调度？",
+    "Agent Client Protocol与同缩写的Agent Communication Protocol、A2A分别是什么？",
+    "ACP初始化、session创建/加载、prompt、update和request_permission如何衔接？",
+    "为什么默认选择权限选项一、不同session或独立目录都不能作为安全边界的保证？",
+    "任务板如何校验Worker标识、覆盖范围、数量与依赖？结构合法为什么不代表规划正确？",
+    "asyncio.create_task与gather如何实现并发？结果顺序、错误传播、取消和限流应如何处理？",
+    "怎样保留task_id与结果关系、设计失败恢复和有预算的循环？人工确认与Plan模式如何配合多Agent？"
+  ],
+  "sections": [
+    {
+      "ts": "04:56",
+      "title": "实际课题：主Agent调度与多Agent协作",
+      "body": "原文件沿用Hermes长期记忆与自进化标题，但本次正文实际讲主Agent调度、多Agent协作和ACP连接。以查询Harness工程师招聘信息为例，把招聘网站、企业官网和岗位定义调查拆成子任务，减少单一上下文同时容纳多条调查过程的负担。多Agent用于组织复杂任务，并非任务越多就必然越好。",
+      "citation_ids": [
+        "original-13",
+        "original-14",
+        "original-15",
+        "original-16",
+        "original-17",
+        "original-18",
+        "original-19",
+        "original-20",
+        "original-21",
+        "original-24"
+      ]
+    },
+    {
+      "ts": "11:17",
+      "title": "主Agent看交付，子Agent保存运行状态",
+      "body": "主Agent主要关注任务目标、结果及相关性；子Agent需要保存搜索目标、已读信息和判断依据以继续执行。过程信息也支持调试、回查与证据追踪。校订：匹配度是结果是否满足任务的评价，不等于统计置信度或准确率；模型自报分数未经校准不能当作正确概率。普通无状态模型请求依赖传入上下文，会话或应用可以另行维护历史，不能说所有产品都没有记忆。",
+      "citation_ids": [
+        "original-25",
+        "original-26",
+        "original-27",
+        "original-28",
+        "original-29",
+        "original-30",
+        "original-31",
+        "original-32",
+        "original-33",
+        "original-34"
+      ]
+    },
+    {
+      "ts": "17:56",
+      "title": "验收要回到整体目标",
+      "body": "子Agent完成局部任务后仍需要验收，主Agent应检查内容是否服务于原始需求。例如岗位定义是否能帮助扩展招聘搜索，应由整体任务需要决定。局部自检与整体验收可以并存，保留来源、证据与失败说明有助于复核；只拿到一个看似合理的结论不代表任务真正完成。",
+      "citation_ids": [
+        "original-35",
+        "original-36",
+        "original-37",
+        "original-38"
+      ]
+    },
+    {
+      "ts": "21:12",
+      "title": "为什么分工：上下文隔离与专业配置",
+      "body": "并非所有任务都需要主从结构，也可在单Agent外部管理和筛选上下文。多Agent的价值包括分离运行状态，以及分别配置模型、工具、Skills、处理循环和上下文策略。深度研究与信息搜索可采用不同交付要求。校订：工具二三十个、Skills两三个等只是讲师经验，不是系统上限；多Agent也会增加通信、成本和一致性管理负担。",
+      "citation_ids": [
+        "original-39",
+        "original-40",
+        "original-41",
+        "original-42",
+        "original-43",
+        "original-44",
+        "original-45",
+        "original-46",
+        "original-47",
+        "original-48"
+      ]
+    },
+    {
+      "ts": "28:34",
+      "title": "公共任务板表达依赖关系",
+      "body": "任务板不仅列出待办事项，还可表示串行依赖、并发分支和回收节点。本课先讲依赖结构，再用较简化的代码实现。校订：DAG是有向无环图，可分支、汇合，并非必须一条直线；LangGraph允许循环，不等于DAG。原文第53段已自行纠正，导读把LangGraph写成不能回环不准确。状态机也不等同DAG。",
+      "citation_ids": [
+        "original-49",
+        "original-50",
+        "original-51",
+        "original-52",
+        "original-53",
+        "original-54",
+        "original-55"
+      ]
+    },
+    {
+      "ts": "33:11",
+      "title": "多层委派的责任与终止边界",
+      "body": "主Agent拆解、分发、回收评价并输出结论；子Agent承接、执行、汇总和返回。一个节点可对上级承担执行责任，同时对下级承担调度责任，是否继续委派取决于具体实现。校订：课堂的层级例子不是无限递归的许可，也不是所有产品的固定能力说明；工程中应限制委派深度、数量、权限和预算，保留责任链。",
+      "citation_ids": [
+        "original-56",
+        "original-57",
+        "original-58",
+        "original-59",
+        "original-60",
+        "original-61",
+        "original-62",
+        "original-63",
+        "original-64",
+        "original-65"
+      ]
+    },
+    {
+      "ts": "41:15",
+      "title": "执行环境、Worker说明与私有任务包",
+      "body": "主Agent依据可用Worker的职责描述选择执行方，也可以只看到research或plan等业务角色，具体后端由适配层决定。公共任务板拆出的单个任务包包含执行者、目标、必要上下文和上游结果。校订：会话隔离、目录隔离与安全沙箱是不同层次，创建一个文件夹不自动阻止外部访问；Harness工程概念也不能与Hermes产品混同。",
+      "citation_ids": [
+        "original-66",
+        "original-67",
+        "original-68",
+        "original-69",
+        "original-70",
+        "original-71",
+        "original-72",
+        "original-73",
+        "original-74",
+        "original-75",
+        "original-76",
+        "original-77",
+        "original-78",
+        "original-79"
+      ]
+    },
+    {
+      "ts": "50:54",
+      "title": "先辨清ACP的全称与协议范围",
+      "body": "本课明确使用Agent Client Protocol，把任务文本传到兼容Agent并接收结果；导读误称Agent Communication Protocol，应纠正。校订：后者是另一个同缩写项目，其官网说明已加入Linux Foundation下的A2A，不能笼统说历史协议从未存在或文档消失。Agent Client Protocol原本标准化客户端与编码Agent交互；主从编排可利用它，但它不是任务规划器。",
+      "citation_ids": [
+        "original-80",
+        "original-81",
+        "original-82",
+        "original-83",
+        "original-84",
+        "original-85",
+        "original-86"
+      ]
+    },
+    {
+      "ts": "55:47",
+      "title": "客户端与适配器让连接两端解耦",
+      "body": "客户端使用统一消息与会话接口，适配器把协议请求转换为具体Agent支持的操作，再回传结果。上层仍管理任务板、Worker和业务验收。校订：HTTP可以传输工具和会话数据，只是不自带MCP或ACP的业务语义，协议可以分层组合；HTTP全称是Hypertext Transfer Protocol。ACP也包含权限请求交互，只是不替应用制定权限政策；session加载能力须由对端声明。",
+      "citation_ids": [
+        "original-89",
+        "original-90",
+        "original-91",
+        "original-92",
+        "original-93",
+        "original-94",
+        "original-95",
+        "original-96",
+        "original-97",
+        "original-98",
+        "original-99",
+        "original-100",
+        "original-101",
+        "original-102",
+        "original-103",
+        "original-104",
+        "original-105",
+        "original-106"
+      ]
+    },
+    {
+      "ts": "01:08:35",
+      "title": "最小ACP连接：先确认可执行环境",
+      "body": "课堂先准备SDK、目标Agent及适配器，再用启动命令和参数创建子进程连接。npx路径问题应检查当前执行环境、可执行文件路径和依赖，而不是仅调整模型提示。校订：Python SDK的spawn_agent_process帮助管理子进程与stdio；npx是部分适配器的启动方式，不是ACP唯一规定。安装SDK也不会自动安装所有目标Agent。",
+      "citation_ids": [
+        "original-108",
+        "original-109",
+        "original-110",
+        "original-111",
+        "original-112",
+        "original-113",
+        "original-114",
+        "original-115",
+        "original-116",
+        "original-117",
+        "original-118"
+      ]
+    },
+    {
+      "ts": "01:14:44",
+      "title": "Client回调、会话与权限处理",
+      "body": "示例Client实现状态更新、权限请求和会话操作，连接后初始化，创建或加载session，再发送prompt并处理回复。校订：__aenter__配合async with，不能混成普通with的__enter__；已有会话加载须先确认对端能力。权限回调默认选择第一项只是课堂简化，不是正确授权规则，应按用户设置或实际选择返回optionId，并处理取消。",
+      "citation_ids": [
+        "original-119",
+        "original-120",
+        "original-121",
+        "original-122",
+        "original-123",
+        "original-124",
+        "original-125",
+        "original-126"
+      ]
+    },
+    {
+      "ts": "01:20:37",
+      "title": "先验证消息往返，再排查鉴权与后端",
+      "body": "课堂用固定短回复验证任务确实送达，再发送更复杂请求；一条链路成功，另一条出现鉴权异常，体现连接、身份授权和模型后端配置需分别诊断。校订：成功回显只证明该次消息往返，不证明完整协作流程可靠。界面插件身份、卡顿根因及替换后端的具体兼容配置无法仅凭文字确认，不推广为通用安装或免付费方案。",
+      "citation_ids": [
+        "original-127",
+        "original-128",
+        "original-129",
+        "original-130",
+        "original-131",
+        "original-132",
+        "original-133",
+        "original-134",
+        "original-135",
+        "original-136",
+        "original-137",
+        "original-138",
+        "original-139",
+        "original-140",
+        "original-141",
+        "original-142",
+        "original-143",
+        "original-144",
+        "original-145",
+        "original-146",
+        "original-147"
+      ]
+    },
+    {
+      "ts": "01:34:01",
+      "title": "适配自建Agent与比较A2A",
+      "body": "可把自建Agent包装为兼容协议的接收端，管理会话、处理prompt并发送更新和最终结果；连接方则实现Client。校订：两端职责不能都叫Client；兼容性要看具体适配器和版本，不沿用课堂的固定支持名单。A2A也定义消息、任务状态和结果协作，并非只能在公开市场发现Agent；ACP更轻量或A2A冗余属于讲师场景判断，不是普遍性能结论。",
+      "citation_ids": [
+        "original-148",
+        "original-149",
+        "original-150",
+        "original-151",
+        "original-152",
+        "original-153",
+        "original-154",
+        "original-155",
+        "original-156",
+        "original-157",
+        "original-158",
+        "original-160",
+        "original-161"
+      ]
+    },
+    {
+      "ts": "01:43:50",
+      "title": "实战准备：四种角色与模型请求",
+      "body": "后半段先验证主模型请求，再配置任务规划、research、plan和总结等角色，注入Worker能力说明与用户输入。课件V2为讲解简化了代码。校订：本段直接创建框架内Agent来演示协作，没有实际走ACP，不能把本地函数调用等同协议交互。结合结构化输出与编排特征，原文agent里、agency等整理为Agently，具体安装版本仍未确定。",
+      "citation_ids": [
+        "original-168",
+        "original-169",
+        "original-170",
+        "original-171",
+        "original-172",
+        "original-173",
+        "original-174"
+      ]
+    },
+    {
+      "ts": "01:49:29",
+      "title": "从输入生成结构化任务板",
+      "body": "规划请求包含用户目标、可用Worker及分工规则，返回任务清单，代码再检查结构是否可用。V2先演示无依赖任务，复杂依赖可另加after等业务字段。校订：字段名是自定义约定；添加after仅能表达依赖，还需调度器检查引用、环、就绪状态、失败传播并按依赖执行。任务清单的列表或字典也不等于数据结构意义上的链表。",
+      "citation_ids": [
+        "original-175",
+        "original-177",
+        "original-178",
+        "original-179",
+        "original-180",
+        "original-181",
+        "original-182",
+        "original-183",
+        "original-184",
+        "original-185",
+        "original-186",
+        "original-187",
+        "original-188"
+      ]
+    },
+    {
+      "ts": "01:58:29",
+      "title": "结构正确不等于规划正确",
+      "body": "Agently帮助表达预期输出结构并解析、验证结果，任务项包含ID、标题、Worker和prompt等。课堂出现要求拆两个却只产出一个，以及修改约束后任务数变化的情况。校订：一次结果不能推出放宽要求总是更好；应分别验证结构、任务覆盖、重复项、数量上限和执行者合法性。框架验证或重试不保证内容事实正确，也不应删除必需的安全与业务校验。",
+      "citation_ids": [
+        "original-189",
+        "original-190",
+        "original-191",
+        "original-192",
+        "original-193",
+        "original-194",
+        "original-195",
+        "original-197",
+        "original-198",
+        "original-199",
+        "original-200",
+        "original-201",
+        "original-202",
+        "original-203",
+        "original-204"
+      ]
+    },
+    {
+      "ts": "02:08:30",
+      "title": "影响规划的模型、提示与Worker描述",
+      "body": "任务板由模型生成，规划会随模型、目标表达及Worker能力描述变化。课堂尝试调整research与出行规划角色，观察任务分配是否变化；格式化打印仅帮助阅读，不改变规划语义。理解代码时先看输入、输出和责任边界；若不用框架提供的结构化结果，就要自行处理文本到JSON的解析及校验。",
+      "citation_ids": [
+        "original-205",
+        "original-206",
+        "original-207",
+        "original-208",
+        "original-209",
+        "original-210",
+        "original-211",
+        "original-212",
+        "original-213",
+        "original-214",
+        "original-215",
+        "original-216",
+        "original-217",
+        "original-218",
+        "original-219",
+        "original-220",
+        "original-221",
+        "original-222",
+        "original-223"
+      ]
+    },
+    {
+      "ts": "02:19:20",
+      "title": "按任务卡动态选择执行Worker",
+      "body": "从任务板逐项取出任务，读取Worker标识，在预先建立的映射中取得执行对象，再传入任务prompt、标题和必要用户上下文。这里的动态分发由上游模型决定任务内容，代码负责查找与调用。可以把执行对象替换成ACP连接，但不是只换一个名字就自动兼容；需落实输入输出、异步生命周期、权限和错误处理契约。",
+      "citation_ids": [
+        "original-224",
+        "original-225",
+        "original-226",
+        "original-227",
+        "original-228",
+        "original-229",
+        "original-230",
+        "original-231",
+        "original-232",
+        "original-233",
+        "original-234",
+        "original-235",
+        "original-236",
+        "original-237",
+        "original-238",
+        "original-239",
+        "original-240",
+        "original-241",
+        "original-242",
+        "original-243",
+        "original-244",
+        "original-245"
+      ]
+    },
+    {
+      "ts": "02:31:33",
+      "title": "流式回调、类型转换与结果收集",
+      "body": "示例用回调展示增量输出，并修正传入字典而执行方法期望文本的问题；类型处理应以接口定义为准，不能把任意对象转字符串当作完整验证。把任务生成和Worker执行连接起来后，逐项收集结果；若真实Agent要求授权，可通过ACP权限回调接入交互，本段简化Worker并未完整演示该流程。",
+      "citation_ids": [
+        "original-246",
+        "original-247",
+        "original-248",
+        "original-249",
+        "original-250",
+        "original-251",
+        "original-252",
+        "original-253",
+        "original-254",
+        "original-255",
+        "original-256",
+        "original-257"
+      ]
+    },
+    {
+      "ts": "02:38:12",
+      "title": "总结时同时保留任务与结果",
+      "body": "汇总请求接收原始用户目标、任务板和结果板，再生成面向用户的最终答案或待确认问题。课堂将流程概括为规划、执行和总结三阶段。校订：这不意味着固定只有三次模型调用；有多个Worker、工具循环或重试时次数会增加。必填字段校验与重试依框架版本及配置，不等于业务验收；缺少流式展示也不证明实际推理一定更慢。",
+      "citation_ids": [
+        "original-258",
+        "original-259",
+        "original-260",
+        "original-261",
+        "original-262",
+        "original-263",
+        "original-264",
+        "original-265",
+        "original-267"
+      ]
+    },
+    {
+      "ts": "02:44:27",
+      "title": "asyncio并发与编排工具",
+      "body": "课堂把逐项等待改为create_task创建任务，再通过gather统一取得结果，并提出限制并发量。校订：这是协程并发，不必然是CPU并行；gather结果顺序对应输入顺序，不是完成顺序。可用Semaphore限流，并显式设计异常、取消和超时行为；保持task_id与结果关联，不应因演示省事而丢掉任务来源。TriggerFlow是Agently的编排层，和LangGraph都可组织流程，但API和执行语义并不相同。",
+      "citation_ids": [
+        "original-268",
+        "original-269",
+        "original-270",
+        "original-271",
+        "original-272",
+        "original-273",
+        "original-274",
+        "original-275",
+        "original-276",
+        "original-277",
+        "original-278"
+      ]
+    },
+    {
+      "ts": "02:51:08",
+      "title": "由总结结果驱动再规划循环",
+      "body": "在线性规划、执行、总结之外，可让总结者输出can_stop及下一步问题，不满足目标时回到规划。初始规划也可生成评估标准交给最终验收者。校订：模型生成的标准也需对齐用户需求，模型自评不能单独保证终止或正确；应用还应设置最大轮数、时间或成本预算、重复失败出口及人工介入条件。本课循环是延伸内容，不能宣称课堂主示例已完整验证。",
+      "citation_ids": [
+        "original-279",
+        "original-280",
+        "original-281",
+        "original-282",
+        "original-283",
+        "original-284",
+        "original-285",
+        "original-286",
+        "original-287",
+        "original-288",
+        "original-289"
+      ]
+    },
+    {
+      "ts": "02:58:17",
+      "title": "作业、适用场景与ReAct",
+      "body": "练习先完成一次本机ACP连接，再逐段理解任务板、分发与回收，进阶可加入循环。已有产品足以完成需求时不必重建编排；标准固定流程适合明确流程约束，开放任务可使用动态规划。校订：ReAct指推理与行动交替、根据环境观察继续推进，并非所有反思返工循环的统称；本文实际主题仍是协作，不能因文件名补写不存在的长期记忆实现。",
+      "citation_ids": [
+        "original-290",
+        "original-291",
+        "original-292",
+        "original-293",
+        "original-294",
+        "original-295",
+        "original-296",
+        "original-297",
+        "original-298",
+        "original-299",
+        "original-300",
+        "original-301",
+        "original-302"
+      ]
+    },
+    {
+      "ts": "03:08:08",
+      "title": "会话、上下文与故障恢复",
+      "body": "同一Agent可使用不同session分别处理任务；主流程选择性传入用户目标、任务说明、上游结果及全局状态。长任务的主Agent和承担长任务的Worker都可能需要状态与记忆管理。失败重试、持久化和恢复由工程设计决定。校订：不同session不自动隔离共享文件及权限；按所查ACP v1文档，stdio为现有主要传输，Streamable HTTP仍标为草案，自定义传输须保持消息及生命周期要求。",
+      "citation_ids": [
+        "original-303",
+        "original-304",
+        "original-305",
+        "original-306",
+        "original-307",
+        "original-308",
+        "original-309",
+        "original-310",
+        "original-311",
+        "original-312",
+        "original-313",
+        "original-314",
+        "original-315",
+        "original-316",
+        "original-317",
+        "original-318",
+        "original-319",
+        "original-320",
+        "original-321"
+      ]
+    },
+    {
+      "ts": "03:19:30",
+      "title": "人工门控、通信拓扑与动态创建",
+      "body": "任务板生成后可先由人确认，再执行；代码还应限制任务数量与允许使用的Worker、工具和资源。动态创建Agent需要可加载的配置与能力管理，不能仅靠提示词要求不要太多。星型集中调度便于追踪，网状通信需要更复杂的终止和协调机制，选择取决于任务。校订：人工介入还涉及暂停、状态保存、恢复与授权，生产实现不只是input；Plan模式与多Agent是不同维度，主Agent也不必须内建ACP，只要应用有合适的调用通路。",
+      "citation_ids": [
+        "original-325",
+        "original-326",
+        "original-327",
+        "original-328",
+        "original-329",
+        "original-330",
+        "original-331",
+        "original-332",
+        "original-334",
+        "original-335",
+        "original-336",
+        "original-337",
+        "original-338",
+        "original-339",
+        "original-340",
+        "original-341"
+      ]
+    }
+  ],
+  "notes": [
+    "题名与内容边界：course_key保留源文件名“13. 搭建Hermes Agent 中的长期记忆和自进化能力”用于匹配，正文实际主题是主Agent调度与多Agent协作；长期记忆仅在问答讨论需求，没有Hermes长期记忆实现教程。",
+    "外部校订：本课ACP明确指Agent Client Protocol。Agent Communication Protocol是另一项目，其官网声明加入A2A，不宜说历史协议和文档消失。A2A也处理协作消息、任务及结果，不能仅称公开市场目录。[ACP](https://agentclientprotocol.com/get-started/introduction) [另一ACP项目](https://agentcommunicationprotocol.dev/introduction/welcome) [A2A](https://a2a-protocol.org/latest/specification/)。",
+    "外部校订：按ACP v1，创建session前须初始化，加载旧session要检查loadSession能力；协议有session/request_permission，允许按用户设置自动决策，但第一项不是固定授权语义。会话上下文隔离不等于文件系统安全隔离。[会话](https://agentclientprotocol.com/protocol/v1/session-setup) [权限](https://agentclientprotocol.com/protocol/v1/tool-calls)。",
+    "外部校订：ACP v1传输文档将Streamable HTTP标为草案，stdio通过子进程标准输入输出通信；SDK的spawn_agent_process负责进程与通道管理，命令不限npx。本文没有推定课堂SDK或适配器的确切版本。[传输](https://agentclientprotocol.com/protocol/v1/transports) [Python SDK](https://agentclientprotocol.github.io/python-sdk/quickstart/)。",
+    "外部校订：DAG禁止有向环，LangGraph支持循环；原文有自我纠正，导读错误合并了二者。新增after字段只表示依赖，不会自动实现调度和错误传播。[LangGraph](https://docs.langchain.com/oss/python/langgraph/graph-api)。",
+    "术语与框架校订：依据原文的链式结构化输出、必填描述及TriggerFlow归属，agency、agent里、trick flow等在学习版整理为Agently和TriggerFlow。框架提供解析、验证与重试，但不能保证事实或规划正确，具体语法以安装版本为准。[Agently官方项目](https://github.com/AgentEra/Agently) [TriggerFlow](https://agentera.github.io/Agently/en/triggerflow/overview.html)。",
+    "外部校订：asyncio协程并发不等同CPU并行；gather按输入次序聚合结果，默认异常传播不会自动取消所有其他任务。Semaphore可限制同时进入的任务数；__aenter__属于异步上下文管理器。[任务](https://docs.python.org/3/library/asyncio-task.html) [同步原语](https://docs.python.org/3/library/asyncio-sync.html) [数据模型](https://docs.python.org/3/reference/datamodel.html#asynchronous-context-managers)。",
+    "外部校订：论文标题为ReAct: Synergizing Reasoning and Acting in Language Models，核心是推理与行动交替并利用观察，不是所有反思、验收或返工机制的通称。[ReAct论文](https://arxiv.org/abs/2210.03629)。",
+    "讲师经验边界：工具数量、模型规划优劣、框架轻重、星型拓扑偏好及特定产品卡顿归因，不是经过基准验证的普遍结论。产品适配列表、插件身份、第三方后端配置和Hermes内部是否全程采用ACP，文本不足以核实，未猜补。",
+    "工程补充边界：任务数量/深度/预算限制、依赖校验、来源保留、幂等恢复和授权门控是针对课堂简化代码的校订建议，未声称原示例已经实现。未运行课件代码，未安装依赖或读取账户配置，课堂一次回显不构成生产可靠性验证。"
+  ],
+  "review_audit": {
+    "scope": "仅写course_3_6.json；不修改DOCX、原文、其他review、代码或私密配置。",
+    "coverage": "完整阅读原文342段及导读27节，按原文时间顺序整理25主题；核对文件名与实际主线不一致。",
+    "original_segment_count": 342,
+    "read_ranges": [
+      [
+        1,
+        342
+      ]
+    ],
+    "stage1": "主agent统一执行完成：applied=0，deferred=0，review_enqueued=0，boundary_check_active=true；source指纹由主流程重新解析DOCX核对。",
+    "native_review": "逐段全读1—70（补读截断的19—34）、71—115、116—180、181—240、241—295、296—342，并读完全部导读。",
+    "corrections": [
+      {
+        "anchors": [
+          "original-13",
+          "original-289",
+          "original-311"
+        ],
+        "type": "题名边界",
+        "decision": "保留course_key但按多Agent协作整理，不虚构Hermes长期记忆或自进化实现。"
+      },
+      {
+        "anchors": [
+          "original-27",
+          "original-28"
+        ],
+        "type": "概念边界",
+        "decision": "匹配度与模型自报置信分数不等同统计正确概率。"
+      },
+      {
+        "anchors": [
+          "original-53",
+          "original-54"
+        ],
+        "type": "原文与导读冲突",
+        "decision": "采纳原文自我纠正并据官方资料核实LangGraph支持循环；DAG为有向无环图。"
+      },
+      {
+        "anchors": [
+          "original-86",
+          "original-104",
+          "original-341"
+        ],
+        "type": "协议事实",
+        "decision": "区分Agent Client Protocol与Agent Communication Protocol；后者官网确认加入A2A，不表述为历史消失。"
+      },
+      {
+        "anchors": [
+          "original-101",
+          "original-105",
+          "original-120",
+          "original-121",
+          "original-122"
+        ],
+        "type": "协议与Python事实",
+        "decision": "HTTP可承载业务数据；ACP有权限请求；loadSession是可选能力；async with对应__aenter__，不推广默认批准。"
+      },
+      {
+        "anchors": [
+          "original-72",
+          "original-109",
+          "original-125",
+          "original-189",
+          "original-274",
+          "original-278",
+          "original-325",
+          "original-327"
+        ],
+        "type": "ASR术语",
+        "decision": "按上下文与官方资料整理TriggerFlow、spawn_agent_process、Agently、asyncio/Semaphore、human-in-the-loop及星型拓扑等。"
+      },
+      {
+        "anchors": [
+          "original-181",
+          "original-184",
+          "original-261",
+          "original-272",
+          "original-276"
+        ],
+        "type": "工程简化",
+        "decision": "依赖字段不自动调度、任务列表不是链表、三阶段非固定三次调用、gather按输入顺序、不可丢任务与结果关联。"
+      },
+      {
+        "anchors": [
+          "original-300",
+          "original-301",
+          "original-302",
+          "original-314",
+          "original-315"
+        ],
+        "type": "论文及版本",
+        "decision": "核实ReAct标题与交替推理行动；ACP v1 Streamable HTTP仍标草案，限定资料版本。"
+      }
+    ],
+    "unresolved_items": [
+      {
+        "anchors": [
+          "original-148",
+          "original-149",
+          "original-161"
+        ],
+        "issue": "若干兼容工具及客户端名称转写不清",
+        "handling": "不猜型号或人名；兼容性不照搬课堂支持名单，疑似词进入pending_tokens。"
+      },
+      {
+        "anchors": [
+          "original-138",
+          "original-141",
+          "original-144",
+          "original-165",
+          "original-166"
+        ],
+        "issue": "插件确切身份、替换后端细节与卡顿/内存泄漏原因",
+        "handling": "缺代码和诊断记录，仅保留观察到的往返、鉴权与环境排查，不归因于特定产品或读私密配置。"
+      },
+      {
+        "anchors": [
+          "original-83",
+          "original-119",
+          "original-150",
+          "original-161",
+          "original-291"
+        ],
+        "issue": "Hermes及其他产品内部ACP使用范围",
+        "handling": "未对产品实现作全面核验，不将讲师陈述扩展为统一架构事实。"
+      },
+      {
+        "anchors": [
+          "original-212",
+          "original-310",
+          "original-336"
+        ],
+        "issue": "Worker代码标识、多个既有终端选择参数及示例服务地址不完整",
+        "handling": "保留角色、会话和配置原则，不编造确切变量、URL或连接参数。"
+      }
+    ],
+    "pending_tokens": [
+      {
+        "citation_id": "original-148",
+        "original": "高德",
+        "suggested": "",
+        "reason": "未能确认此处列举的ACP兼容编码工具名称，不按地图产品字面推断。"
+      },
+      {
+        "citation_id": "original-149",
+        "original": "quarter",
+        "suggested": "",
+        "reason": "兼容工具名称近音，缺屏幕或代码证据。"
+      },
+      {
+        "citation_id": "original-161",
+        "original": "that",
+        "suggested": "",
+        "reason": "客户端产品名疑似ASR，不凭名单猜身份。"
+      },
+      {
+        "citation_id": "original-161",
+        "original": "jabberin",
+        "suggested": "",
+        "reason": "客户端产品名疑似ASR，不能仅凭音近补为厂商。"
+      },
+      {
+        "citation_id": "original-212",
+        "original": "Double controller",
+        "suggested": "",
+        "reason": "课堂自定义Worker标识近音不确定；保留出行规划职责，不伪造代码变量。"
+      },
+      {
+        "citation_id": "original-336",
+        "original": "AMCP点MF点com v",
+        "suggested": "",
+        "reason": "演示服务地址转写不足，不构造真实URL。"
+      }
+    ],
+    "external_sources": [
+      {
+        "publisher": "Agent Client Protocol",
+        "url": "https://agentclientprotocol.com/get-started/introduction",
+        "used_for": "Agent Client Protocol名称与客户端/Agent定位"
+      },
+      {
+        "publisher": "Agent Client Protocol v1",
+        "url": "https://agentclientprotocol.com/protocol/v1/session-setup",
+        "used_for": "session隔离及loadSession能力协商"
+      },
+      {
+        "publisher": "Agent Client Protocol v1",
+        "url": "https://agentclientprotocol.com/protocol/v1/tool-calls",
+        "used_for": "权限选项、用户设置与取消"
+      },
+      {
+        "publisher": "Agent Client Protocol v1",
+        "url": "https://agentclientprotocol.com/protocol/v1/transports",
+        "used_for": "stdio及Streamable HTTP草案状态"
+      },
+      {
+        "publisher": "ACP Python SDK",
+        "url": "https://agentclientprotocol.github.io/python-sdk/quickstart/",
+        "used_for": "spawn_agent_process、SDK包名与两端实现"
+      },
+      {
+        "publisher": "Agent Communication Protocol",
+        "url": "https://agentcommunicationprotocol.dev/introduction/welcome",
+        "used_for": "同缩写协议加入A2A及历史文档仍存在"
+      },
+      {
+        "publisher": "A2A",
+        "url": "https://a2a-protocol.org/latest/specification/",
+        "used_for": "消息、任务和协作范围"
+      },
+      {
+        "publisher": "LangChain",
+        "url": "https://docs.langchain.com/oss/python/langgraph/graph-api",
+        "used_for": "LangGraph支持循环与状态调度"
+      },
+      {
+        "publisher": "Agently",
+        "url": "https://github.com/AgentEra/Agently",
+        "used_for": "Agently术语、结构化输出及验证机制"
+      },
+      {
+        "publisher": "Agently",
+        "url": "https://agentera.github.io/Agently/en/triggerflow/overview.html",
+        "used_for": "TriggerFlow编排层与暂停恢复"
+      },
+      {
+        "publisher": "Python",
+        "url": "https://docs.python.org/3/library/asyncio-task.html",
+        "used_for": "create_task、gather、顺序与异常传播"
+      },
+      {
+        "publisher": "Python",
+        "url": "https://docs.python.org/3/library/asyncio-sync.html",
+        "used_for": "Semaphore限制并发"
+      },
+      {
+        "publisher": "Python",
+        "url": "https://docs.python.org/3/reference/datamodel.html#asynchronous-context-managers",
+        "used_for": "__aenter__与async with"
+      },
+      {
+        "publisher": "ReAct作者论文",
+        "url": "https://arxiv.org/abs/2210.03629",
+        "used_for": "ReAct真实标题及推理/行动交替"
+      }
+    ],
+    "omissions": [
+      {
+        "category": "开场组织与课件领取",
+        "ranges": "1—12、22—23、87—88、107、194—196、292、320、322—324、342及重复片段",
+        "reason": "压缩音量、画面、版本发放和收尾，保留V2简化与实战范围差异。"
+      },
+      {
+        "category": "代码复制与重复讲解",
+        "ranges": "113—117、127—131、155—159、176、182—188、205—207、216—235部分",
+        "reason": "保留输入输出、环境诊断和调度机制，删除重复点击粘贴和互动。"
+      },
+      {
+        "category": "未证实产品判断",
+        "ranges": "138—166、291、319、326部分",
+        "reason": "不传播固定适配名单、内存泄漏猜测、免付费推论及黑盒无法调用的绝对说法。"
+      },
+      {
+        "category": "课堂简化代码的危险推广",
+        "ranges": "120、197、203—204、275—277、284—288部分",
+        "reason": "保留简化目的，并用显式校订补权限、数据关联和循环预算，不把删除约束当通用建议。"
+      },
+      {
+        "category": "学员称呼与示例地址",
+        "ranges": "多处学员姓名、336部分",
+        "reason": "不影响技术主线，不依据ASR猜身份或构造服务URL。"
+      }
+    ],
+    "limitations": "仅文字及公开一手资料复核；没有音频或完整课件代码，未执行连接/框架示例。事实校订与工程补充明示，不归于讲师；不更新全局身份名册或跨项目词典。",
+    "first_pass_second_pass": "本agent自检字段、指纹、时间顺序、引用和pending_tokens原文匹配；独立冷复核待主流程安排。",
+    "status": "learning_review_complete_source_uncertainties_retained",
+    "independent_review": {
+      "date": "2026-10-21",
+      "scope": "完整冷读学习资产；疑点对照原始片段及一手资料，非第二遍音频校对",
+      "coverage_verified": true,
+      "confirmed_findings": [
+        {
+          "line": 165,
+          "original": "\"original-87\",",
+          "suggested": "删除该非证据引用项",
+          "reason": "原始original-87（55:24）仅为“你是可以收到的。”，属于界面指示、过渡或简短应答，不能支持所在节技术结论；保留相邻有实质内容的引用。"
+        },
+        {
+          "line": 166,
+          "original": "\"original-88\"",
+          "suggested": "删除该非证据引用项",
+          "reason": "原始original-88（55:38）仅为“是这个东西。”，属于界面指示、过渡或简短应答，不能支持所在节技术结论；保留相邻有实质内容的引用。"
+        },
+        {
+          "line": 271,
+          "original": "\"original-159\",",
+          "suggested": "删除该非证据引用项",
+          "reason": "原始original-159（01:39:58）仅为“好，我们继续。”，属于界面指示、过渡或简短应答，不能支持所在节技术结论；保留相邻有实质内容的引用。"
+        },
+        {
+          "line": 296,
+          "original": "\"original-176\",",
+          "suggested": "删除该非证据引用项",
+          "reason": "原始original-176（01:49:54）仅为“我们把它直接贴到这里来。”，属于界面指示、过渡或简短应答，不能支持所在节技术结论；保留相邻有实质内容的引用。"
+        },
+        {
+          "line": 323,
+          "original": "\"original-196\",",
+          "suggested": "删除该非证据引用项",
+          "reason": "原始original-196（02:03:31）仅为“看一下中文版的这个。99。”，属于界面指示、过渡或简短应答，不能支持所在节技术结论；保留相邻有实质内容的引用。"
+        },
+        {
+          "line": 421,
+          "original": "\"original-266\",",
+          "suggested": "删除该非证据引用项",
+          "reason": "原始original-266（02:43:00）仅为“对，可以看到。”，属于界面指示、过渡或简短应答，不能支持所在节技术结论；保留相邻有实质内容的引用。"
+        },
+        {
+          "line": 520,
+          "original": "\"original-333\",",
+          "suggested": "删除该非证据引用项",
+          "reason": "原始original-333（03:23:47）仅为“然后在这里。”，属于界面指示、过渡或简短应答，不能支持所在节技术结论；保留相邻有实质内容的引用。"
+        }
+      ],
+      "disposition": "已逐项核实并修正；未改原文时间、编号及原始DOCX。",
+      "pending_source_tokens": 6,
+      "queue_domain": "ai-study-course"
+    }
+  }
+}

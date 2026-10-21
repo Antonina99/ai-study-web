@@ -1,0 +1,640 @@
+{
+  "course_key": "1、开学典礼",
+  "source_sha256": "b2d31414a58cd7d2f0be8af568c81463e62cfa1fe488f445f766e4018cead810",
+  "review_date": "2026-10-21",
+  "method": "transcript-fixer Stage 1词典初筛 + 300段原文全语境复核 + 官方来源事实校订 + 学习版整理 + 独立学习版冷复核及逐项裁定",
+  "keywords": [
+    "课程安排",
+    "AI应用",
+    "Agent",
+    "RAG",
+    "模型蒸馏",
+    "模型微调",
+    "工作流",
+    "数据治理",
+    "场景价值",
+    "投入产出",
+    "视频行为分析",
+    "自动化评估"
+  ],
+  "summary_points": [
+    "本课建立应用开发全景：课程把提示词、RAG、Agent、多模态、部署、训练与AI编程串联起来，并用理论、实战和面试题帮助消化。",
+    "判断项目要同时看业务价值、研发投入、数据基础和使用规模；从可验收的小场景开始，警惕效果瓶颈导致持续加码。",
+    "应用开发的价值常在模型之外：整理业务与资料、打通系统、管理权限、拆分任务、加入模板及评价规则，才能把生成能力变为稳定工作流。",
+    "海报案例说明分层生成和分轮确认；客服案例说明系统操作风险；生产与服务企业案例说明可靠数据和专业经验的重要性。",
+    "通用模型、专用小模型、微调与蒸馏是可组合的技术选项，应由任务评估选择，不能按行业名称或模型大小直接断定必要性。",
+    "业务专家定义评分标准与典型任务，可支持回归检查和优化；课程里的公司经营数字、就业判断与学习建议不等于核实后的普适事实。"
+  ],
+  "interview_points": [
+    "如何用业务价值、研发投入、使用规模和数据条件判断一个AI项目是否值得做？如何设置阶段验收避免沉没成本升级？",
+    "为什么直接生成海报与可交付的海报系统不同？商品素材、图层、模板、文案和用户确认分别解决什么问题？",
+    "对比客服与销售Agent时，怎样分析对话主导权、意图覆盖、系统集成和高风险操作，而不是只比较聊天效果？",
+    "企业搜索与知识库为什么需要数据连接、权限继承、更新机制和检索评估？",
+    "什么情况下考虑专用小模型、微调或蒸馏？它们与提示词方案的成本、稳定性和验证方式如何比较？",
+    "如何设计业务评分标准、典型任务与回归评估？为什么通过一组题目不能证明所有任务都可靠？",
+    "“柱子与船”的比喻如何帮助识别短期补偿功能和能随模型进步增长的应用价值？"
+  ],
+  "sections": [
+    {
+      "ts": "04:09",
+      "title": "开班定位：先建立应用开发全景",
+      "body": "本课是开班导览，介绍课程、就业相关企业和行业场景，并非完整的开发教程。开场用 Skill 说明提示词文件与可选代码可以组织成可复用能力；调用外部 API 仍需要具体执行逻辑。随后课程将以提示词、RAG、Agent 和多模态建立贯穿式认识，再进入专项训练。",
+      "citation_ids": [
+        "original-10",
+        "original-14",
+        "original-20",
+        "original-26"
+      ]
+    },
+    {
+      "ts": "14:14",
+      "title": "课程主线：Agent、部署与工程框架",
+      "body": "课程从 API 调用和 AI 编程入门，进入工具调用、MCP、自主规划、工具开发、版本评估，再安排长期记忆、多 Agent 调度等实战。部署部分关注硬件与框架选择、吞吐、缓存、监控和调优；短剧逐帧换脸案例用于说明 GPU 资源分配与任务排队。框架部分强调模型加载、训练和视觉任务，名称不清处不凭语音猜定。",
+      "citation_ids": [
+        "original-27",
+        "original-29",
+        "original-30",
+        "original-31",
+        "original-32",
+        "original-33",
+        "original-34",
+        "original-35"
+      ]
+    },
+    {
+      "ts": "19:43",
+      "title": "微调、蒸馏与知识库的学习边界",
+      "body": "课程强调先评估数据质量，再评价微调效果；知识库部分包括向量化、向量数据库、检索调优以及图片、PDF、表格和视频资料处理。外部校订：蒸馏是教师模型向学生模型转移知识，保存教师问答再训练只是其中一种路径，也可使用软目标或中间表征；不能保证完整复制教师能力。微调指在预训练模型上继续训练，不限于添加全新能力，也不限于小模型。长上下文或新检索方法是否替代既有 RAG，应按具体任务评估。",
+      "citation_ids": [
+        "original-36",
+        "original-37",
+        "original-38",
+        "original-39",
+        "original-40",
+        "original-41"
+      ]
+    },
+    {
+      "ts": "24:27",
+      "title": "AI 编程进阶：已有项目与团队协作",
+      "body": "课程将已有项目的重构、文档不完善时的开发，以及团队分工变化作为 AI 编程进阶内容；另预告国产算力上的模型部署与编程工具连接实战。本节只介绍安排，没有给出完整部署步骤、硬件型号或兼容性验证，不能据此直接配置生产环境。",
+      "citation_ids": [
+        "original-42",
+        "original-43",
+        "original-44",
+        "original-45",
+        "original-46"
+      ]
+    },
+    {
+      "ts": "37:39",
+      "title": "企业观察之一：成熟 AI 创业公司的积累",
+      "body": "讲师按成立时期区分企业，借此讨论模型能力、工程系统、客户需求和商业验证的积累。这是观察框架，不能仅凭企业年龄判断稳健程度。企业搜索案例的重点是接入多种办公数据并保留访问权限；电商视频案例的重点是文字理解、商品与模特图片处理、视频生成和分发反馈的多步骤协作。“六十多个模型”等数量是讲师案例说法，未获独立确认。",
+      "citation_ids": [
+        "original-63",
+        "original-64",
+        "original-65",
+        "original-66",
+        "original-67",
+        "original-68"
+      ]
+    },
+    {
+      "ts": "42:09",
+      "title": "企业观察之二：新应用与业务化工作流",
+      "body": "新一轮模型能力催生应用创业机会。法律服务案例强调两点：整合专业资料，以及用用户熟悉的业务任务表达工作流，而非只展示技术节点名。外部校订：Harvey 官方已公布采用多家基础模型，不能将其描述为只用 GPT。课中营收、估值、成立年数和具体节点名称保留为当时讲述，不作为核实后的产品清单。AI for Science 则是用 AI 辅助科学研究，讲师的实验提速故事不代表所有科研任务。",
+      "citation_ids": [
+        "original-69",
+        "original-70",
+        "original-71",
+        "original-72",
+        "original-73",
+        "original-74",
+        "original-75",
+        "original-76",
+        "original-77",
+        "original-78"
+      ]
+    },
+    {
+      "ts": "48:19",
+      "title": "企业观察之三：传统行业经验与岗位机会",
+      "body": "讲师看好有行业经验的传统企业结合 AI 改造服务，代理记账案例用于说明自动化可能改变成本与定价。早期创业公司股权回报、代账价格与付费转化率均是个案或估计，不能外推为收益承诺。岗位讨论覆盖研发之外的售前、销售、实施、项目管理与云计算；可迁移价值是既理解业务又理解 AI 的落地条件。",
+      "citation_ids": [
+        "original-79",
+        "original-81",
+        "original-82",
+        "original-83",
+        "original-84",
+        "original-85",
+        "original-86",
+        "original-88",
+        "original-89",
+        "original-90",
+        "original-91",
+        "original-92",
+        "original-93",
+        "original-95",
+        "original-96",
+        "original-98",
+        "original-99",
+        "original-100",
+        "original-101"
+      ]
+    },
+    {
+      "ts": "01:00:50",
+      "title": "个人创业：做出产品之后仍需获客",
+      "body": "OPC 在课中指 One Person Company。讲师认为 AI 编程降低了产品实现门槛，但推广、客户获取、渠道合作、交付服务仍然需要承担，因此更倾向少数人优势互补。能做出一个应用与能持续经营业务是两个验收目标；政策补贴和城市资源属于时效信息，本课不提供可直接照用的最新政策。",
+      "citation_ids": [
+        "original-102",
+        "original-103",
+        "original-104",
+        "original-105",
+        "original-106",
+        "original-107",
+        "original-108"
+      ]
+    },
+    {
+      "ts": "01:03:49",
+      "title": "用价值与投入评估项目",
+      "body": "课程用研发投入和业务价值两个轴组织项目：低投入的小场景适合开始，高投入应有足够价值支撑，低价值高投入需要警惕。所谓高价值低研发投入，也可能在流量、渠道或其他成本上竞争。研发周期、人数与价值分类是经验尺度，不是行业统一标准；应结合实际范围、数据条件和验收要求判断。",
+      "citation_ids": [
+        "original-109",
+        "original-110",
+        "original-111",
+        "original-112",
+        "original-113",
+        "original-114",
+        "original-115",
+        "original-117",
+        "original-118",
+        "original-225"
+      ]
+    },
+    {
+      "ts": "01:09:08",
+      "title": "识别成本升级与沉没成本",
+      "body": "项目可能最初以为简单，做到效果瓶颈时仍达不到上线要求；改换方案又增加数据处理、标注和验证成本，最终投入超出价值。学习重点是提前识别方案边界、成本和阶段目标，不能因为已经投入数月就假定继续投入值得。讲师强调场景与方案匹配能力，需要从实操逐步积累；市场失败比例仅为他的估计。",
+      "citation_ids": [
+        "original-119",
+        "original-120",
+        "original-121",
+        "original-122",
+        "original-123",
+        "original-124",
+        "original-125"
+      ]
+    },
+    {
+      "ts": "01:14:19",
+      "title": "按企业业务目标拆解场景",
+      "body": "课程将需求分为面向消费者、生产型企业、专业服务型企业和国央企政务四类。消费者业务常关注流量、成交、口碑、成本与复购；生产企业关注稳定生产、效率与成本；服务企业关注顾问效率和服务竞争力；政企关注办事效率、资源配置和风险识别。这些分类用于提问和发现需求，不表示每家企业都具有相同特征。",
+      "citation_ids": [
+        "original-126",
+        "original-127",
+        "original-128",
+        "original-129",
+        "original-130",
+        "original-131",
+        "original-191",
+        "original-203",
+        "original-220"
+      ]
+    },
+    {
+      "ts": "01:18:15",
+      "title": "低投入应用：评论结构化与流程辅助",
+      "body": "评论、对话和音频是非结构化资料，可用模型提取产品、问题类别、情绪等字段；课程还列举模板填写、票据处理、简历整理与简单流程检查。应区分原型与生产系统：“一套提示词解决”是课堂简化，批量运行仍需验证抽取质量和处理失败。浏览器 Agent 是否适用取决于实际系统的操作表现，不能由一次演示推断可完全替代 RPA。",
+      "citation_ids": [
+        "original-132",
+        "original-133",
+        "original-134",
+        "original-136",
+        "original-137",
+        "original-138",
+        "original-139",
+        "original-140"
+      ]
+    },
+    {
+      "ts": "01:23:48",
+      "title": "海报工程：从整张生成到分层管理",
+      "body": "讲师以生鲜海报案例说明直接生成图片与可交付应用的区别：整张位图不一定具备便于修改的图层。系统先解析商品名称，从商品库获取标准图片，再按需求生成背景与初稿；应用内部管理多个图层，最后合成用户看到的图片。具体企业部署规模和完全免设计师的效果属于讲师提供的案例，未独立验证。",
+      "citation_ids": [
+        "original-141",
+        "original-142",
+        "original-143",
+        "original-144",
+        "original-145",
+        "original-146",
+        "original-147",
+        "original-148",
+        "original-149",
+        "original-150"
+      ]
+    },
+    {
+      "ts": "01:28:57",
+      "title": "海报工程：模板、文案与分轮选择",
+      "body": "案例让运营人员先选择构图方向，再选择预先制作的特效模板，最后让模型在固定位置和字数约束下生成文案，并由应用排版合成。工程拆分减少一次生成同时满足所有约束的难度。用户四选一属于交互选择；外部核对确认，只有进一步用于强化学习训练的反馈才进入 RLHF，选择本身不会自动更新模型参数。",
+      "citation_ids": [
+        "original-151",
+        "original-152",
+        "original-153",
+        "original-154",
+        "original-155",
+        "original-156"
+      ]
+    },
+    {
+      "ts": "01:34:23",
+      "title": "视频行为分析：识别事件并对照流程",
+      "body": "门店案例把离桌、清洁、上锅底等事件与时间要求、动作顺序关联，用于流程检查。课程给出了视频模型结合多模态推理的方向，并未提供检测精度或实际部署证明。外部校订：设置监控告示不等于没有隐私问题；个人信息保护法还规定目的、必要性等要求，自动化决定若对个人权益有重大影响也涉及说明等权利。具体门店和员工管理情况不能由该案例泛化。",
+      "citation_ids": [
+        "original-157",
+        "original-158",
+        "original-159",
+        "original-160",
+        "original-161",
+        "original-162",
+        "original-163",
+        "original-164",
+        "original-165",
+        "original-166",
+        "original-171"
+      ]
+    },
+    {
+      "ts": "01:42:39",
+      "title": "客服与销售：从任务边界比较难度",
+      "body": "讲师认为客服比销售更难，理由是客服需承接用户发起的多类问题，还要连接订单、物流、CRM、ERP 等系统并执行退款、地址修改等操作；他讨论的销售主要是对话。可迁移的判断方式是比较意图范围、系统依赖和执行风险，而不是认定所有客服都比所有销售难。两周或两年的工期是场景经验，不是固定规律。",
+      "citation_ids": [
+        "original-172",
+        "original-173",
+        "original-175",
+        "original-176",
+        "original-177",
+        "original-178",
+        "original-179",
+        "original-180",
+        "original-181",
+        "original-182"
+      ]
+    },
+    {
+      "ts": "01:49:47",
+      "title": "规模与数据整合决定投入产出",
+      "body": "相同方案在服务大量用户时可能摊薄成本，小企业则未必划算。数字人、3D、自研自动化等应结合效果要求估算投入。项目管理和经营分析的难点常是把文档、看板、聊天、财务、订单及历史资料持续组织到一起；模型能分析给定资料，不代表跨系统集成工作已经完成。讲师列出的低性价比类别不是对整个技术方向的定论。",
+      "citation_ids": [
+        "original-183",
+        "original-184",
+        "original-185",
+        "original-186",
+        "original-187",
+        "original-188",
+        "original-189",
+        "original-190"
+      ]
+    },
+    {
+      "ts": "01:53:58",
+      "title": "生产企业：软件流程、质检与数据规范",
+      "body": "课程建议从生产采购计划、排班、仓储调度、视觉质检、设备声音异常和危险行为识别等任务寻找价值。ERP 等业务系统仍然存在，AI 或程序可以在其上执行步骤；落地前先梳理数据、操作规范和业务规则。课中的“AI 不能控制流水线”与“错误率一定低于人工”过于绝对，学习版仅保留对安全、准确性和验证的要求，不把一般大语言模型直接等同于工业控制系统。",
+      "citation_ids": [
+        "original-191",
+        "original-192",
+        "original-193",
+        "original-194",
+        "original-195",
+        "original-196",
+        "original-197",
+        "original-198",
+        "original-199",
+        "original-200",
+        "original-201",
+        "original-202"
+      ]
+    },
+    {
+      "ts": "02:01:44",
+      "title": "专业服务：增强顾问与推出新服务",
+      "body": "服务企业有两条路线：为现有顾问提供资料整合、纪要、证据整理和知识库工具；或把有明确边界的任务包装为新的 AI 服务。法律案例强调专业数据源的覆盖与更新、公开资料并非全量，以及音视频、截图和表格等多模态证据整理。资料检索、业务判断和面向客户的服务需衔接，而非单纯给每位顾问一个聊天账号。",
+      "citation_ids": [
+        "original-203",
+        "original-204",
+        "original-205",
+        "original-206",
+        "original-207",
+        "original-208",
+        "original-209",
+        "original-210",
+        "original-211",
+        "original-212",
+        "original-213"
+      ]
+    },
+    {
+      "ts": "02:07:18",
+      "title": "通用模型、小模型与微调的选型",
+      "body": "讲师主张优先考虑通用模型，并用意图分类说明专用小模型可能降低成本、提升任务稳定性；复杂应用可以混合 API、开源模型与自行训练的组件。外部校订：不能断言除医疗外都不需要领域大模型，或微调基本只适用于小模型。是否专项训练应通过任务数据、效果、延迟、成本和运维约束比较，课中的强断言不作为通用事实。",
+      "citation_ids": [
+        "original-214",
+        "original-215",
+        "original-216",
+        "original-217",
+        "original-218",
+        "original-219"
+      ]
+    },
+    {
+      "ts": "02:11:05",
+      "title": "政企应用：从可验收业务做起",
+      "body": "课中将公文、纪要和材料整理列为容易起步的场景，并用“AI 检出明显问题、最终通过由人负责”说明审核分工；资源调度、风险识别和反欺诈则更复杂。讲师批评只建设管理平台而缺少可用应用的做法。可迁移的重点是把数据、知识与流程梳理落实为可验收业务结果，平台建设是否必要仍取决于实际规模和治理需求。",
+      "citation_ids": [
+        "original-220",
+        "original-221",
+        "original-222",
+        "original-223",
+        "original-224",
+        "original-225",
+        "original-226",
+        "original-227",
+        "original-229",
+        "original-230",
+        "original-231"
+      ]
+    },
+    {
+      "ts": "02:19:05",
+      "title": "学习方法与技术方向的边界",
+      "body": "课后建议把陌生术语放回岗位目标中理解，并用 AI 编程复做课程功能。游戏方向提及的“吉尼”可据官方资料规范为 Genie，属于交互世界模型探索；AI for Science 需要科学问题与实验评价，不能只看提速故事。外部校订：自动驾驶已有视觉—语言—动作模型研究，但这不等于普通聊天模型可直接承担车控。关于无需学 Python、不要看书、年龄必然带来优势等表述是讲师建议，不作为普适学习规则。",
+      "citation_ids": [
+        "original-235",
+        "original-236",
+        "original-237",
+        "original-238",
+        "original-240",
+        "original-241",
+        "original-243",
+        "original-245",
+        "original-271",
+        "original-273",
+        "original-274",
+        "original-277",
+        "original-278",
+        "original-282",
+        "original-285",
+        "original-286",
+        "original-287"
+      ]
+    },
+    {
+      "ts": "02:25:02",
+      "title": "模型进步下的应用价值：柱子与船",
+      "body": "“柱子”指模型能力提升后可能被覆盖的补偿性功能，“船”指能随模型能力提高而受益的应用。讲师提醒短期补偿性工作仍可能有当下价值，某项功能过时也不等于开发岗位必然消失。小团队里的提示词、测试、产品和开发责任可能交叉；学习重点是围绕结果协作，而非仅按传统岗位名称划界。",
+      "citation_ids": [
+        "original-246",
+        "original-247",
+        "original-248",
+        "original-249",
+        "original-250",
+        "original-251",
+        "original-252",
+        "original-259",
+        "original-260",
+        "original-261"
+      ]
+    },
+    {
+      "ts": "02:28:27",
+      "title": "评估标准与业务专家的价值",
+      "body": "课程用作文评分作类比：先由熟悉业务的人定义质量标准，再组织典型任务做人工或自动化评估，迭代时重复运行回归检查。标准也可帮助发现不足和指导优化，但写出标准不会自动提升模型。外部补充：模型评分需要校准和人工复核，覆盖的典型题不等于所有任务均已验证。",
+      "citation_ids": [
+        "original-253",
+        "original-254",
+        "original-255",
+        "original-256",
+        "original-257",
+        "original-258",
+        "original-262",
+        "original-263",
+        "original-264",
+        "original-265",
+        "original-266",
+        "original-267",
+        "original-268",
+        "original-269"
+      ]
+    }
+  ],
+  "notes": [
+    "本文件是学习版复核，不改原始逐字稿。引用编号按原文查找的一基序号 original-1 至 original-300，时间戳直接取原文；导读仅用于核查覆盖，不作为独立事实来源。",
+    "术语只在指代明确处规范为 RAG、Agent、API、GPU、RLHF、ERP、CRM、OPC、Genie 等；不把疑似人名、机构或型号的猜测写成定论。",
+    "外部校订：蒸馏不限于问答复制，微调不限于小模型；参见[PyTorch蒸馏教程](https://docs.pytorch.org/tutorials/beginner/knowledge_distillation_tutorial.html)与[Transformers微调文档](https://huggingface.co/docs/transformers/training)。选择生成结果与RLHF训练的区别参见[RLHF说明](https://huggingface.co/blog/rlhf)。",
+    "外部核对：企业搜索的权限和数据连接参见[Glean连接器文档](https://docs.glean.com/connectors/about)；Harvey只用GPT的说法不准确，参见[官方2025年多模型公告](https://www.harvey.ai/blog/expanding-harveys-model-offerings)及[2026年说明](https://www.harvey.ai/blog/why-harvey-is-multi-model-by-design)。",
+    "外部校订：监控告示不消除隐私或个人信息处理义务，参见[个人信息保护法政府公开文本](https://zjjcmspublic.oss-cn-hangzhou-zwynet-d01-a.internet.cloud.zj.gov.cn/jcms_files/jcms1/web3250/site/attach/0/dba5604e86e84261a3f68656af8570d0.pdf)第二十四、二十六条。这里只纠正课程中的绝对说法，不判断具体门店是否合法。",
+    "外部补充：[Anthropic Agent评估说明](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)用于限定评分标准和回归评估的作用；[Genie 3官方介绍](https://deepmind.google/blog/genie-3-a-new-frontier-for-world-models/)核实名称与方向；[NVIDIA研究](https://research.nvidia.com/publication/2025-10_alpamayo-r1)说明驾驶已有VLA研究，普通聊天模型和验证后的驾驶系统仍不能等同。",
+    "课程日期未由源文件可靠确定，复核日期不是授课日期。年收入、估值、月活、薪资、市场比例、岗位需求、模型参数量、政策优惠、企业项目细节和工期均未全面独立核验，已从确定性结论中移除或标为讲师案例。",
+    "不采用导读中的“AI虽不能直接控制生产线”“垂直行业大模型逐渐被通用模型取代”等无条件推论；客服与销售难度、团队人数、学习Python或书籍的必要性应依场景判断。",
+    "待核项：开场“Mss miss”型号及十万亿参数说法，部分人名、框架和项目名，以及企业内部部署细节、FDE资本关系缺少可区分证据；原文原样保留，不纳入确定知识。具体原始拼写和引用见review_audit.unresolved_items。"
+  ],
+  "review_audit": {
+    "coverage": {
+      "original_segments": "original-1–original-300，全部逐段完整阅读",
+      "original_time_range": "00:05–02:54:31",
+      "read_batches_zero_based": [
+        "0–49",
+        "50–99",
+        "100–149",
+        "150–199",
+        "200–249",
+        "250–299；末段280–299重读补齐输出截断"
+      ],
+      "summary": "导读关键词、总述及34个小节全部阅读",
+      "source_format": "以JSON中完整原文段落阅读，TXT用于核对一基引用映射；不是摘要代替原文"
+    },
+    "important_corrections": [
+      "蒸馏定义补充软目标/中间表征路径，避免保证全部能力转移",
+      "微调不限定小模型或全新能力；领域模型无须论降为讲师观点",
+      "Harvey只用GPT与官方多模型策略冲突",
+      "监控有告示不等于无隐私问题",
+      "四选一是交互反馈，不等同已做RLHF",
+      "客服比销售难、工业AI绝不控制硬件、自动化错误率必然更低等均去绝对化",
+      "生成式驾驶专用VLA研究与通用聊天模型直接车控严格区分",
+      "导读对讲师推测、案例和励志建议的事实化表达已收敛"
+    ],
+    "unresolved_items": [
+      {
+        "citation_ids": [
+          "original-16"
+        ],
+        "original": "Mss miss那个模型，十万亿参数",
+        "disposition": "未识别型号且无参数量官方依据，原文保留；不纳入学习结论"
+      },
+      {
+        "citation_ids": [
+          "original-22",
+          "original-25",
+          "original-300"
+        ],
+        "original": "崔昌／崔超；莫星；陈阳",
+        "disposition": "未核验全局及项目身份名册，不改人名，不在学习正文确定身份"
+      },
+      {
+        "citation_ids": [
+          "original-28",
+          "original-29",
+          "original-34",
+          "original-41",
+          "original-46",
+          "original-78",
+          "original-292"
+        ],
+        "original": "open minus；open clown／爱马仕；long time／lamin nex；LLM viki；优乐／yoyo u net；robot／lamont；有ler unit",
+        "disposition": "没有原始音频或课件作唯一指代证据，不批量补写项目或模型名称；保留教学方向"
+      },
+      {
+        "citation_ids": [
+          "original-67",
+          "original-86"
+        ],
+        "original": "fancy tech奇瑞科技；容易算",
+        "disposition": "机构中文名未确认，不以猜测名称对外查询私有信息；正文按行业案例表述"
+      },
+      {
+        "citation_ids": [
+          "original-264",
+          "original-265",
+          "original-266",
+          "original-267"
+        ],
+        "original": "OpenAI与PE公司成立子公司及出资、管控、数千企业细节",
+        "disposition": "未独立核实全部资本关系；不进入确定性学习事实"
+      },
+      {
+        "citation_ids": [
+          "original-145",
+          "original-161",
+          "original-164",
+          "original-197",
+          "original-278"
+        ],
+        "original": "企业内部海报规模、门店规则、工厂错误率及竞赛轶事",
+        "disposition": "缺独立企业或原始项目证据，保留为讲师案例，不推导行业普遍事实"
+      }
+    ],
+    "official_sources": [
+      {
+        "title": "PyTorch Knowledge Distillation Tutorial",
+        "url": "https://docs.pytorch.org/tutorials/beginner/knowledge_distillation_tutorial.html",
+        "supports": "蒸馏可使用软目标和中间表征，并非仅保存问答"
+      },
+      {
+        "title": "Hugging Face Transformers Fine-tuning",
+        "url": "https://huggingface.co/docs/transformers/training",
+        "supports": "微调是预训练模型继续训练，包含大语言模型"
+      },
+      {
+        "title": "Hugging Face RLHF",
+        "url": "https://huggingface.co/blog/rlhf",
+        "supports": "人类偏好采集与强化学习参数优化是不同步骤"
+      },
+      {
+        "title": "Glean About connectors",
+        "url": "https://docs.glean.com/connectors/about",
+        "supports": "跨应用连接、内容解析、源系统权限继承与更新"
+      },
+      {
+        "title": "Harvey Expanding Model Offerings",
+        "url": "https://www.harvey.ai/blog/expanding-harveys-model-offerings",
+        "supports": "2025年已纳入Anthropic和Google模型，不能称只用GPT"
+      },
+      {
+        "title": "Harvey Why Multi-Model by Design",
+        "url": "https://www.harvey.ai/blog/why-harvey-is-multi-model-by-design",
+        "supports": "2026年官方再次说明多模型策略"
+      },
+      {
+        "title": "中华人民共和国个人信息保护法（政府公开文本）",
+        "url": "https://zjjcmspublic.oss-cn-hangzhou-zwynet-d01-a.internet.cloud.zj.gov.cn/jcms_files/jcms1/web3250/site/attach/0/dba5604e86e84261a3f68656af8570d0.pdf",
+        "supports": "第二十四、二十六条；告示不是个人信息处理的充分条件"
+      },
+      {
+        "title": "Anthropic Demystifying evals for AI agents",
+        "url": "https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents",
+        "supports": "以任务、评分和回归评估建立可比较的系统质量证据"
+      },
+      {
+        "title": "Google DeepMind Genie 3",
+        "url": "https://deepmind.google/blog/genie-3-a-new-frontier-for-world-models/",
+        "supports": "Genie命名及交互世界模型定位"
+      },
+      {
+        "title": "NVIDIA Alpamayo 1 Research",
+        "url": "https://research.nvidia.com/publication/2025-10_alpamayo-r1",
+        "supports": "自动驾驶专用VLA模型结合推理和轨迹规划，不能泛称语言能力与驾驶无关"
+      }
+    ],
+    "excluded_content": [
+      {
+        "range": "00:05–12:48，02:15:37–02:54:31中的非教学片段",
+        "reason": "音画调试、外貌闲聊、个人经历、未核实薪资、学员年龄与励志夸张不构成知识点；相关学习方法和评估讨论已保留"
+      },
+      {
+        "range": "各公司经营数字及工期估计",
+        "reason": "缺少口径、日期和独立证据，不能作为选岗投资或成本测算依据"
+      },
+      {
+        "range": "01:07:57的赌球举例；01:40:02–01:42:11的员工适应评价",
+        "reason": "不属于可迁移技术知识，且不能支持业务合规或人的感受判断"
+      },
+      {
+        "range": "课后政策与FDE资本解读",
+        "reason": "保留业务落地岗位概念，不把未核实资本故事和时效政策写成事实"
+      }
+    ],
+    "limits": "仅完成学习资产的全语境复核；未听源音频，未修改原始DOCX/逐字稿，未声称原转写全部正确。待主流程冷复核；未决项目留在本审计字段供后续按证据处理。",
+    "original_segment_count": 300,
+    "read_ranges": [
+      [
+        1,
+        300
+      ]
+    ],
+    "stage1": {
+      "performed_by": "主流程统一执行",
+      "applied": 0,
+      "deferred": 0,
+      "review_enqueued": 0,
+      "boundary_check_active": true,
+      "interpretation": "词典无命中不代表无转写错误"
+    },
+    "editorial_followup": "主审删除账号开通、算力券领取、答疑安排等课程运营内容；保留技术选型和业务判断，24节。",
+    "pending_tokens": [
+      {
+        "citation_id": "original-16",
+        "original": "Mss miss",
+        "suggested": "",
+        "reason": "型号不清，不能确认未公开参数量；学习版排除该具体型号结论。"
+      },
+      {
+        "citation_id": "original-41",
+        "original": "LLM viki",
+        "suggested": "",
+        "reason": "未见原课件链接，原文保留；学习版不猜具体项目实现。"
+      }
+    ],
+    "status": "learning_review_complete_source_uncertainties_retained",
+    "independent_review": {
+      "date": "2026-10-21",
+      "scope": "完整冷读学习资产；疑点对照原始片段及一手资料，非第二遍音频校对",
+      "coverage_verified": true,
+      "confirmed_findings": [],
+      "disposition": "已逐项核实并修正；未改原文时间、编号及原始DOCX。",
+      "pending_source_tokens": 2,
+      "queue_domain": "ai-study-course"
+    }
+  }
+}

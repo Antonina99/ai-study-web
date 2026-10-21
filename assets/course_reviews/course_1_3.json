@@ -1,0 +1,704 @@
+{
+  "course_key": "6. AI编程-从入门到精通",
+  "source_sha256": "9f3487a711b213f73f57adae00d64237a12fd80e8000c387276b78e1e3186290",
+  "review_date": "2026-10-21",
+  "method": "transcript-fixer Stage 1词典初筛（主流程执行）+ 原生全语境复核：完整读取原文279段及导读；官方资料事实核验；学习版重组。独立冷复核由主流程统一记录。 + 独立学习版冷复核及逐项裁定",
+  "keywords": [
+    "AI编程",
+    "Rules",
+    "上下文",
+    "Agent",
+    "任务拆解",
+    "调试",
+    "Python",
+    "Excel报表合并",
+    "Flask",
+    "ECharts",
+    "GeoJSON",
+    "ARIMA"
+  ],
+  "summary_points": [
+    "AI编程的核心是明确任务、提供真实上下文、规定必要约束，并运行和验收结果。工具界面与模型是不同层次，应结合任务难度、成本和环境选择。",
+    "规则文件记录通用偏好和项目经验；先查已有实现、避免无依据的兜底、维护规划文档，比不断生成新代码更利于长期维护。规则是提示层约束，不保证每次都被遵守。",
+    "报表合并先检查列名、类型和代表性取值，再筛选2024年第四季度绩效并按员工键关联，输出新表后验证。前五行只是结构探索，不能替代全量质量检查。",
+    "疫情练习使用历史Excel数据，依次完成结构探索、统计、图表、Flask与ECharts大屏、香港分区地图。静态历史数据看板不能仅凭标题称为实时监控。",
+    "预测示例用ARIMA生成未来七天的每日新增序列。参数(5,1,5)是案例选择，MA描述滞后误差，差分用于处理非平稳性；预测须单独评估，不能由图表可运行推断准确。"
+  ],
+  "interview_points": [
+    "全局规则与项目规则各适合保存什么？为什么规则文件形成可复用上下文，却不等于模型参数获得长期记忆？",
+    "怎样把复杂需求拆成调研、方案、分批实现和验收？为什么模型自报90分不能作为自动执行或质量通过的唯一依据？",
+    "合并员工信息与季度绩效时，如何确认关联键、季度编码、缺失与重复？为什么只看前五行还不够？",
+    "Flask、ECharts和GeoJSON在可视化大屏中各负责什么？如何区分没有启动、端口冲突、数据匹配失败与样式问题？",
+    "ARIMA(p,d,q)的三个参数分别控制什么？MA项为什么不等于新闻或宏观变量？如何区分历史拟合与未来预测能力？",
+    "数据获取失败时，为什么不能直接把资金写成0？怎样设计可解释的缺失状态和带时间戳的最近有效值？"
+  ],
+  "sections": [
+    {
+      "ts": "17:13",
+      "title": "课程主线：用对话驱动两个编程项目",
+      "body": "课程先讲规则、工作模式和模型选择，再以员工报表合并、香港疫情数据大屏为练习。以一个项目目录集中存放输入数据、代码与文档，通过聊天给出任务并查看生成文件。IDE便于浏览文件和多段会话，CLI在命令行交互；界面习惯与模型能力应分别考虑。",
+      "citation_ids": [
+        "original-8",
+        "original-18",
+        "original-19",
+        "original-20",
+        "original-28",
+        "original-29",
+        "original-144",
+        "original-155"
+      ]
+    },
+    {
+      "ts": "21:11",
+      "title": "全局规则与项目规则：约束的作用范围",
+      "body": "通用的语言、代码风格和环境偏好可放入全局规则；技术栈、目录约定和特定故障经验放入项目规则。适用规则会进入上下文，不必把全局内容机械复制到每个项目。课程的就近优先说法应按具体工具的规则层级理解，不能推广为任何工具都只执行项目规则。",
+      "citation_ids": [
+        "original-25",
+        "original-26",
+        "original-31",
+        "original-32",
+        "original-74",
+        "original-79",
+        "original-83"
+      ]
+    },
+    {
+      "ts": "26:05",
+      "title": "先读已有实现，减少重复代码",
+      "body": "要求AI新增功能前先搜索并理解已有函数，尽量在已有实现上修改。重复功能会增加同步修改和维护负担。代码迁移示例主张先复制已有实现再有针对性地改写，避免凭理解重写时丢失已经处理过的细节；迁移之后仍需检查依赖和行为。",
+      "citation_ids": [
+        "original-32",
+        "original-33",
+        "original-34",
+        "original-36",
+        "original-40",
+        "original-41",
+        "original-42",
+        "original-43"
+      ]
+    },
+    {
+      "ts": "28:02",
+      "title": "把环境与验证要求写清楚",
+      "body": "可明确注释语言、UTF-8编码、操作系统与Shell，减少命令和字符显示方面的误会。讲师减少Emoji与简单任务额外测试属于自己的Windows使用经验，不是普遍禁用规则。测试投入应与改动风险相称；后面的调试案例恰恰要求复现、日志与验证，不能把节省token理解成不做必要测试。",
+      "citation_ids": [
+        "original-35",
+        "original-37",
+        "original-38",
+        "original-39",
+        "original-40",
+        "original-99",
+        "original-100"
+      ]
+    },
+    {
+      "ts": "34:36",
+      "title": "Fallback：不能用假数值掩盖失败",
+      "body": "案例中接口未取得账户资金，程序却返回0，使用户误以为余额清零。应区分真实零值、暂时不可用和最近有效数据，并说明数据时间或错误状态。问题在于没有依据、静默执行的兜底；合理降级可以存在，但必须保留业务含义、可观测性和验证。",
+      "citation_ids": [
+        "original-44",
+        "original-45",
+        "original-47",
+        "original-48",
+        "original-49",
+        "original-51",
+        "original-277"
+      ]
+    },
+    {
+      "ts": "39:09",
+      "title": "方案评估与分批调研，避免半成品交付",
+      "body": "复杂需求如果一次规划不足，可能只交付界面或临时补丁。课程提出先列方案、疑点与自报置信度，再先处理明确项、对不明确项分批调研，并避免不必要的过度优化。90、80等阈值只是讲师的沟通启发式；自报分数未经校准，不代表成功概率，执行仍要依据证据和验收条件。",
+      "citation_ids": [
+        "original-52",
+        "original-53",
+        "original-54",
+        "original-56",
+        "original-57",
+        "original-59",
+        "original-60",
+        "original-61",
+        "original-62",
+        "original-63",
+        "original-66"
+      ]
+    },
+    {
+      "ts": "47:55",
+      "title": "用适量上下文和多轮工作换取可靠性",
+      "body": "复杂任务可以拆成多轮，每轮围绕具体问题调研、实施与检查。额外读取和验证会消耗token，也可能减少返工；不能仅以对话次数衡量成本。原文关于所有Agent不超过50轮以及试用50轮的说法分别涉及运行限制和产品额度，均不作为通用上限保留。",
+      "citation_ids": [
+        "original-67",
+        "original-68",
+        "original-69",
+        "original-70",
+        "original-71",
+        "original-72",
+        "original-73"
+      ]
+    },
+    {
+      "ts": "53:13",
+      "title": "将已解决问题沉淀为项目经验",
+      "body": "修复路径、编码或接口连接等反复出现的问题后，记录适用条件、正确做法与验证方法，形成项目的错题本。规则文件在后续调用中被读取，提供持久的外部上下文；并非模型参数自动记住了每次对话，也不保证所有文件每次都完整加载。文件名和加载方式由具体工具决定。",
+      "citation_ids": [
+        "original-76",
+        "original-77",
+        "original-78",
+        "original-79",
+        "original-80",
+        "original-81",
+        "original-82",
+        "original-83"
+      ]
+    },
+    {
+      "ts": "58:23",
+      "title": "Agent与Plan：先把复杂任务写成方案",
+      "body": "Agent用于推进实现，Plan强调先调查和对齐方案。也可在Agent中明确要求先不改代码，把方案写到文档目录，反复讨论后形成可执行任务清单，再分批执行并更新完成状态。课程主要传授这种工作方法，各产品的模式名称、按钮与文档保存行为不必完全相同。",
+      "citation_ids": [
+        "original-85",
+        "original-86",
+        "original-87",
+        "original-89",
+        "original-91",
+        "original-92",
+        "original-93",
+        "original-94",
+        "original-95",
+        "original-267",
+        "original-268",
+        "original-269"
+      ]
+    },
+    {
+      "ts": "01:05:31",
+      "title": "Debug与Ask：复现问题，明确编辑边界",
+      "body": "只贴报错并接受修改容易陷入反复猜测。课程建议先复现，必要时加入调试日志，修改后运行验证，直到目标故障解决。只想了解代码或参数时可选择询问模式，或明确要求先分析、不修改。模式和文字指令有助于表达意图，实际可执行操作仍由工具权限决定。",
+      "citation_ids": [
+        "original-96",
+        "original-97",
+        "original-98",
+        "original-99",
+        "original-100",
+        "original-101",
+        "original-102",
+        "original-103"
+      ]
+    },
+    {
+      "ts": "01:10:03",
+      "title": "模型与工具选型：把成本、效果和接入分开",
+      "body": "讲师比较自动选模、指定模型、套餐与按量调用，并展示IDE和CLI完成相同任务。可用自己的简单与复杂任务检验质量、速度和成本，再选择组合。课堂排名、版本号、免费额度、套餐价格及第三方接入经验有明显时效性，不能作为当前采购或安装依据；响应中的模型ID也只是服务端返回字段，不足以独立证明实际运行模型。",
+      "citation_ids": [
+        "original-104",
+        "original-105",
+        "original-108",
+        "original-109",
+        "original-110",
+        "original-112",
+        "original-113",
+        "original-114",
+        "original-115",
+        "original-116",
+        "original-150",
+        "original-153",
+        "original-164",
+        "original-165"
+      ]
+    },
+    {
+      "ts": "01:21:03",
+      "title": "报表合并：先明确业务目标与输入",
+      "body": "目标是在员工基本信息表上增加该员工2024年第四季度绩效，并保存为新Excel。先准备两个源表，安装Python运行环境、编辑器扩展与依赖，确认实际解释器。编辑器的Python扩展与Python解释器是不同组件，出现运行按钮并不能单独证明解释器与依赖已经配置完整。",
+      "citation_ids": [
+        "original-118",
+        "original-119",
+        "original-120",
+        "original-121",
+        "original-124",
+        "original-125",
+        "original-127",
+        "original-130",
+        "original-145"
+      ]
+    },
+    {
+      "ts": "01:23:33",
+      "title": "先看数据，再写筛选和关联逻辑",
+      "body": "第一步让Python读取两表前五行并展示列名与取值，将输出加入对话。第二步说明合并目标。这样可发现年度、季度究竟是独立列还是组合列，季度用数字还是汉字，减少凭空假设字段的错误。前五行只是课堂起点，生产数据还要检查类型、缺失、重复与全量取值范围。",
+      "citation_ids": [
+        "original-122",
+        "original-123",
+        "original-129",
+        "original-130",
+        "original-131",
+        "original-132",
+        "original-133",
+        "original-134",
+        "original-139"
+      ]
+    },
+    {
+      "ts": "01:31:52",
+      "title": "合并后验收：从抽查走向数据完整性检查",
+      "body": "课程打开新表，对照源表抽查员工绩效。学习时还应确认员工关联键、筛选条件、输出行数及未匹配记录；一对多或重复键可能放大结果。保存到新文件可保留源数据。原文员工姓名和分数转写有冲突，本导读保留验证方法，不把未核实的姓名、分数写作正确结果。",
+      "citation_ids": [
+        "original-130",
+        "original-136",
+        "original-137",
+        "original-138",
+        "original-139"
+      ]
+    },
+    {
+      "ts": "01:34:51",
+      "title": "切换CLI实践：环境安装与权限不是同一件事",
+      "body": "同样的分步任务可以在CLI中完成，缺少pandas等依赖时可让助手识别并安装，配置教程应核对当前官方说明。课程还演示跳过权限确认的启动方式；这会改变操作授权边界，不是Python项目运行的必要步骤。保留受控权限和可回退文件，有助于区分环境错误与任务逻辑错误。",
+      "citation_ids": [
+        "original-141",
+        "original-142",
+        "original-143",
+        "original-144",
+        "original-145",
+        "original-148",
+        "original-149",
+        "original-211"
+      ]
+    },
+    {
+      "ts": "01:44:35",
+      "title": "历史疫情数据：先确认结构与统计口径",
+      "body": "第二个练习用2022年上半年的香港疫情Excel，字段涉及日期、地区、新增、累计和现存等。先读取代表性记录、显示全部列，确认各区名称与日期编码，再计算所需指标。课中取前二十行是为了覆盖一天的18区样例，实际是否覆盖必须核对，不能把行数当成固定规则。",
+      "citation_ids": [
+        "original-157",
+        "original-158",
+        "original-166",
+        "original-169",
+        "original-170",
+        "original-171",
+        "original-172",
+        "original-173",
+        "original-176"
+      ]
+    },
+    {
+      "ts": "01:55:40",
+      "title": "统计到图表：明确输出并检查累计口径",
+      "body": "把已读取的结构放入上下文，再要求按时间统计并生成图表。未明确要求图表时，输出表格也可能符合需求。新增量与累计量应区别处理：月新增可按定义汇总，月末累计应取相应时点值，不能机械相加每日累计。中文显示异常需检查字体与编码；课中使用Matplotlib字体配置处理图中文字。",
+      "citation_ids": [
+        "original-176",
+        "original-177",
+        "original-179",
+        "original-182",
+        "original-183",
+        "original-184",
+        "original-185"
+      ]
+    },
+    {
+      "ts": "02:01:52",
+      "title": "Flask与ECharts：给大屏适当的架构约束",
+      "body": "要求AI选择适合的图表并限制数量，同时指定Flask与ECharts。Flask作为Python Web框架提供页面或数据接口，ECharts负责浏览器中的图表呈现；两者职责不同。课程的五张图上限是设计约束实例，重点是给出明确产物和技术范围，再迭代布局、配色、标签与交互。",
+      "citation_ids": [
+        "original-186",
+        "original-187",
+        "original-188",
+        "original-189",
+        "original-194",
+        "original-195",
+        "original-196",
+        "original-197",
+        "original-198",
+        "original-199",
+        "original-203",
+        "original-205",
+        "original-208"
+      ]
+    },
+    {
+      "ts": "02:10:59",
+      "title": "启动与排错：服务进程、端口和任务状态",
+      "body": "生成代码后还需启动应用并访问页面，检查后台日志、进程是否持续运行以及端口是否冲突。多个示例同时占用相同地址和端口时，可停止已确认的旧服务或使用其他端口。停止Agent后继续对话可能恢复推进，但有写文件、启动服务等副作用时，重试不天然幂等，应先核对已完成动作。",
+      "citation_ids": [
+        "original-180",
+        "original-181",
+        "original-190",
+        "original-200",
+        "original-201",
+        "original-202",
+        "original-222",
+        "original-223",
+        "original-224"
+      ]
+    },
+    {
+      "ts": "02:16:49",
+      "title": "香港地图：地理边界数据与指标必须对应",
+      "body": "课程为ECharts取得外部GeoJSON，利用经纬度和多边形边界绘制行政区地图，再把病例指标映射到区域颜色并显示提示信息。应核对地理数据来源、区域名称与业务数据是否匹配，不能靠模型凭记忆编造边界。这里更准确地说是按行政区着色的分级设色图，课程将其泛称为热力图。",
+      "citation_ids": [
+        "original-209",
+        "original-210",
+        "original-214",
+        "original-215",
+        "original-219",
+        "original-225",
+        "original-226",
+        "original-227",
+        "original-232",
+        "original-233",
+        "original-234"
+      ]
+    },
+    {
+      "ts": "02:32:24",
+      "title": "从描述历史到预测未来：增加单独的验收目标",
+      "body": "看板描述历史，预测尝试估计尚未观测的数据。课程在大屏中增加未来七天每日新增病例的预测表与曲线，并指出预测可能不准。应把历史实测与预测明确分开，使用留出时间段或滚动回测评价误差，避免只看曲线是否平滑或程序是否成功运行。课堂示例不是经过验证的公共卫生或交易决策系统。",
+      "citation_ids": [
+        "original-235",
+        "original-236",
+        "original-237",
+        "original-238",
+        "original-239",
+        "original-245",
+        "original-246",
+        "original-250",
+        "original-251",
+        "original-253",
+        "original-254",
+        "original-258",
+        "original-270"
+      ]
+    },
+    {
+      "ts": "02:35:53",
+      "title": "ARIMA参数：自回归、差分与移动平均",
+      "body": "ARIMA(p,d,q)中p为自回归阶数，d为差分次数，q为移动平均阶数；课中使用(5,1,5)作为示例。MA依赖滞后随机误差，不直接代表市场新闻或宏观变量；外部变量需另外建模。差分旨在处理非平稳性，不保证让数据更平滑或提高预测准确率。模型阶数需验证，不能把两个5当作通用最优值。",
+      "citation_ids": [
+        "original-240",
+        "original-241",
+        "original-242",
+        "original-243",
+        "original-247",
+        "original-248",
+        "original-249"
+      ]
+    },
+    {
+      "ts": "02:50:40",
+      "title": "预测工具与多智能体：编排和计算分开",
+      "body": "编程助手可以生成并调用统计或机器学习代码，具体预测由所选模型与数据处理流程完成。课程还提及Prophet、LSTM等候选方法，以及通过工具服务或多个智能体协作调用模型。应记录输入、参数、依赖版本和执行过程以便复现；同一组阶数本身不足以保证相同预测，更不保证预测正确。",
+      "citation_ids": [
+        "original-244",
+        "original-264",
+        "original-266",
+        "original-268",
+        "original-269",
+        "original-270",
+        "original-271"
+      ]
+    },
+    {
+      "ts": "02:54:57",
+      "title": "模块协作与课程练习交付",
+      "body": "多人协作先明确模块分工、公共接口和任务清单，再通过代码仓库协同。旧代码难维护时，可先让AI梳理架构与冗余并形成文档，审核后逐步整理。课程练习以疫情可视化为主，可补充分区地图和趋势预测；截图之外还应保留可运行代码、输入说明和结果检查，方便复现。",
+      "citation_ids": [
+        "original-261",
+        "original-263",
+        "original-272",
+        "original-273",
+        "original-274",
+        "original-275",
+        "original-276",
+        "original-278",
+        "original-279"
+      ]
+    }
+  ],
+  "notes": [
+    "本文件是学习版重组，不是逐字稿。完整阅读原文original-1至original-279（06:45—02:59:24）以及原导读全部32节；原始时间与引用保留，未改动源DOCX。原导读首节00:00没有对应原文起点，已改用实际段落时间。",
+    "外部校订：规则的持久性来自提示层上下文；当前Cursor说明适用规则合并，并存在团队、项目、用户等层级，不能把课堂的项目优先解释成全局规则不再生效。见[Cursor Rules](https://cursor.com/docs/rules)。",
+    "经验边界：90/80置信度阈值、95%使用Agent、50轮限制、模型排名与价格、CLI内存体验均未作为通用标准。自报分数不是经过校准的成功概率；第三方响应model字段不能单独认证模型身份。未确认的型号、产业新闻和投资金额未进入知识结论。",
+    "外部校订：Python解释器与编辑器扩展需分别准备，见[VS Code Python教程](https://code.visualstudio.com/docs/python/python-tutorial)。合并验收补充了关联键唯一性和未匹配记录检查，见[pandas.merge](https://pandas.pydata.org/docs/reference/api/pandas.merge.html)；这是学习补充，不冒充课堂已完成的全量验证。",
+    "权限边界校订：原文跳过权限确认的操作只是演示选择，非必要安装步骤。官方仅建议在可隔离损害的环境使用绕过模式，见[Claude Code权限说明](https://code.claude.com/docs/en/permissions)。本导读不传播未经核验的第三方伪装模型配置步骤。",
+    "外部校订：Flask是Python Web框架，不是原导读所称外部框架；本地开发服务器不等于生产部署，端口占用需排查，见[Flask Quickstart](https://flask.palletsprojects.com/en/stable/quickstart/)。课题使用静态历史Excel，未展示持续采集链路，因此不标为已经实现实时监控。",
+    "外部校订：采用当前名称Apache ECharts，它是JavaScript可视化库，见[项目官网](https://echarts.apache.org/en/index.html)。本例使用GeoJSON，但ECharts也支持SVG底图，不能将GeoJSON说成唯一地图格式，见[官方地图说明](https://echarts.apache.org/handbook/en/how-to/component-types/geo/svg-base-map/)。",
+    "ARIMA事实校订依据[statsmodels官方说明](https://www.statsmodels.org/stable/generated/statsmodels.tsa.arima.model.ARIMA.html)与[作者公开教材](https://otexts.com/fpp3/arima.html)：MA是滞后误差项，差分服务于平稳性；原文把MA解释成市场新闻、把差分解释成必然更平滑更准确，已作显式校订。参数、七天预测与数值均属课堂案例，未据此宣称预测有效。",
+    "统计口径、重试副作用、全量数据质量与回测验收是针对课堂流程的学习补充。没有取得源音频、原始练习表或运行代码，不能核实员工分数、数据日期终点、图表计算和预测结果；这些未决项记录于review_audit，不声称原始转写已全部消歧。"
+  ],
+  "review_audit": {
+    "original_segment_count": 279,
+    "read_ranges": [
+      "original-1—original-34",
+      "original-35—original-70",
+      "original-71—original-140",
+      "original-141—original-210",
+      "original-211—original-279"
+    ],
+    "stage1": {
+      "executed_by": "主流程",
+      "applied": 0,
+      "deferred": 0,
+      "review_enqueued": 0,
+      "boundary_check_active": true,
+      "interpretation": "词典零命中不等于无错误，随后已执行完整原生语境复核。"
+    },
+    "full_read": {
+      "original_segment_count": 279,
+      "ranges": [
+        "original-1—original-34",
+        "original-35—original-70",
+        "original-71—original-140",
+        "original-141—original-210",
+        "original-211—original-279"
+      ],
+      "timestamps": "06:45—02:59:24",
+      "summary_sections_read": 32,
+      "summary_metadata_read": true,
+      "coverage": "全段逐段阅读，未用关键词检索或原导读代替原文。导读32节、keywords、summary均已读。"
+    },
+    "scope": "仅写assets/course_reviews/course_1_3.json；未改源DOCX或原文；未访问私人配置、名单或账号资料，未修订人物身份。Stage 1由主agent报告已完成；独立冷复核待主流程执行。",
+    "corrections": [
+      {
+        "anchors": [
+          "original-18",
+          "original-24",
+          "original-32",
+          "original-74",
+          "original-79"
+        ],
+        "original": "rose / roots / roof / roose",
+        "normalized": "Rules／规则",
+        "basis": "同段直接出现rules并解释其约束功能，属于文本支持的技术术语规范化。"
+      },
+      {
+        "anchors": [
+          "original-44",
+          "original-47",
+          "original-48",
+          "original-277"
+        ],
+        "original": "full back / for back / Fall back",
+        "normalized": "Fallback",
+        "basis": "完整上下文明确为错误处理兜底，不更改其资金案例的业务含义。"
+      },
+      {
+        "anchors": [
+          "original-85",
+          "original-86",
+          "original-89",
+          "original-99",
+          "original-103"
+        ],
+        "original": "A类 / A阵 / 癌症 / 不来 / 第八模式",
+        "normalized": "Agent / Plan / Debug（按各段语境）",
+        "basis": "模式列表和后续定义相互印证，不作全局裸词替换。"
+      },
+      {
+        "anchors": [
+          "original-183",
+          "original-189",
+          "original-194",
+          "original-195",
+          "original-216",
+          "original-227",
+          "original-234"
+        ],
+        "original": "mt p lib / mate polyp / flat / EX / H二次 / GEO Jason",
+        "normalized": "Matplotlib / Flask / ECharts / GeoJSON",
+        "basis": "绘图、Web接口和地图多边形的定义及正确拼写同文出现；官方资料核对功能。"
+      },
+      {
+        "anchors": [
+          "original-240",
+          "original-242",
+          "original-243",
+          "original-247",
+          "original-248",
+          "original-249"
+        ],
+        "original": "aria / AMA及MA是市场变量、差分更平滑更准确的解释",
+        "normalized": "ARIMA；MA为滞后误差，差分用于处理非平稳性",
+        "basis": "AR/MA/I拆词和(5,1,5)可确定术语；数学解释为外部事实校订，非声称讲师原话。"
+      },
+      {
+        "anchors": [
+          "original-6",
+          "original-19",
+          "original-144",
+          "original-150",
+          "original-272",
+          "original-273"
+        ],
+        "original": "科sir / cloud code / give up等产品转写",
+        "normalized": "已明确上下文使用Cursor、Claude Code等；多人协作段写代码仓库",
+        "basis": "仅规范有明确产品或功能自证的提及，不猜测模糊型号和未知项目名称。"
+      },
+      {
+        "anchors": [
+          "original-74",
+          "original-80",
+          "original-127",
+          "original-181",
+          "original-194",
+          "original-219"
+        ],
+        "original": "项目规则替代全局、安装扩展等于安装解释器、停止重试必然幂等、外部框架、地图只有GeoJSON",
+        "normalized": "限定规则加载、区分组件、核对副作用、Web框架、GeoJSON为本例格式",
+        "basis": "规则/VS Code/Flask/ECharts官方资料及流程分析，全部作为学习版外部校订。"
+      }
+    ],
+    "unresolved": [
+      {
+        "anchors": [
+          "original-3",
+          "original-5",
+          "original-14",
+          "original-16",
+          "original-106",
+          "original-107",
+          "original-108",
+          "original-109",
+          "original-113"
+        ],
+        "text": "GPT5.5、ops 4点八、composer 2.5、K2.25、DeepSeek V4、GLM5.1及rinks等混杂型号和新闻",
+        "disposition": "未凭近音推断版本，省略具体排行榜、定价和新闻结论；保留选型方法。缺原音频/课件明确型号与同期官方依据。"
+      },
+      {
+        "anchors": [
+          "original-137"
+        ],
+        "text": "照镜/赵静、杨娜/杨大，4.11/4.41",
+        "disposition": "姓名不改不猜；分数不采纳为核验结果，需原始练习表或画面确认。"
+      },
+      {
+        "anchors": [
+          "original-150",
+          "original-153",
+          "original-207",
+          "original-221",
+          "original-257",
+          "original-259",
+          "original-261",
+          "original-265"
+        ],
+        "text": "CC工具细节、圆心投资、训练数据新闻、薪资金额、阿珍阿涛、宋红、FDE等",
+        "disposition": "保留原文证据，不进入学习知识主张；不查私密配置或人物名单。"
+      },
+      {
+        "anchors": [
+          "original-157",
+          "original-176",
+          "original-192",
+          "original-193",
+          "original-246"
+        ],
+        "text": "数据具体日期、累计计算、剪贴板被读取推测、预测数值",
+        "disposition": "没有源表、代码或执行日志，不能确认结果和工具内部行为；保留流程并标明验收边界。"
+      }
+    ],
+    "removed_or_merged": [
+      {
+        "ranges": [
+          "original-1—original-17"
+        ],
+        "reason": "音频确认、等开课、快递通话、套餐和新闻闲聊删除；IDE/CLI差异在主线合并保留。"
+      },
+      {
+        "ranges": [
+          "original-30—original-31",
+          "original-50—original-51",
+          "original-55",
+          "original-64—original-65",
+          "original-77—original-84",
+          "original-136—original-156",
+          "original-177—original-181",
+          "original-211—original-231",
+          "original-277—original-279"
+        ],
+        "reason": "互动确认、重复演示、等待与重复兜底答疑合并；规则、CLI环境、地图、端口与验收内容保留。"
+      },
+      {
+        "ranges": [
+          "original-106—original-117",
+          "original-159—original-165",
+          "original-204—original-207",
+          "original-220—original-221",
+          "original-252—original-260"
+        ],
+        "reason": "未经核验的行业新闻、绝对排名、费用/薪资数字及调侃删除；成本选择、模型身份边界与预测不确定性保留。"
+      },
+      {
+        "ranges": [
+          "original-259—original-265",
+          "original-275—original-276"
+        ],
+        "reason": "未定实体、平台打卡路径与泛化用户规模不作为知识结论；练习要求和智能体分工保留。"
+      }
+    ],
+    "external_sources": [
+      {
+        "url": "https://cursor.com/docs/rules",
+        "checked": "规则类型、持久上下文、合并与优先级"
+      },
+      {
+        "url": "https://code.visualstudio.com/docs/python/python-tutorial",
+        "checked": "解释器与Python扩展是独立前提"
+      },
+      {
+        "url": "https://pandas.pydata.org/docs/reference/api/pandas.merge.html",
+        "checked": "关联类型、键唯一性验证与匹配指示"
+      },
+      {
+        "url": "https://code.claude.com/docs/en/permissions",
+        "checked": "绕过权限模式与隔离环境边界"
+      },
+      {
+        "url": "https://flask.palletsprojects.com/en/stable/quickstart/",
+        "checked": "路由、开发服务与端口占用"
+      },
+      {
+        "url": "https://echarts.apache.org/en/index.html",
+        "checked": "Apache ECharts名称与JavaScript可视化库定位"
+      },
+      {
+        "url": "https://echarts.apache.org/handbook/en/how-to/component-types/geo/svg-base-map/",
+        "checked": "地图数据注册、GeoJSON与SVG"
+      },
+      {
+        "url": "https://www.statsmodels.org/stable/generated/statsmodels.tsa.arima.model.ARIMA.html",
+        "checked": "ARIMA阶数、差分、误差项与外生变量"
+      },
+      {
+        "url": "https://otexts.com/fpp3/arima.html",
+        "checked": "作者公开教材的ARIMA概念框架"
+      }
+    ],
+    "asr_note": "上述术语规范与事实校订只用于学习版；未修改原始逐字稿。未决实体和数值仍在原文，无法声称全稿已无待核事项。",
+    "pending_tokens": [
+      {
+        "citation_id": "original-106",
+        "original": "converser的2.52",
+        "suggested": "",
+        "reason": "型号与后文版本混杂，无同期课件证据；不采纳抄袭与排行榜推断。"
+      },
+      {
+        "citation_id": "original-137",
+        "original": "4点11分",
+        "suggested": "",
+        "reason": "与同段4.41矛盾，无练习表无法判断；学习版不将该分数标作已验收。"
+      }
+    ],
+    "first_pass_status": "native_review_complete_pending_cold_review",
+    "status": "learning_review_complete_source_uncertainties_retained",
+    "independent_review": {
+      "date": "2026-10-21",
+      "scope": "完整冷读学习资产；疑点对照原始片段及一手资料，非第二遍音频校对",
+      "coverage_verified": true,
+      "confirmed_findings": [],
+      "disposition": "已逐项核实并修正；未改原文时间、编号及原始DOCX。",
+      "pending_source_tokens": 2,
+      "queue_domain": "ai-study-course"
+    }
+  }
+}

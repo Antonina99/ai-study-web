@@ -1,0 +1,779 @@
+{
+  "course_key": "5. AI大模型基本原理及API使用",
+  "source_sha256": "cba527dada4551f696a0e82d85831f1d8047fc5b9916bff58053eac78c153a6e",
+  "review_date": "2026-10-21",
+  "method": "transcript-fixer Stage 1词典初筛 + Native AI全文语境复核 + 官方一手资料事实校订 + 学习版整理；独立冷复核由主流程安排 + 独立学习版冷复核及逐项裁定",
+  "keywords": [
+    "大模型",
+    "API",
+    "DashScope",
+    "提示词工程",
+    "RLHF",
+    "Token",
+    "temperature",
+    "top_p",
+    "Function Calling",
+    "多模态",
+    "上下文",
+    "情感分析"
+  ],
+  "summary_points": [
+    "课程从规则系统、机器学习与深度学习切入，区分生成内容与专业决策两类应用，强调业务目标、数据质量以及先跑通再改写的学习方式。",
+    "理解模型训练、权重和Token，有助于区分训练与推理。监督微调、偏好反馈和强化学习各有作用，不能把监督学习等同死记硬背，或把强化学习理解成普通聊天中自动更新参数。",
+    "temperature 调整采样概率分布，top_p 按累计概率筛选候选Token；参数能力、范围和组合顺序依具体模型与实现，低随机性也不保证事实正确。",
+    "联网、文件解析、长期记忆和工具执行通常需要应用层配合；模型上下文与外部存储应区分，读取到请求中的历史和文件内容仍占上下文。",
+    "四个API案例分别演示文本情感分类、模拟天气工具调用、表格图片结构化提取及模拟运维告警分析。函数调用中，模型提出工具名称和参数，应用执行工具，再把结果交回模型组织回答。",
+    "实践重点是构造消息、选择模型、配置密钥、解析响应、处理异常和检查输出。课堂作业为跑通四例之一，熟练者可改写为自己的任务或批量处理。"
+  ],
+  "interview_points": [
+    "规则系统的长尾问题是什么？生成式任务与专业分类、预测任务怎样选择方法，数据质量如何影响落地？",
+    "预训练、SFT、奖励模型与RLHF有什么关系？为什么偏好排序不是整个强化学习算法，也不保证模型不会输出错误？",
+    "模型参数、Token及上下文窗口分别是什么？为什么参数量不能等同神经元数，Token数量不能直接代表中文能力？",
+    "temperature 与 top_p 分别改变什么？为什么不能把两者的执行顺序或取值范围当成所有API的固定规则？",
+    "system、user、assistant、tool 各承担什么？一次天气查询中两次模型请求与一次工具执行怎样衔接？",
+    "当模型没有返回工具调用、返回无效参数或工具执行失败时，应用应怎样处理？如何区分模拟数据、观测事实和模型推测？",
+    "多模态表格提取与OCR有什么区别？怎样核对JSON字段、空值及原图内容？",
+    "API调用相比网页问答何时更有价值？如何保存密钥、排查模型名称与依赖问题，并将长任务拆分后验证结果？"
+  ],
+  "sections": [
+    {
+      "ts": "12:12",
+      "title": "Agent部署与业务适配",
+      "body": "课前问答讨论将带技能的Agent部署到服务端并提供API。讲师建议优先考虑技能与业务是否匹配，选定工具后持续迭代，不必频繁更换框架。本课随后使用直接API调用讲解基础流程，完整Agent框架留待后续课程；具体框架优劣属于讲师使用经验。",
+      "citation_ids": [
+        "original-10",
+        "original-11",
+        "original-13",
+        "original-15",
+        "original-17"
+      ]
+    },
+    {
+      "ts": "17:49",
+      "title": "行业应用：先识别业务与数据条件",
+      "body": "讲师分享金融、制造和快消行业的项目经验：金融涉及风险判断、分析与合规，制造业缺陷检测常受图像采集和数据质量制约，快消关注用户行为与会员运营。自然语言辅助SQL取数也是一个应用方向。行业排序和项目耗时是个人经历；学习重点是先确认业务目标、数据来源及可用质量，再选择技术方案。",
+      "citation_ids": [
+        "original-19",
+        "original-20",
+        "original-21",
+        "original-22",
+        "original-23"
+      ]
+    },
+    {
+      "ts": "21:07",
+      "title": "学习路径：理解流程、跑通案例、再改写",
+      "body": "课程采用思考与动手结合的方法。先运行提供的案例，理解输入、消息、模型请求与输出，再借助AI编程工具按自身业务改写。四个案例覆盖情感分析、工具调用、表格图片和运维任务；本课目的为建立模型原理与API使用的整体认识，并非完成Agent框架开发。",
+      "citation_ids": [
+        "original-24",
+        "original-25",
+        "original-27",
+        "original-28"
+      ]
+    },
+    {
+      "ts": "25:19",
+      "title": "从规则枚举到数据驱动学习",
+      "body": "课程以自动驾驶说明专家系统的规则形式：用if/then描述已知情形，但复杂环境有难以穷举的长尾情况。机器学习从数据中学习规律，深度学习以更复杂的神经网络处理任务。这里是教学性的演进概括，并不表示规则系统已经消失，或所有机器学习都必须依赖人工标注。",
+      "citation_ids": [
+        "original-29",
+        "original-31",
+        "original-32",
+        "original-34",
+        "original-35",
+        "original-36",
+        "original-37",
+        "original-38",
+        "original-40"
+      ]
+    },
+    {
+      "ts": "31:19",
+      "title": "生成式应用与决策分析应用",
+      "body": "生成式AI用于文章、代码等内容生产；课程所谓决策式或分析式AI则偏向风险、违约、点击或缺陷等专业判断。两类任务可在一个业务流程中结合。课中的yes/no只是分类例子，不能据此认为所有预测任务都是二分类，或生成式模型不能承担分类。价值与实现难度须结合任务和数据评估。",
+      "citation_ids": [
+        "original-41",
+        "original-42",
+        "original-43",
+        "original-44",
+        "original-45",
+        "original-46"
+      ]
+    },
+    {
+      "ts": "34:53",
+      "title": "搜索提供资料，模型组织生成",
+      "body": "传统搜索侧重找到已有资料，生成式模型依据请求组织新回答或代码。课程将搜索比作提供素材的工具：应用可先搜索，再让模型参考结果完成任务。生成与检索可以互相配合；语言流畅或响应了指令并不意味着内容已得到来源验证。",
+      "citation_ids": [
+        "original-47",
+        "original-48",
+        "original-49",
+        "original-50",
+        "original-51"
+      ]
+    },
+    {
+      "ts": "37:42",
+      "title": "训练流程：示例学习、偏好反馈与RLHF",
+      "body": "讲师用香蕉问答和领导点评多个方案作类比，说明示范答案与偏好反馈的不同作用。校订：语言模型先进行预训练；典型InstructGPT后训练包含监督微调、用偏好比较训练奖励模型、再用强化学习优化策略。监督学习可以泛化；排序数据也不等于整个强化学习流程。普通推理调用并不因此自动修改模型参数。",
+      "citation_ids": [
+        "original-52",
+        "original-53",
+        "original-54",
+        "original-55",
+        "original-57",
+        "original-58",
+        "original-59",
+        "original-60",
+        "original-64",
+        "original-65"
+      ]
+    },
+    {
+      "ts": "45:43",
+      "title": "偏好排序、奖励与自我对弈的边界",
+      "body": "课中通过多个候选答案排序，解释人类如何表达更喜欢哪种回答，并以AlphaGo自我对弈说明反馈驱动的优化。校订：排序是可用的反馈形式，不意味着现在的强化学习都只排序、不打分，也不能保证彻底消除有害或错误输出。外部资料表明早期AlphaGo结合人类棋谱学习与自我对弈，不能将其简化为完全不依赖人类数据。",
+      "citation_ids": [
+        "original-66",
+        "original-67",
+        "original-68",
+        "original-69",
+        "original-70",
+        "original-71",
+        "original-73",
+        "original-74",
+        "original-75",
+        "original-77",
+        "original-78"
+      ]
+    },
+    {
+      "ts": "52:19",
+      "title": "参数与权重：保存训练得到的数值",
+      "body": "模型参数是参与计算的可学习数值，权重是其中的重要部分；训练优化参数值，推理使用已训练的参数计算输出。下载模型权重，是取得这些数值及相关文件。校订：课中将参数比作配方可辅助理解，但参数数量不是神经元数量，也不能与人脑数量直接比较来推断AGI；未公开模型的参数规模不能靠代际增长外推。",
+      "citation_ids": [
+        "original-78",
+        "original-79",
+        "original-80",
+        "original-81",
+        "original-83",
+        "original-87",
+        "original-88"
+      ]
+    },
+    {
+      "ts": "59:51",
+      "title": "Token、编码ID与特殊标记",
+      "body": "文本经Tokenizer切分为Token并映射到ID，模型再对其数值表示进行运算，生成结果经解码还原为文本。一个Token不一定等于一个字或单词；不同Tokenizer对同一文本可能产生不同切分和ID。特殊Token可标记消息边界等结构。校订：课中的具体数字是演示值；不能以切分更少直接判断语言理解更强，也不能仅凭ID映射解释跨语言回答。",
+      "citation_ids": [
+        "original-89",
+        "original-90",
+        "original-91",
+        "original-92",
+        "original-93",
+        "original-94",
+        "original-95",
+        "original-96",
+        "original-98",
+        "original-99"
+      ]
+    },
+    {
+      "ts": "01:06:01",
+      "title": "temperature调整采样分布",
+      "body": "自回归生成通常逐步预测下一个Token的概率。正温度下，提高temperature会使分布更平缓、低概率候选相对更容易被抽到；降低温度会使分布更集中。校订：它影响随机性和多样性，不是保证创造力或正确率的开关。API支持范围与默认值依模型而定，不能将课中0到2的例子视为统一标准。",
+      "citation_ids": [
+        "original-100",
+        "original-101",
+        "original-102",
+        "original-103",
+        "original-104",
+        "original-106",
+        "original-111",
+        "original-112"
+      ]
+    },
+    {
+      "ts": "01:12:11",
+      "title": "top_p按累计概率筛选候选",
+      "body": "top_p即核采样：将候选按概率排序，保留累计概率达到阈值的一组，再从中采样。课堂以“今天天气真……”说明top_p与温度的不同：前者缩小候选集合，后者改变分布形状。初次调参可只改变一个变量以便比较；校订：两者组合的执行顺序依推理实现，原文“固定先top_p再temperature”不作为通则。筛掉低概率词不保证答案真实。",
+      "citation_ids": [
+        "original-113",
+        "original-114",
+        "original-115",
+        "original-116",
+        "original-117",
+        "original-118",
+        "original-119",
+        "original-120",
+        "original-122"
+      ]
+    },
+    {
+      "ts": "01:18:25",
+      "title": "联网与读文件是模型和工具的协作",
+      "body": "模型权重本身不提供实时网络数据；产品可集成搜索服务，将检索结果交给模型。读文件也有不同路径：文本模型可接收PDF、Word、表格或OCR工具提取的文字，多模态模型则可接收受支持的图像、音频等输入。具体支持能力应查模型及接口说明，不能把某个聊天产品的全部功能等同于裸模型API。",
+      "citation_ids": [
+        "original-123",
+        "original-124",
+        "original-125",
+        "original-126",
+        "original-127",
+        "original-128",
+        "original-129"
+      ]
+    },
+    {
+      "ts": "01:23:16",
+      "title": "短期上下文与长期记忆文件",
+      "body": "课程将本次请求中的历史对话称为短期记忆，将用户偏好等持久保存的信息称为长期记忆。应用可把近期对话、摘要或按需读取的文件组织进上下文；外部存储不会自动变成模型参数。Markdown便于用标题和列表组织纯文本，但文件名不是通用协议。校订：文件留在磁盘时不占本次窗口，读入请求的部分会占Token；容量和保留轮数依模型及应用设置。",
+      "citation_ids": [
+        "original-130",
+        "original-131",
+        "original-132",
+        "original-133",
+        "original-134",
+        "original-135",
+        "original-136",
+        "original-137",
+        "original-138",
+        "original-139",
+        "original-147",
+        "original-148",
+        "original-149"
+      ]
+    },
+    {
+      "ts": "01:33:34",
+      "title": "参数规模、初始化与模型选择",
+      "body": "固定架构的常规训练主要调整参数值。外部校订：权重通常采用适当初始化，不能笼统说出厂时几乎为零。Scaling laws描述模型规模、数据和计算量与损失的经验关系，不等于参数越大每项任务必然越强。随后讲师结合个人编码体验讨论质量与成本：可按开发任务和应用端任务分别选择模型，但具体排名、代差和费用不是课程可复用的结论。",
+      "citation_ids": [
+        "original-150",
+        "original-151",
+        "original-152",
+        "original-153",
+        "original-154",
+        "original-155",
+        "original-156",
+        "original-158",
+        "original-159",
+        "original-160",
+        "original-161",
+        "original-163",
+        "original-164"
+      ]
+    },
+    {
+      "ts": "01:43:47",
+      "title": "远端API与运行环境",
+      "body": "远端API把请求发送到服务商，由其基础设施执行推理并返回结果；本地部署则需自行准备运行资源。课程以调用云端模型为主，本地部署留待后续内容。演示使用Jupyter Notebook，学员也可运行Python脚本：常见扩展名分别为.ipynb与.py。应按代码要求准备Python、依赖与模型访问配置，选择依据是实际资源、成本和数据要求。",
+      "citation_ids": [
+        "original-168",
+        "original-169",
+        "original-170",
+        "original-171",
+        "original-173"
+      ]
+    },
+    {
+      "ts": "01:46:18",
+      "title": "案例一：用提示词做情感分类",
+      "body": "将system消息设为情感或舆情分析任务及输出约束，将待分析文字放入user消息，再通过DashScope调用模型。原例只输出正向或负向；面对无关、模糊或无明显倾向的内容，可补充中性、无法判断等类别及判定规则。校订：system不只是角色扮演，也可规定行为与格式；分类标签的设计要符合真实业务。",
+      "citation_ids": [
+        "original-172",
+        "original-174",
+        "original-175",
+        "original-176",
+        "original-177",
+        "original-178",
+        "original-179",
+        "original-180",
+        "original-181",
+        "original-182"
+      ]
+    },
+    {
+      "ts": "01:51:59",
+      "title": "响应解析与复用代码改写任务",
+      "body": "接口响应除了回答文本，还可能包含使用量、状态与工具调用等信息，需按所用SDK解析。遇到缺包错误，应确认运行环境并安装相应依赖。课堂临时将情感分析代码改为音响文案生成，复用调用结构、调整提示词和输入；报错后让编程助手协助排查，但仍需运行验证。校订：这里的改写代码不是训练意义上的模型微调。",
+      "citation_ids": [
+        "original-183",
+        "original-185",
+        "original-186",
+        "original-187",
+        "original-188",
+        "original-189",
+        "original-191",
+        "original-194",
+        "original-196",
+        "original-197",
+        "original-198",
+        "original-199",
+        "original-200",
+        "original-201"
+      ]
+    },
+    {
+      "ts": "02:02:24",
+      "title": "密钥、模型名称与批量调用",
+      "body": "API Key用于服务鉴权，应从环境变量等受控配置读取，避免写入共享代码或展示画面。DashScope常用变量名为DASHSCOPE_API_KEY。校订：课中报错排查涉及模型名称，但不能把删除latest后缀当作通用修复，应核对当前接口支持的准确标识。API适合批量处理重复任务，例如逐篇分析文章；少量交互也可用网页。还可按接口设置输出Token上限等参数。",
+      "citation_ids": [
+        "original-202",
+        "original-203",
+        "original-204",
+        "original-205",
+        "original-207",
+        "original-208",
+        "original-209",
+        "original-212",
+        "original-213",
+        "original-214",
+        "original-215",
+        "original-216"
+      ]
+    },
+    {
+      "ts": "02:10:29",
+      "title": "案例二：准备并声明天气工具",
+      "body": "天气属于外部信息，模型需要由工具获得。课堂先实现按城市返回固定天气的函数，再提供工具名称、用途描述与参数定义，使模型知道何时使用。深圳37度等是写死的演示数据，不是实时天气。真实应用应把工具实现接到实际数据源；工具描述必须与实际用途和参数一致。",
+      "citation_ids": [
+        "original-217",
+        "original-218",
+        "original-219",
+        "original-220",
+        "original-223",
+        "original-224",
+        "original-225",
+        "original-227",
+        "original-228",
+        "original-229"
+      ]
+    },
+    {
+      "ts": "02:17:18",
+      "title": "工具调用闭环与无工具分支",
+      "body": "用户询问深圳天气后，第一次模型请求返回工具名称及城市参数；应用解析请求、执行本地函数，将工具结果加入消息，再发起第二次模型请求组织答案。工具执行发生在应用端。课中改问“1+1”时模型直接回答，暴露示例代码默认必有工具调用的问题；实际程序需区分普通回答与工具请求，并校验参数、处理工具失败。更多工具时仍需依据需求和描述选择。",
+      "citation_ids": [
+        "original-230",
+        "original-231",
+        "original-232",
+        "original-233",
+        "original-234",
+        "original-235",
+        "original-236",
+        "original-237",
+        "original-238",
+        "original-240",
+        "original-241",
+        "original-242",
+        "original-243",
+        "original-244",
+        "original-248"
+      ]
+    },
+    {
+      "ts": "02:27:20",
+      "title": "案例三：表格图片转结构化信息",
+      "body": "选用支持视觉输入的模型，将表格图片和提取要求一起传入，要求按JSON组织字段。课堂比较OCR与视觉语言模型：后者能按任务理解和组织内容，也可能补写说明、改写文字或产生错误。校订：学习版不沿用“改字不影响准确性”的保证；应对照原图检查字段、空值和关键数字，并验证JSON格式。",
+      "citation_ids": [
+        "original-250",
+        "original-251",
+        "original-252",
+        "original-253",
+        "original-254",
+        "original-255",
+        "original-256",
+        "original-257",
+        "original-258",
+        "original-259"
+      ]
+    },
+    {
+      "ts": "02:34:15",
+      "title": "案例四：运维告警分析与模拟状态查询",
+      "body": "收到数据库连接告警后，先获取运行状态再分析可能原因，不能直接把告警当作根因。演示注册状态查询工具，返回模拟的数据库连接数48、CPU使用率73%、内存使用率81%，模型再整理可能原因、影响和建议。示例仍是两次模型请求夹一次工具执行，并未实现真实监控或自动修复；落地时需接入实际状态与日志并验证诊断。",
+      "citation_ids": [
+        "original-260",
+        "original-261",
+        "original-262",
+        "original-263",
+        "original-264",
+        "original-265",
+        "original-266",
+        "original-267",
+        "original-271",
+        "original-272",
+        "original-273",
+        "original-274",
+        "original-275",
+        "original-276"
+      ]
+    },
+    {
+      "ts": "02:43:32",
+      "title": "四种消息角色与作业验收",
+      "body": "system提供任务约束，user提供用户输入，assistant承载模型回复或工具请求，tool承载应用执行工具后的结果。消息顺序构成对话上下文。四个案例展示文本、视觉与外部工具的不同组合；课堂作业为任选一个跑通并记录结果，熟练者可改写业务或做批量处理。理解流程和检查结果，比只复制语法更重要。",
+      "citation_ids": [
+        "original-277",
+        "original-278",
+        "original-279",
+        "original-280",
+        "original-281",
+        "original-282",
+        "original-283",
+        "original-284",
+        "original-285",
+        "original-286",
+        "original-287",
+        "original-288",
+        "original-289",
+        "original-290"
+      ]
+    },
+    {
+      "ts": "02:51:54",
+      "title": "课后问答：版本迭代、工具持久化与长任务",
+      "body": "真实项目可在基础API之上引入Agent框架。校订：模型更新可能采用继续训练、微调或其他方法，不能只凭版本号判断；架构相同也不证明一定是微调。工具定义和执行记录由应用管理，不会因调用一次而写入模型权重。长任务可拆成较小批次并保存阶段结果，重建必要上下文后继续；课中“最多50轮”只是特定工具语境，不能推广。最后再次强调密钥保护、运行验证和理解模型能力边界。",
+      "citation_ids": [
+        "original-293",
+        "original-294",
+        "original-295",
+        "original-299",
+        "original-300",
+        "original-301",
+        "original-302",
+        "original-305",
+        "original-306",
+        "original-307",
+        "original-308",
+        "original-309",
+        "original-310",
+        "original-311",
+        "original-312"
+      ]
+    }
+  ],
+  "notes": [
+    "本文件是教学学习版，不是逐字纠正后的原始转写。已完整阅读original-1至original-312（06:20—03:02:40）及导读全部36节；原文引用指向课程依据，以下外部校订不冒充讲师原话。",
+    "术语按原文自证与技术语境规范：风声控/防尘口/分身狂→Function Calling，dash scope等→DashScope，千问/千万中的模型指代→千问（Qwen），Jason格式→JSON，jupiter→Jupyter，IPYNNB→.ipynb，系统决策→系统角色，APIT→API Key，skin law→Scaling laws，上线工程→上下文工程。未将人名或不明型号猜改为确定实体。",
+    "外部校订（37:42—49:54）：[InstructGPT论文](https://arxiv.org/abs/2203.02155)区分监督微调、奖励模型和强化学习优化。监督学习不是只能背固定答案；RLHF不等于排序工具，也不保证杜绝错误。原文关于肯尼亚标注人员承担全部偏好训练的归因未有本次一手证据，不纳入结论。",
+    "外部校订（50:42—52:19）：[DeepMind AlphaGo说明](https://deepmind.google/research/alphago/)明确先学习专家棋谱，再通过自我对弈改进。原文“大战前自弈3000万盘”的数值未核实，不保留为事实；不要混同AlphaGo与AlphaGo Zero。",
+    "外部校订（52:19—58:36）：参数不是神经元数量，参数增大不能直接证明接近人脑或AGI。[GPT-3论文](https://arxiv.org/abs/2005.14165)的45TB是Common Crawl过滤前的压缩纯文本，过滤后为570GB，不能写成每个模型至少训练45TB。未公开模型的万亿、十万亿或百万亿参数猜测，以及“人脑250万亿神经元”，均不作为知识结论。",
+    "外部校订（59:51—01:05:24）：[Tokenizer文档](https://huggingface.co/docs/transformers/main_classes/tokenizer)区分Token切分、ID映射和解码。切分效率不等于整体语言能力，乱码或跨语回答也不能仅归因于Token的数字映射。原文“千问等都由Llama微调”不能成立为通则，[Qwen技术报告](https://arxiv.org/abs/2309.16609)描述了其基础模型的预训练与聊天模型的对齐。",
+    "外部校订（01:06:01—01:16:32）：[Transformers生成文档](https://huggingface.co/docs/transformers/main_classes/text_generation)说明temperature和top_p的不同机制；[官方生成实现](https://github.com/huggingface/transformers/blob/main/src/transformers/generation/utils.py)提供先温度后top_p的实现反例，故不采用原文固定相反顺序。范围、默认值与支持条件须看具体接口；低温或低top_p不是正确性保证。",
+    "外部校订（01:23:16—01:33:08）：长期存储与本次输入上下文分开；读取进消息的内容仍占Token。Markdown的实际Token成本取决于内容与Tokenizer，原文4K对14K不是通用比例，200K窗口也不是通用规格。消息历史的使用参见[百炼文本生成](https://help.aliyun.com/zh/model-studio/text-generation)。",
+    "外部校订（01:33:34—01:36:57）：[PyTorch Linear文档](https://docs.pytorch.org/docs/main/generated/torch.nn.Linear.html)展示可学习权重及随机初始化；不采纳“参数出生几乎为零”。[Scaling laws原论文](https://arxiv.org/abs/2001.08361)讨论参数、数据及计算量与损失的关系，不支持只按参数量绝对排名。",
+    "API补充校订：[百炼Function Calling](https://help.aliyun.com/zh/model-studio/qwen-function-calling)明确工具由应用执行，无需工具时可直接返回文本；两次模型请求是本课单次工具演示的结构，并非所有任务固定次数。function是一类工具，不能把所有tool都等同普通函数；声明工具也不保证每次必调用。",
+    "案例边界：天气与运维状态是模拟值；运维根因只是待验证的分析。视觉提取的改字可能影响准确性，须核对原图；具体输入方式参见[百炼视觉理解](https://docs.bailian.console.aliyun.com/zh/model-studio/vision)。未根据仅有文字推断缺失代码的精确函数名。",
+    "安全与费用：密钥配置参考[百炼API Key文档](https://help.aliyun.com/en/model-studio/get-api-key)。环境变量或.env文件不是加密保证，仍需避免共享、提交或截图泄露。赠送额度、价格比较、模型排名、工具会员政策、技术代差和AIPC成熟度均是课程当时说法或讲师经验，不作为当前承诺。",
+    "未决实体：原文ops 4点8、GPT 5.5、千问3.6的27B、谷歌omi、TV two 2.5等具体版本或指代未由课件、代码或音频确认；deep fake等在明确品牌语境可理解为DeepSeek，但不据此补全型号。工具名称get value/get cat valer与get cut status/get kind of status亦不猜写。讲师姓名与企业名称未经身份名册核对，学习版不作身份校订。",
+    "讲师边界：行业优先级、编程工具和国内外模型偏好、投资收益、企业费用传闻均不构成普遍事实或投资建议。本课保留可复用的任务分解与验证方法，删去股票走势、个人收益与寒暄。"
+  ],
+  "review_audit": {
+    "scope": "只编辑assets/course_reviews/course_1_1.json；未改原DOCX、原文或导读，不提交Git。",
+    "coverage": {
+      "original_segment_count": 312,
+      "original_read_ranges": [
+        "original-1—65",
+        "original-66—130",
+        "original-131—195",
+        "original-196—260",
+        "original-261—304",
+        "original-305—312"
+      ],
+      "original_time_range": "06:20—03:02:40",
+      "guide_read": "完整读取course.summary：标题、keywords、summary及36节导读；重新以原文时间戳对齐，不照抄导读00:00等错位时间。",
+      "reading_mode": "全文逐段语境阅读；分段读取被截断处另行补读，未以检索命中或摘要替代全读。"
+    },
+    "stage1": "主agent统一执行已完成：applied=0，deferred=0，review_enqueued=0，boundary_check_active=true；source指纹由主流程重新解析DOCX核对一致。",
+    "native_review": "已完整阅读transcript-fixer/SKILL.md及references/native_ai_full_workflow.md；完成全课语境判断、知识整理和一手资料核实。无音频验证。",
+    "corrections": [
+      {
+        "anchors": [
+          "original-4",
+          "original-217",
+          "original-232",
+          "original-263"
+        ],
+        "type": "ASR术语",
+        "decision": "风声控、翻成call、方程call等按同段函数调用释义归为Function Calling。"
+      },
+      {
+        "anchors": [
+          "original-7",
+          "original-180",
+          "original-185",
+          "original-267"
+        ],
+        "type": "ASR术语",
+        "decision": "DashScope以原文正确拼写及百炼官方文档规范，不把它写成通用协议。"
+      },
+      {
+        "anchors": [
+          "original-60",
+          "original-65",
+          "original-67"
+        ],
+        "type": "ASR与事实区分",
+        "decision": "RHLS按同课明确RLHF归一；rank list保留为偏好排序的课堂描述，不宣称是标准RLHF工具名称。"
+      },
+      {
+        "anchors": [
+          "original-78",
+          "original-80",
+          "original-81",
+          "original-88",
+          "original-150",
+          "original-153",
+          "original-154"
+        ],
+        "type": "外部事实校订",
+        "decision": "参数与神经元分开；不采用巨大参数猜测、人脑数值、45TB通则、零初始化和越大必强；Scaling laws规范名称。"
+      },
+      {
+        "anchors": [
+          "original-94",
+          "original-95",
+          "original-96",
+          "original-97",
+          "original-98"
+        ],
+        "type": "外部事实校订",
+        "decision": "保留Tokenizer差异；拒绝由Token数直接判断理解能力、由ID直接解释跨语输出、把所有国产模型都说成Llama微调。"
+      },
+      {
+        "anchors": [
+          "original-120",
+          "original-141",
+          "original-148",
+          "original-149"
+        ],
+        "type": "外部事实校订",
+        "decision": "不保留固定先top_p、记忆文件内容永不占窗口、HTML固定多若干倍Token等泛化。"
+      },
+      {
+        "anchors": [
+          "original-135",
+          "original-171",
+          "original-176",
+          "original-202",
+          "original-253"
+        ],
+        "type": "ASR术语",
+        "decision": "上下文工程、Jupyter/.ipynb、系统角色、API Key、JSON均按具体上下文规范。"
+      },
+      {
+        "anchors": [
+          "original-237",
+          "original-238",
+          "original-242",
+          "original-268",
+          "original-274",
+          "original-275",
+          "original-277"
+        ],
+        "type": "原文上下文互证",
+        "decision": "区分两次模型调用与中间工具执行；保留无工具分支暴露的问题；状态以274的48/73/81为模拟示例，不采用275重复口误式的内存73；四角色按原文解释整理。"
+      }
+    ],
+    "unresolved_items": [
+      {
+        "anchors": [
+          "original-11",
+          "original-14"
+        ],
+        "original": "nand bot、nano t、hermas、omkar、open cloud",
+        "status": "未决",
+        "action": "保留框架适配方法，不用音似推断全部项目正式名称；需课件链接或音频。"
+      },
+      {
+        "anchors": [
+          "original-45",
+          "original-72",
+          "original-79",
+          "original-86",
+          "original-88",
+          "original-150",
+          "original-157"
+        ],
+        "original": "谷歌omi、各品牌具体版本、ops 4点8、千问3.6的27B、TV two 2.5",
+        "status": "未决",
+        "action": "省去不影响教学的型号细节，不以当前官方目录反推当时说法；需原课件或示例代码。"
+      },
+      {
+        "anchors": [
+          "original-17",
+          "original-20",
+          "original-84"
+        ],
+        "original": "陈阳、健康能源、百度还莲宏",
+        "status": "未作身份校订",
+        "action": "未读取私密配置或个人名册，学习版不传播未经核对的身份归因；源文不改。"
+      },
+      {
+        "anchors": [
+          "original-56",
+          "original-66",
+          "original-75",
+          "original-81",
+          "original-162",
+          "original-164"
+        ],
+        "original": "cargo收购时间、标注人员归因、3000万盘、创建年份、公司费用传闻、训练芯片断言",
+        "status": "不采纳为事实",
+        "action": "旁支轶事或数值缺少可核验教学材料；重要训练机制已用一手资料另行校订。"
+      },
+      {
+        "anchors": [
+          "original-227",
+          "original-233",
+          "original-265",
+          "original-271",
+          "original-302",
+          "original-305"
+        ],
+        "original": "get value/get cat valer、get cut status/get kind of status、AIK6",
+        "status": "未决",
+        "action": "使用天气工具、状态查询工具、长任务等明确功能描述，不制造精确代码标识或产品名称。"
+      }
+    ],
+    "external_sources": [
+      {
+        "url": "https://arxiv.org/abs/2203.02155",
+        "publisher": "OpenAI研究团队",
+        "used_for": "InstructGPT训练阶段、奖励模型、RLHF与错误边界"
+      },
+      {
+        "url": "https://deepmind.google/research/alphago/",
+        "publisher": "Google DeepMind",
+        "used_for": "AlphaGo结合专家棋谱与自我对弈"
+      },
+      {
+        "url": "https://arxiv.org/abs/2005.14165",
+        "publisher": "GPT-3作者团队",
+        "used_for": "175B与过滤前45TB、过滤后570GB的口径"
+      },
+      {
+        "url": "https://huggingface.co/docs/transformers/main_classes/tokenizer",
+        "publisher": "Hugging Face",
+        "used_for": "Token切分、ID及上下文长度"
+      },
+      {
+        "url": "https://arxiv.org/abs/2309.16609",
+        "publisher": "Qwen作者团队",
+        "used_for": "Qwen基础模型预训练与对齐，避免泛化Llama微调说法"
+      },
+      {
+        "url": "https://huggingface.co/docs/transformers/main_classes/text_generation",
+        "publisher": "Hugging Face",
+        "used_for": "temperature和top_p定义"
+      },
+      {
+        "url": "https://github.com/huggingface/transformers/blob/main/src/transformers/generation/utils.py",
+        "publisher": "Hugging Face官方代码",
+        "used_for": "采样处理顺序不是固定先top_p的反例"
+      },
+      {
+        "url": "https://docs.pytorch.org/docs/main/generated/torch.nn.Linear.html",
+        "publisher": "PyTorch",
+        "used_for": "可学习权重与初始化"
+      },
+      {
+        "url": "https://arxiv.org/abs/2001.08361",
+        "publisher": "Scaling laws作者团队",
+        "used_for": "参数、数据和计算量的联合关系"
+      },
+      {
+        "url": "https://help.aliyun.com/zh/model-studio/text-generation",
+        "publisher": "阿里云",
+        "used_for": "消息角色、文本生成与产品能力边界"
+      },
+      {
+        "url": "https://help.aliyun.com/zh/model-studio/qwen-function-calling",
+        "publisher": "阿里云",
+        "used_for": "工具定义、应用端执行、结果回传和无需工具分支"
+      },
+      {
+        "url": "https://docs.bailian.console.aliyun.com/zh/model-studio/vision",
+        "publisher": "阿里云",
+        "used_for": "视觉输入能力"
+      },
+      {
+        "url": "https://help.aliyun.com/en/model-studio/get-api-key",
+        "publisher": "阿里云",
+        "used_for": "DASHSCOPE_API_KEY配置"
+      }
+    ],
+    "omissions": [
+      {
+        "category": "开场与课堂组织",
+        "ranges": "1—9、12、16及零散等待/互动",
+        "reason": "签到、权限、比赛证书、等待不属于可复习技术知识。"
+      },
+      {
+        "category": "身份履历与旁支轶事",
+        "ranges": "17—18、56、66、84及相关片段",
+        "reason": "不影响教学主线；不猜身份或传播未经一手材料核实的历史归因。"
+      },
+      {
+        "category": "金融市场与个人收益",
+        "ranges": "26、29—30、162、166—167、296—299的收益/行情部分",
+        "reason": "不是API教学依据，个人收益和市场观点不构成可复用结论。保留数据与工具支持分析的工程思想。"
+      },
+      {
+        "category": "型号、价格、套餐与排名",
+        "ranges": "6—7、45、72、79、86、88、123、157—165、203、215、259、300—301的时效细节",
+        "reason": "易变且部分ASR指代不清，保留选型维度与示例性质，不补造当期事实。"
+      },
+      {
+        "category": "重复类比与绝对化表述",
+        "ranges": "61—65、71—86、105、141—146、245—249、281—285、307—312部分",
+        "reason": "合并重复教学点；去掉气候与创造力等无依据类比，以及所有代码未来必由AI写等绝对预测。"
+      },
+      {
+        "category": "界面找寻与家庭插话",
+        "ranges": "106—110、192—195、200—211、291—292、303—304部分",
+        "reason": "保留可复用排错和代码改写步骤，删除找按钮、等待和无关插话。"
+      }
+    ],
+    "limitations": "本次是文本与公开一手资料复核，不是音频重转写。未决项保留在本审计内，不宣称原转写已全量无误；不读取私密配置、不更新跨项目词典或身份名册。",
+    "original_segment_count": 312,
+    "read_ranges": [
+      [
+        1,
+        312
+      ]
+    ],
+    "pending_tokens": [
+      {
+        "citation_id": "original-45",
+        "original": "谷歌的omi",
+        "suggested": "",
+        "reason": "缺少型号的课件或代码证据，未据多模态描述补全版本。"
+      },
+      {
+        "citation_id": "original-150",
+        "original": "TV two 2.5",
+        "suggested": "",
+        "reason": "型号和参数量无法由文字唯一确认，未传播为事实。"
+      },
+      {
+        "citation_id": "original-227",
+        "original": "get value",
+        "suggested": "",
+        "reason": "没有示例代码，天气工具精确函数名待核，学习版采用功能描述。"
+      }
+    ],
+    "first_pass_second_pass": "独立冷复核由主agent安排，本次写入不冒称已完成。",
+    "status": "learning_review_complete_source_uncertainties_retained",
+    "independent_review": {
+      "date": "2026-10-21",
+      "scope": "完整冷读学习资产；疑点对照原始片段及一手资料，非第二遍音频校对",
+      "coverage_verified": true,
+      "confirmed_findings": [],
+      "disposition": "已逐项核实并修正；未改原文时间、编号及原始DOCX。",
+      "pending_source_tokens": 3,
+      "queue_domain": "ai-study-course"
+    }
+  }
+}

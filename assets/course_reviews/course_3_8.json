@@ -1,0 +1,580 @@
+{
+  "course_key": "最强模型Fable5 - Harness架构下的模型训练范式大变革",
+  "source_sha256": "6311929d404fc16ab1500c83ff474c5a7fe532fe1750205730f0a458564bb64d",
+  "review_date": "2026-10-21",
+  "method": "transcript-fixer Stage 1 初筛（主审执行）+ 292 段原文与全部导读的 Native AI 语境复核 + 官方资料及原论文核验；不改原始转写 + 独立学习版冷复核及逐项裁定",
+  "keywords": [
+    "模型训练",
+    "Harness",
+    "执行轨迹",
+    "强化学习",
+    "可验证奖励",
+    "合成数据",
+    "记忆",
+    "测试用例",
+    "上下文工程",
+    "任务编排",
+    "检查点"
+  ],
+  "summary_points": [
+    "本课关注模型与执行环境协同：训练材料可以包括任务执行轨迹，反馈可以来自人类、模型评判、测试和环境记录；这些来源能够组合，并非按年份相互取代。",
+    "收集轨迹、调整记忆或修改提示词不等于模型参数训练。轨迹需要筛选、验证并进入明确的学习流程，才能讨论训练效果；外部记忆改善则属于应用层机制。",
+    "可验证奖励有利于规模化反馈，但验证器只覆盖所定义的目标。编译成功、测试通过和任务真正完成不同，仍须控制环境、检查测试覆盖与奖励漏洞。",
+    "课程用执行层、记忆层、反馈层和编排层解释 Harness：提供行动能力，维护必要上下文，反馈实际结果，按阶段组织任务。这是讲师的综合分类，不是统一标准。",
+    "长任务还涉及权限、并发交互、任务归属、持久化、恢复和预算。恢复任务状态不自动等于恢复所有外部环境；并发也不必通过多个操作系统线程实现。",
+    "官方资料可确认 Fable 5 与 GLM-5.2 的型号存在；课堂视频的成功案例、榜单排名、费用与训练归因未因此获得独立验证。"
+  ],
+  "interview_points": [
+    "一个问答样本与一条 Agent 执行轨迹分别包含什么？轨迹用于 SFT、强化学习或评估时需要哪些不同处理？",
+    "人类偏好、模型评判、可验证奖励和环境反馈如何组合？为什么有自动测试仍需要设计者定义目标？",
+    "编译成功、单元测试通过和真实任务完成有何区别？如何发现验证器漏洞和偶发失败？",
+    "测试集合从 30 个改成 80 个后，怎样保留版本、重评历史结果并比较效果？",
+    "模型训练与通过记忆改进 Agent 有什么区别？怎样证明一次记忆更新没有引入回归？",
+    "执行、记忆、反馈和编排四层如何配合？分析、编码和验证阶段需要哪些不同策略？",
+    "长任务恢复时，哪些状态可重放，哪些外部副作用需单独处理？如何接收用户纠偏并保持任务归属？"
+  ],
+  "sections": [
+    {
+      "ts": "09:22",
+      "title": "模型演示用于提出问题，不能替代评测",
+      "body": "课程播放游戏生成、网页动效复现和项目迁移视频，讨论长时间执行、测试与视觉辅助的价值。它们展示了值得考察的任务类型，但没有给出完整代码、运行记录和统一评测条件。长时间运行或反复测试本身不是质量保证，不能据这些片段认定某模型全面领先。",
+      "citation_ids": [
+        "original-18",
+        "original-19",
+        "original-20",
+        "original-21",
+        "original-22",
+        "original-23",
+        "original-24",
+        "original-25",
+        "original-32",
+        "original-34",
+        "original-42",
+        "original-43",
+        "original-44",
+        "original-45",
+        "original-46",
+        "original-47"
+      ]
+    },
+    {
+      "ts": "22:34",
+      "title": "对话、推理与任务执行是能力侧重点",
+      "body": "讲师以对话、推理、执行任务和系统协同概括训练关注点的变化。可把它作为理解数据和评价目标的教学框架，但不能当作所有机构逐年统一更换训练方式的历史。预训练、SFT、人类偏好优化和强化学习可以并存；DPO 是直接偏好优化方法，不应与 PPO 的训练流程混为一谈。",
+      "citation_ids": [
+        "original-48",
+        "original-49",
+        "original-50",
+        "original-51",
+        "original-52",
+        "original-53",
+        "original-54",
+        "original-57",
+        "original-58",
+        "original-72",
+        "original-81",
+        "original-82",
+        "original-113",
+        "original-114"
+      ]
+    },
+    {
+      "ts": "26:54",
+      "title": "推理训练不只依赖人工逐步评分",
+      "body": "推理数据可以包含中间步骤与最终答案，但训练信号并不都需要人逐一挑选推理过程。可验证任务能够用答案正确性或测试结果提供奖励，也可以结合监督数据和其他反馈。课程将推理阶段概括为在人类标注的问答中增加推理文字，这不足以覆盖不同模型的训练方案。",
+      "citation_ids": [
+        "original-55",
+        "original-56",
+        "original-57",
+        "original-65",
+        "original-66"
+      ]
+    },
+    {
+      "ts": "30:36",
+      "title": "从单次答案扩展到任务执行轨迹",
+      "body": "Agent 可以在规划、调用工具、观察结果与继续决策之间循环，直到满足完成或停止条件。轨迹记录任务输入、可见行动、工具参数、反馈及最终结果，而不是只存最后答案。课程主要讨论 ReAct 式执行，但并非所有 Agent 都使用相同循环，也不应把无法观测的内部思考当作已采集数据。",
+      "citation_ids": [
+        "original-59",
+        "original-60",
+        "original-61",
+        "original-62",
+        "original-63",
+        "original-216",
+        "original-218"
+      ]
+    },
+    {
+      "ts": "34:46",
+      "title": "奖励可以来自验证器与执行结果",
+      "body": "模型生成代码或工具请求后，可检查格式、工具是否存在、参数是否符合要求，以及代码和测试能否通过，再依据设计给出训练信号。不同检查对应不同目标：参数合法不等于行为正确，能运行不等于需求完成。这里说明可设计的奖励来源，并非断言所有模型都采用课上列举的分数层级。",
+      "citation_ids": [
+        "original-64",
+        "original-65",
+        "original-66",
+        "original-67",
+        "original-68",
+        "original-69"
+      ]
+    },
+    {
+      "ts": "37:00",
+      "title": "人的职责包括定义目标和验证规则",
+      "body": "自动反馈并不意味着人类偏好与判断消失。工程师需要定义任务、可接受结果、边界条件和测试规则，并检查这些规则是否测到了真正需求。课程强调人的工作可从逐条比较答案扩展到设计环境与反馈机制；这是一种职责扩展，不是所有标注工作已经被取代。",
+      "citation_ids": [
+        "original-69",
+        "original-70",
+        "original-88",
+        "original-89",
+        "original-95",
+        "original-96"
+      ]
+    },
+    {
+      "ts": "41:15",
+      "title": "在系统中评估模型与环境的配合",
+      "body": "编程任务依赖规划、记忆、工具、文件系统和执行环境。讲师用球队比喻说明，应观察模型在这一组合中的任务表现。即使模型权重不变，工具接口和提示策略也可能改变结果；即使环境相对稳定，模型变强也不保证每项系统指标单调提高，仍需在实际组合中验证。",
+      "citation_ids": [
+        "original-73",
+        "original-74",
+        "original-75",
+        "original-76",
+        "original-77",
+        "original-78",
+        "original-79",
+        "original-80",
+        "original-81"
+      ]
+    },
+    {
+      "ts": "48:38",
+      "title": "区分参数训练与 Agent 的经验积累",
+      "body": "课程把记忆和自我改进也称为“训练 Agent”。学习时应分清：用数据优化模型权重是一类工作，把经验写入文件、更新技能、调整检索或提示策略是应用层改进。两者可以结合，但不能由保存了记忆就推定模型被训练，也不能承诺使用时间越长就一定越聪明。",
+      "citation_ids": [
+        "original-83",
+        "original-84",
+        "original-85",
+        "original-86",
+        "original-87",
+        "original-93",
+        "original-94",
+        "original-126",
+        "original-127",
+        "original-285",
+        "original-286",
+        "original-287"
+      ]
+    },
+    {
+      "ts": "50:47",
+      "title": "合成数据与模型评判仍需质量检查",
+      "body": "模型可以生成候选答案、任务样例或反馈，也可以辅助评判结果。生成规模大并不保证信息可靠，需要检查正确性、覆盖范围与重复偏差，再验证用于训练或应用改进后的效果。课堂的科研轶事没有完整来源，不能用来证明合成数据普遍替代真实实验。",
+      "citation_ids": [
+        "original-90",
+        "original-91",
+        "original-92",
+        "original-93",
+        "original-104",
+        "original-105",
+        "original-106"
+      ]
+    },
+    {
+      "ts": "55:00",
+      "title": "可验证反馈与测试版本管理",
+      "body": "单元测试能提供明确的局部结果，但其价值依赖测试设计。课程用 30 个测试改为 80 个测试说明：规则变化后，旧分数与新分数未必直接可比。应记录测试与环境版本，判断哪些历史轨迹可复用、哪些需要重新执行或重评；不能一概说旧数据与新测试完全无关。",
+      "citation_ids": [
+        "original-95",
+        "original-96",
+        "original-97",
+        "original-98",
+        "original-99",
+        "original-100",
+        "original-101"
+      ]
+    },
+    {
+      "ts": "59:54",
+      "title": "环境反馈不止最终成功与失败",
+      "body": "执行过程还会产生日志、编译错误、调试信息、文件变化和其他环境状态。它们可帮助解释失败、分析副作用和定位并行任务间的影响。应保留与具体任务和执行步骤的关联，区分结果证据与无关噪声；环境发生变化本身不自动意味着应给予正奖励。",
+      "citation_ids": [
+        "original-102",
+        "original-103",
+        "original-104"
+      ]
+    },
+    {
+      "ts": "01:02:22",
+      "title": "让轨迹成为可用数据需要处理与验证",
+      "body": "人类反馈、合成数据、可验证结果和环境记录可以组合使用，并不是互斥的数据类别。原始记录还需清洗、筛选、必要标注及质量检查，之后才能用于评估、监督训练、强化学习或应用策略改进。不能把运行日志直接视为高质量训练集，也不能把保存轨迹当作已完成学习闭环。",
+      "citation_ids": [
+        "original-104",
+        "original-105",
+        "original-106",
+        "original-107",
+        "original-113",
+        "original-114",
+        "original-115",
+        "original-116"
+      ]
+    },
+    {
+      "ts": "01:04:08",
+      "title": "轨迹采集与数据使用政策分别确认",
+      "body": "完整轨迹比单轮问答涉及更多环境和执行信息，采集与复现的难度通常更高；但训练环境也可以主动生成轨迹，不必依赖终端用户记录。课堂关于所有编程产品都会使用用户数据训练的说法过于绝对，实际用途取决于产品、合同和数据设置，脱敏本身不能证明已经获得训练授权。",
+      "citation_ids": [
+        "original-107",
+        "original-108",
+        "original-109",
+        "original-110",
+        "original-111",
+        "original-112"
+      ]
+    },
+    {
+      "ts": "01:11:34",
+      "title": "数据分布与 MoE 专家路由不要混为一谈",
+      "body": "训练数据会影响模型学到的能力，MoE 架构还包含路由与多个专家模块。但不能只因编程数据增加，就推断有固定数量专家专门负责代码，或所有新模型的算法和结构都没有变化。具体专家分工需要模型结构说明与路由分析证据，课堂的球队比喻不能替代这些测量。",
+      "citation_ids": [
+        "original-118",
+        "original-119",
+        "original-120"
+      ]
+    },
+    {
+      "ts": "01:18:55",
+      "title": "执行层：让模型请求变成实际操作",
+      "body": "课程把文件读写、命令执行、浏览器操作、API 和 MCP 等行动能力归入执行层。模型可以提出操作，运行系统负责调用与返回结果。工具、脚本和 Skill 的角色不同：Skill 可以指导如何使用工具，但描述文件本身不是实际执行环境。",
+      "citation_ids": [
+        "original-129",
+        "original-130",
+        "original-131",
+        "original-132",
+        "original-133",
+        "original-157"
+      ]
+    },
+    {
+      "ts": "01:21:55",
+      "title": "记忆层：保护目标、约束和重要事实",
+      "body": "上下文增大时，需要决定保留、压缩和按需读取哪些信息。课程建议将目标、技术约束、进度和经验外置到规则或记忆文件，并用代码管理加载与压缩。文件存在不代表一定被模型读取或遵循，仍需检查加载路径和更新机制；有效上下文比例也不是所有模型统一的 25% 或 50%。",
+      "citation_ids": [
+        "original-123",
+        "original-134",
+        "original-135",
+        "original-136",
+        "original-137",
+        "original-138",
+        "original-139",
+        "original-140",
+        "original-141",
+        "original-142"
+      ]
+    },
+    {
+      "ts": "01:26:21",
+      "title": "反馈层：让每次修正更有针对性",
+      "body": "除了报错或最终成败，可向模型提供需求条件、设计约束、测试结果与边界问题，使下一步修改更具体。测试资料可以由人或 AI 辅助编写，但要独立核对是否符合需求。反馈更丰富可能减少无效重试，也可能增加成本和噪声；课堂从十轮降到六轮的数字是说明性例子。",
+      "citation_ids": [
+        "original-143",
+        "original-144",
+        "original-145",
+        "original-146",
+        "original-147",
+        "original-148"
+      ]
+    },
+    {
+      "ts": "01:30:32",
+      "title": "编排层：阶段、状态与策略协同",
+      "body": "长程任务可以分为分析、实现、验证等阶段，再由人或模型细分步骤。编排层管理当前阶段和依赖，选择相应工具、反馈方式与上下文策略。阶段完成情况应以证据判断；任务耗时长或已经执行若干步，不足以给出可靠的总体完成百分比。",
+      "citation_ids": [
+        "original-149",
+        "original-150",
+        "original-151",
+        "original-152",
+        "original-153",
+        "original-154",
+        "original-155",
+        "original-156"
+      ]
+    },
+    {
+      "ts": "01:36:45",
+      "title": "四层视角是一种 Harness 设计方法",
+      "body": "讲师把执行、记忆、反馈和编排组成模型外围的工程系统，用来解释 Harness Engineering。各层可以调用模型，也需要确定性代码协调。这个四层结构是课程明确声明的综合口径，不是唯一架构；提示、上下文和循环仍然是其中组成部分，不会因新术语出现而失效。",
+      "citation_ids": [
+        "original-129",
+        "original-157",
+        "original-158",
+        "original-159",
+        "original-160",
+        "original-161",
+        "original-162",
+        "original-163"
+      ]
+    },
+    {
+      "ts": "01:41:05",
+      "title": "代码反馈容易形成闭环，但验证有边界",
+      "body": "编译、静态检查和自动测试能较低成本地提供反馈，因此编程任务适合研究生成、执行与修正闭环。课堂把它概括为概率生成与确定验证的非对称性，但代码运行仍可能受随机性、并发、网络和环境状态影响，测试也可能偶发失败。可验证结果并非编程独有，测试通过更不保证整体需求全部正确。",
+      "citation_ids": [
+        "original-164",
+        "original-165",
+        "original-166",
+        "original-167",
+        "original-168",
+        "original-169",
+        "original-171",
+        "original-172",
+        "original-173"
+      ]
+    },
+    {
+      "ts": "01:45:20",
+      "title": "把人工判断接入需要确认的环节",
+      "body": "对难以自动验证或后果较大的动作，系统可以暂停并请求人工判断，再携带反馈继续执行。Human-in-the-loop 描述的是这种设计方式，并不意味着其他领域无法自动化，也不意味着编程任务永远不需要人。何时介入应由不确定性、任务风险和验收要求决定，而不是只看领域名称。",
+      "citation_ids": [
+        "original-168",
+        "original-169",
+        "original-170",
+        "original-171",
+        "original-174"
+      ]
+    },
+    {
+      "ts": "02:17:58",
+      "title": "执行环境要有权限和审计边界",
+      "body": "后段课程介绍中仍包含有用的工程问题：哪些命令在沙盒运行，哪些目录可读写，何时需要确认，以及网络和资源权限如何回收。系统需把这些限制落到执行层，并记录必要的操作证据。工具清单只是入口，不能替代完整环境的隔离、权限和资源管理。",
+      "citation_ids": [
+        "original-219",
+        "original-220",
+        "original-221",
+        "original-222",
+        "original-223",
+        "original-270"
+      ]
+    },
+    {
+      "ts": "02:21:54",
+      "title": "长任务交互需要并发协调，不必强制多线程",
+      "body": "任务执行期间，用户可能补充信息或纠正方向，系统需要将新消息关联到正确会话与任务，并在适当边界处理。执行和交互可以通过异步事件、队列、进程或线程协调，不能断言必须为每个 Agent 分配一个操作系统线程。还应处理超时、取消和重复消息，避免补充指令丢失或错误归属。",
+      "citation_ids": [
+        "original-225",
+        "original-226",
+        "original-227",
+        "original-228",
+        "original-229",
+        "original-230",
+        "original-231",
+        "original-264",
+        "original-283"
+      ]
+    },
+    {
+      "ts": "02:24:52",
+      "title": "检查点恢复要覆盖状态与外部副作用",
+      "body": "长任务应记录进度、产物索引和可恢复状态，让故障后能够继续工作。检查点只能恢复实际保存的内容，不能自动还原文件、数据库及已经发出的外部操作。设计恢复流程时需区分可重放步骤和副作用，并验证恢复后状态是否一致，不能把保存一个检查点直接等同于整个环境回滚。",
+      "citation_ids": [
+        "original-207",
+        "original-230",
+        "original-231",
+        "original-232",
+        "original-249",
+        "original-287"
+      ]
+    },
+    {
+      "ts": "02:25:45",
+      "title": "用观测、回归与预算验证系统改进",
+      "body": "复杂 Agent 需要记录任务状态、运行日志和关键结果，并用评测与回归检查改动是否有效。预算、超时和重试规则使执行成本可控；记忆或反馈策略更新也应比较改动前后的真实任务表现。能力提升需要证据，不能由系统更复杂、运行更久或积累文件更多直接推出。",
+      "citation_ids": [
+        "original-195",
+        "original-196",
+        "original-207",
+        "original-209",
+        "original-233",
+        "original-234",
+        "original-248",
+        "original-272",
+        "original-285",
+        "original-286",
+        "original-287"
+      ]
+    }
+  ],
+  "notes": [
+    "型号身份核验：[Anthropic 官方发布页](https://www.anthropic.com/news/claude-fable-5-mythos-5)明确存在 Claude Fable 5，记录 2026-06-09 发布、06-12 暂停访问及 07-01 恢复；[Z.ai 官方模型卡](https://huggingface.co/zai-org/GLM-5.2)明确存在 GLM-5.2。因此不把标题或版本号判为虚构，也不将 Fable 5 猜改为其他型号。标题中的“最强”仍是原课程标题，学习版不替它作普遍性能背书。",
+    "演示边界：original-19—47 的转载视频、排名、八小时成本、游戏一把完成和模型代调用细节没有完整原始实验材料。官方型号存在和官方能力描述不能核实这些具体实验；有关暂停与即将恢复的说法按录课时的讨论理解，不作为复核日可用性说明。",
+    "时间与方法校订：[o1-preview 官方发布](https://openai.com/index/introducing-openai-o1-preview/)为 2024-09-12，不能写成 2024 上半年；[DeepSeek-R1 论文](https://arxiv.org/abs/2501.12948)发表于 2025 年。[ReAct](https://arxiv.org/abs/2210.03629)已有 2022 年论文。课程四阶段是教学概括，不能据此断言某年以前不存在轨迹或自动验证。",
+    "外部校订：[DPO 原论文](https://arxiv.org/abs/2305.18290)直接优化偏好目标，不能当作 PPO 的同义词。[DeepSeek-R1 技术报告](https://arxiv.org/html/2501.12948v1)说明 R1-Zero 使用规则化准确性和格式奖励，反驳推理训练只能靠人工或神经奖励模型逐步评价的概括；这不等于所有模型采用相同方法。",
+    "机制例证：[SWE-Gym 原论文](https://arxiv.org/abs/2412.21139)包含真实代码库任务、可执行环境、测试和采样轨迹，可支持环境与轨迹用于训练的教学主线。它是独立研究例证，不能反推 Fable 5 的完整内部训练流程，也不能证明所有厂商的算法变化很小。",
+    "验证边界：[pytest 的偶发失败说明](https://docs.pytest.org/en/stable/explanation/flaky.html)展示了环境状态等因素如何影响测试；[Anthropic 奖励作弊研究](https://www.anthropic.com/research/emergent-misalignment-reward-hacking)说明高奖励可与真实任务完成脱节。因此自动反馈有价值，但不是天然无误的最终真相。",
+    "外部校订：[上下文工程说明](https://www.anthropic.com/research/effective-context-engineering-for-ai-agents)讨论压缩、外部笔记与子任务上下文。课中固定 25% 有效窗口和“写入 MD 就不会再犯错”的泛化无充分依据；[Agent Skills 规范](https://agentskills.io/specification)也区分指令资料与可选执行脚本。",
+    "外部校订：用户轨迹是否用于训练应查具体产品规则，例如[Anthropic 商业数据共享说明](https://support.claude.com/en/articles/11174108-about-the-development-partner-program)明确商业产品默认不训练，并有自愿共享方案。未沿用“一定都会拿去训练”，也未保留多账号采集等操作叙述。",
+    "架构边界：[LangGraph 持久化](https://docs.langchain.com/oss/python/langgraph/persistence)与[中断恢复](https://docs.langchain.com/oss/python/langgraph/interrupts)说明持久化后端及重放副作用的重要性；[Python asyncio](https://docs.python.org/3/library/asyncio.html)提供异步并发，反证交互与执行并存必须多线程。以上是外部实现例子，不是课堂已完成的实战。",
+    "[Switch Transformers 原论文](https://arxiv.org/abs/2101.03961)提供 MoE 稀疏路由背景；未据训练数据比例猜定某模型专家分工。未验证的型号变体、未知网站和项目名保留待核，不查私人配置。课程岗位薪资、年龄判断、报课优惠、工业质检一语式方案与科研轶事不作知识结论。"
+  ],
+  "review_audit": {
+    "original_segment_count": 292,
+    "read_ranges": [
+      "original-1—40",
+      "original-41—80",
+      "original-81—120",
+      "original-121—160",
+      "original-161—200",
+      "original-201—245",
+      "original-246—292",
+      "导读标题、关键词、摘要及 summary-1—20",
+      "summary-21—37"
+    ],
+    "coverage": "完整读取 00:04—03:04:33 全部 292 段及 37 节导读，无截断。保留训练数据与奖励、四层 Harness 及后段运行环境、并发、检查点教学；不以摘要代替原文。",
+    "stage1": {
+      "executed_by": "主审代理",
+      "applied": 0,
+      "deferred": 0,
+      "interpretation": "零命中不表示转写和事实无误，已进行 Native AI 全语境校订。"
+    },
+    "corrections": [
+      "Fable 5 与 GLM-5.2 经官方资料确认，未因模型知识过时判为不存在；不把全部音似版本或相关视频结论自动映射为官方事实。",
+      "规范 Harness Engineering、ReAct、trajectory、reward model、verifiable reward、长程任务、线程和 checkpoint 等明确技术语境；导读混写型号及最后一节2023年概括未沿用。",
+      "original-48—66 的阶段年份、人类奖励唯一来源及 DPO/PPO 混用予以限定，补充可验证推理训练的论文例证。",
+      "original-86—94 的“训练 Agent”拆分为参数训练与外部记忆改进，不声称运行中自动更新模型权重。",
+      "original-98—100 的测试变更改为版本管理与重新评估，不宣称历史数据必然全部失效。",
+      "original-109—111 的用户数据必被训练、厂商必须自建编程产品等推测未作为事实。",
+      "original-119 的专家数量与任务分工、original-134—135 的有效上下文固定比例未确定化。",
+      "original-165—174 的编程独有闭环、执行绝对确定与其他领域必须人工的全称说法校订。",
+      "original-227—232 的并发必多线程、checkpoint自动恢复整个环境予以限定；保留实际运行职责。"
+    ],
+    "unresolved": [
+      "未获得开头视频的完整实验记录，无法核实排名、测试轮数、成本与任务完成质量。",
+      "官方型号存在不揭示全部训练数据和内部优化过程；课程的系统协同解释不可直接归因于特定未公开流程。",
+      "部分模型、网站及工具变体缺原始画面或链接，不猜补；性能比例、市场结论与科研轶事未证实。"
+    ],
+    "pending_tokens": [
+      {
+        "citation_id": "original-36",
+        "original": "V, E, CTRFL dot com",
+        "suggested": "",
+        "reason": "视频中的网址转写不清，缺可确认画面或正式链接，未猜补。"
+      },
+      {
+        "citation_id": "original-122",
+        "original": "James 4",
+        "suggested": "",
+        "reason": "项目或型号身份不明，仅凭上下文无法唯一定位，未替换成熟悉名称。"
+      },
+      {
+        "citation_id": "original-131",
+        "original": "COI",
+        "suggested": "CLI",
+        "reason": "工具接口语境疑似 CLI，但缺画面或音频证据，正文改用命令执行概念，不改原词。"
+      },
+      {
+        "citation_id": "original-279",
+        "original": "千万3.7 plus",
+        "suggested": "",
+        "reason": "具体型号与版本仍需原始材料确认，未凭音似和后段比较猜定模型。"
+      }
+    ],
+    "external_sources": [
+      {
+        "url": "https://www.anthropic.com/news/claude-fable-5-mythos-5",
+        "purpose": "Fable 5 身份与发布/暂停/恢复记录，非课堂视频实验背书"
+      },
+      {
+        "url": "https://huggingface.co/zai-org/GLM-5.2",
+        "purpose": "官方 GLM-5.2 型号身份"
+      },
+      {
+        "url": "https://openai.com/index/introducing-openai-o1-preview/",
+        "purpose": "o1-preview 时间校订"
+      },
+      {
+        "url": "https://arxiv.org/abs/2210.03629",
+        "purpose": "ReAct 历史及交替行动机制"
+      },
+      {
+        "url": "https://arxiv.org/abs/2305.18290",
+        "purpose": "DPO 与 PPO 方法区分"
+      },
+      {
+        "url": "https://arxiv.org/html/2501.12948v1",
+        "purpose": "规则化奖励与推理训练反例"
+      },
+      {
+        "url": "https://arxiv.org/abs/2412.21139",
+        "purpose": "可执行环境、轨迹与 Agent 训练的一手例证"
+      },
+      {
+        "url": "https://docs.pytest.org/en/stable/explanation/flaky.html",
+        "purpose": "测试并非绝对确定"
+      },
+      {
+        "url": "https://www.anthropic.com/research/emergent-misalignment-reward-hacking",
+        "purpose": "奖励与真实目标可能偏离"
+      },
+      {
+        "url": "https://www.anthropic.com/research/effective-context-engineering-for-ai-agents",
+        "purpose": "上下文压缩与外部记忆"
+      },
+      {
+        "url": "https://agentskills.io/specification",
+        "purpose": "Skill 指令与执行脚本边界"
+      },
+      {
+        "url": "https://support.claude.com/en/articles/11174108-about-the-development-partner-program",
+        "purpose": "用户数据使用不可一概而论"
+      },
+      {
+        "url": "https://docs.langchain.com/oss/python/langgraph/persistence",
+        "purpose": "检查点持久化范围"
+      },
+      {
+        "url": "https://docs.langchain.com/oss/python/langgraph/interrupts",
+        "purpose": "恢复与重放副作用"
+      },
+      {
+        "url": "https://docs.python.org/3/library/asyncio.html",
+        "purpose": "并发不等于强制多线程"
+      },
+      {
+        "url": "https://arxiv.org/abs/2101.03961",
+        "purpose": "MoE 稀疏路由背景与分工边界"
+      }
+    ],
+    "removed_or_merged": [
+      {
+        "range": "original-1—17、104、112、117—118 等",
+        "reason": "设备、问候、访问渠道、PPT和课务闲聊去除，保留课程主题。"
+      },
+      {
+        "range": "original-19—47",
+        "reason": "长篇转载视频合并为演示边界，不重复其排名、成本或成功保证。"
+      },
+      {
+        "range": "original-91—92、108、119、134—135、165—174",
+        "reason": "无来源科研轶事和操作性采集叙述去除；技术机制保留并对绝对化说法作外部校订。"
+      },
+      {
+        "range": "original-175—214、235—247、250—263、265—282、288—292 大部分内容",
+        "reason": "去除职业焦虑、薪资年龄结论、讲师评价、报名优惠、名额、付款及工具分发话题；其中复杂任务、权限、模型与应用分工等技术信息另行合并保留。"
+      },
+      {
+        "range": "original-215—234、248—249、264、269—272、283—287",
+        "reason": "虽位于课程推广段，仍逐段读完；抽取环境、并发、持久化、预算与评估要点，去掉课程购买建议和未经验证的前沿领先承诺。"
+      }
+    ],
+    "first_pass_validation": "本代理核对 JSON、source 身份、首关键词、全部时间引用与 pending token 真实锚点；待主审独立冷复核。",
+    "status": "learning_review_complete_source_uncertainties_retained",
+    "independent_review": {
+      "date": "2026-10-21",
+      "scope": "完整冷读学习资产；疑点对照原始片段及一手资料，非第二遍音频校对",
+      "coverage_verified": true,
+      "confirmed_findings": [],
+      "disposition": "已逐项核实并修正；未改原文时间、编号及原始DOCX。",
+      "pending_source_tokens": 4,
+      "queue_domain": "ai-study-course"
+    }
+  }
+}

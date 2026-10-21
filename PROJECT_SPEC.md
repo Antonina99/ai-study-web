@@ -44,6 +44,7 @@ ai_study_web/
 ├── DEPLOY.md                  # [静态] 部署指南
 ├── requirements.txt           # 依赖清单（streamlit / openai）
 ├── assets/styles.css          # 工作台全局视觉样式
+├── assets/course_reviews/     # 依据原文复核的学习资产，含源指纹、章节引用和校订说明
 ├── docs/
 │   └── course_content_status.md # 真实课程文字入库与验收状态
 ├── app.py                     # [入口] 应用启动：Session 初始化 / 侧边栏 / Tab 调度
@@ -51,6 +52,8 @@ ai_study_web/
 ├── core/                      # 业务核心层（不含 UI，可独立测试）
 │   ├── __init__.py
 │   ├── llm.py                 # LLM API 层：同步/流式调用、超时重试、JSON 解析、System Prompt 常量、错误中文化
+│   ├── course_review.py       # 按源内容指纹验证并投影经复核学习资产，原文保持不变
+│   ├── terminology.py         # 有语境边界的术语规则及模型校订提示
 │   ├── data.py                # 数据与业务层：求职方向/课程大纲/离线题库、课程索引、知识库加载、课程资产组装、出题逻辑、题目工具
 │   └── kb.py                  # 知识库层：docx 解析、时间戳分段、口语去噪、课程名归一化、增量缓存、离线规则出题、LLM 上下文拼接
 ├── views/                     # UI 渲染层（只负责展示与交互，逻辑委托 core/）
@@ -96,6 +99,7 @@ ai_study_web/
 
 5. **数据源约定**：
    * 课程知识库唯一数据源为 `课程原文及导读/` 下的 docx 文件，命名必须遵循「课程名_原文.docx / 课程名_导读.docx」，放入目录刷新页面即可自动发现新课程（增量指纹检测）。
+   * `assets/course_reviews/` 是上述原文/导读的学习派生资产，不是新的课程原文来源。源内容 SHA-256 匹配且引用有效时优先展示，避免未经复核的模型整理覆盖它；源资料变化后自动回退，须重新复核后更新资产。外部事实校订、课程原话和待核内容应明确区分。
    * 解析缓存 `_knowledge_cache.json` 由 `core/kb.py` 自动维护，禁止手工编辑；部署时可不提交，首次访问自动重建。
 
 ---

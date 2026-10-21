@@ -48,6 +48,16 @@ class CourseCleaningTests(unittest.TestCase):
         self.assertEqual(len(guide["sections"]), 2)
         self.assertEqual(guide["sections"][-1]["body"], "知识二。")
 
+    def test_guide_stops_before_question_answer_recap(self):
+        """问答回顾不应附着到最后一章的学习正文。"""
+        guide = kb.parse_summary([
+            "测试_导读", "日期", "章节速览", "00:00 第一章", "课程知识。",
+            "问答回顾", "发言人 问：课程安排是什么？",
+            "发言人 答：后续还有直播。",
+        ])
+        self.assertEqual(len(guide["sections"]), 1)
+        self.assertEqual(guide["sections"][0]["body"], "课程知识。")
+
     def test_repeated_section_without_recap_marker_is_not_imported_twice(self):
         guide = kb.parse_summary([
             "测试_导读", "日期", "章节速览", "00:00 第一章", "完整知识。",
@@ -110,6 +120,45 @@ class CourseCleaningTests(unittest.TestCase):
         self.assertIn("retrieval augmented generation", course["original"]["segments"][32]["text"])
         self.assertTrue(all(kb.section_original_segments(course, section)
                             for section in course["summary"]["sections"]))
+
+    def test_all_bound_courses_use_source_matched_reviews_without_api(self):
+        """所有已入库课程的校订应实际生效，且不会触发模型重新覆盖。"""
+        bound = [item for item in data.COURSE_INDEX if item.get("kb_name")]
+        self.assertEqual(len(bound), 15)
+        for item in bound:
+            with self.subTest(course=item["id"]):
+                course = data.KB["courses"][item["kb_name"]]
+                review = course.get("reviewed_assets")
+                self.assertIsNotNone(review, "来源变化或资产失效时必须重新复核")
+                sections = review["sections"]
+                starts = [kb.timestamp_seconds(section["ts"]) for section in sections]
+                self.assertTrue(all(value is not None for value in starts))
+                self.assertEqual(starts, sorted(set(starts)))
+                evidence_ids = {entry["id"] for entry in kb.course_original_entries(course)}
+                for section in sections:
+                    self.assertTrue(set(section["citation_ids"]) <= evidence_ids)
+                    self.assertTrue(kb.section_original_segments(course, section))
+                with mock.patch.object(data.st, "session_state", {}), \
+                        mock.patch.object(data.llm, "call_llm") as api:
+                    pack = data.get_clean_course_data(item, "agent_fullstack", "fake", "test")
+                api.assert_not_called()
+                self.assertEqual(pack["summary_points"], review["summary_points"])
+                self.assertEqual(pack["review_notes"], review["notes"])
+                for section in sections:
+                    self.assertIn(section["body"], pack["clean_text"])
+
+    def test_qa_receives_review_notes_without_treating_them_as_raw_evidence(self):
+        """外部校订与未决项随问答传入，但不能冒充原文引用。"""
+        item = next(item for item in data.COURSE_INDEX if item["id"] == "1-2")
+        course = data.KB["courses"][item["kb_name"]]
+        with mock.patch.object(data.st, "session_state", {"chat_msgs": []}):
+            _, prompt, evidence = data.build_qa_request(item, "RAG")
+        self.assertIn("不是讲师原话", prompt)
+        self.assertIn("待核实体不可推断为确定事实", prompt)
+        for note in course["reviewed_assets"]["notes"]:
+            self.assertIn(note, prompt)
+        originals = {entry["id"]: entry["text"] for entry in kb.course_original_entries(course)}
+        self.assertTrue(all(entry["text"] == originals[entry["id"]] for entry in evidence))
 
 
 if __name__ == "__main__":

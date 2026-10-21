@@ -1,0 +1,584 @@
+{
+  "course_key": "11. Harness Engineering",
+  "source_sha256": "10a179cedeca105ba274ab579831c31d424d4324977d51104a3a9b7841ad82e4",
+  "review_date": "2026-10-21",
+  "method": "transcript-fixer Stage 1 初筛（主审执行）+ 全部原文及导读 Native AI 语境复核 + 一手资料事实校订；保留原始转写 + 独立学习版冷复核及逐项裁定",
+  "keywords": [
+    "harness",
+    "Harness Engineering",
+    "Agent Loop",
+    "ReAct",
+    "状态管理",
+    "工作空间",
+    "渐进式披露",
+    "评估",
+    "幂等",
+    "ACP",
+    "长任务"
+  ],
+  "summary_points": [
+    "本课把 Harness Engineering 作为模型外围运行与控制系统的工程工作来讨论，覆盖循环、工具、状态、权限、验证、恢复和服务化；这是一种课程工作定义，不是统一行业标准。",
+    "模型应用从单次响应发展到工具调用、智能体循环和跨会话任务后，需要显式保存目标、进度、执行证据及产物，不能仅靠更长上下文维持可靠交付。",
+    "长任务应有可检查的完成标准、增量推进、资源限制和干预入口。持续执行与自我修改记忆或技能是两个问题，后者还需要独立验证修改效果。",
+    "Anthropic 的案例通过初始化环境、功能清单、进度记录、版本历史和测试改善跨会话交接；它是特定工程实验，不代表所有编程智能体默认都提交代码或必然完成任务。",
+    "框架和运行系统应按任务时长、失败后果、需要控制的粒度选型；Skill、MCP 服务、沙盒或一个 while 循环都只解决部分职责。",
+    "评估、幂等、协议定位和语言支持等细节已按官方资料校订。课堂的薪资、模型规模门槛、成功率和框架优劣判断不作为普遍保证。"
+  ],
+  "interview_points": [
+    "从单次模型调用到跨会话任务，系统新增哪些状态、持久化与恢复职责？",
+    "ReAct 与更广义 Agent Loop 如何组合？任务完成、停止条件与预算限制分别由谁判断和执行？",
+    "如何用功能清单、进度记录、版本基线和测试，让下一会话准确接手工作？",
+    "工具、Skill、工作空间、沙盒和协议分别解决什么问题，为什么不能互相等同？",
+    "格式合法的 JSON 为什么仍可能是错误答案？如何设计端到端评估与过程诊断？",
+    "短而高风险的操作为什么也需要审批、验证与幂等？重试如何避免重复副作用？",
+    "何时直接接入成品 Agent，何时需要底层组件？如何用实际调用链定位延迟和失败？"
+  ],
+  "sections": [
+    {
+      "ts": "07:00",
+      "title": "先约定 Harness 的讨论范围",
+      "body": "课程借马具的比喻说明：模型提供能力，外围系统让能力在目标、环境和约束下运行。不同作者可能讨论运行时、使用规范或组织方式，交流时应先说明具体范围。本课重点是模型外围的运行与控制工程，不把热词本身当作新的技术能力。",
+      "citation_ids": [
+        "original-14",
+        "original-15",
+        "original-16",
+        "original-17",
+        "original-18",
+        "original-19",
+        "original-21",
+        "original-22"
+      ]
+    },
+    {
+      "ts": "14:13",
+      "title": "从单次问答到工具驱动的行动",
+      "body": "单次请求主要产生回答；工具调用让模型根据任务选择工具并生成参数，由应用执行，再把结果回传用于后续回答。课程将这一变化概括为从信息响应转向行动规划。这是教学上的演进图，不应当作严格历史年表，也不能认定某一个早期项目首创了全部模型规划能力。",
+      "citation_ids": [
+        "original-24",
+        "original-25",
+        "original-26",
+        "original-27",
+        "original-28",
+        "original-29",
+        "original-30",
+        "original-31",
+        "original-32"
+      ]
+    },
+    {
+      "ts": "22:02",
+      "title": "ReAct 循环与业务执行环",
+      "body": "ReAct 将推理与行动交替组织，并依据观察结果更新后续行动。课堂用规划、执行、观察来帮助理解；执行所用工具和参数应落实为具体操作。更广义的 Agent Loop 可以在这一模式外加入任务分解、门控、验证与嵌套流程，不是所有循环都必须采用同一种实现。",
+      "citation_ids": [
+        "original-33",
+        "original-34",
+        "original-35",
+        "original-36",
+        "original-37",
+        "original-38",
+        "original-39",
+        "original-40",
+        "original-41",
+        "original-42",
+        "original-208",
+        "original-209",
+        "original-210",
+        "original-211",
+        "original-212"
+      ]
+    },
+    {
+      "ts": "29:17",
+      "title": "CoT 与 ToT：推理组织不等于执行保障",
+      "body": "CoT 通过中间推理步骤组织解题；Zero-shot CoT 的经典提示是逐步思考。ToT 则探索和评估多个候选思路，可进行搜索与回溯，并不要求使用多个不同模型。自回归生成会受前文影响，但不能把这一性质直接等同于 CoT，也不能由模型写出了步骤就推定结论正确或外部任务已经完成。",
+      "citation_ids": [
+        "original-43",
+        "original-44",
+        "original-45",
+        "original-47",
+        "original-48",
+        "original-49",
+        "original-50"
+      ]
+    },
+    {
+      "ts": "34:29",
+      "title": "多轮任务需要显式状态管理",
+      "body": "连续决策会积累工具请求、执行结果、观察和中间结论。运行系统需确定哪些信息传入下一步、哪些保存为记录，以及失败后如何恢复。短任务也可能需要持久化和容错；任务长短影响设计成本，不能成为忽略副作用与失败处理的唯一理由。",
+      "citation_ids": [
+        "original-51",
+        "original-52",
+        "original-53",
+        "original-54",
+        "original-55",
+        "original-58"
+      ]
+    },
+    {
+      "ts": "39:42",
+      "title": "模型能力与运行控制共同提高可靠性",
+      "body": "更大上下文和更强推理能力不能替代执行记录、权限与资源控制。系统可以设置轮数、时间、调用费用等上限，处理模型迟迟不结束或过早结束的情况。产品表现来自模型与运行系统的组合；不能只凭产品变好断言改进全部来自模型或全部来自工程。",
+      "citation_ids": [
+        "original-56",
+        "original-57",
+        "original-59",
+        "original-60",
+        "original-61",
+        "original-62",
+        "original-63",
+        "original-64"
+      ]
+    },
+    {
+      "ts": "46:21",
+      "title": "任务目标、工作空间与产物",
+      "body": "任务级系统不仅管理当前一轮回复，还要管理总体目标及其产物。工作空间保存文件、过程数据和中间结果，后续步骤读取并继续修改；验证应检查实际产物是否满足目标。会话消息、运行状态和文件产物相关，但不是同一种存储对象。",
+      "citation_ids": [
+        "original-65",
+        "original-66",
+        "original-67",
+        "original-68",
+        "original-69"
+      ]
+    },
+    {
+      "ts": "50:57",
+      "title": "长任务与自我演进分开设计",
+      "body": "长任务关注跨步骤、跨会话持续推进；自我演进关注从历史交互中提炼或修改记忆、技能和规则。后者的变化不等于模型参数训练。课堂提醒自动修改可能偏离目标，适合保留评审与验证；这里是工程经验，不能把所有偏离统称为训练意义上的过拟合，也不能宣称人工介入是每个长任务的必要步骤。",
+      "citation_ids": [
+        "original-70",
+        "original-71",
+        "original-72",
+        "original-73",
+        "original-74",
+        "original-75",
+        "original-76"
+      ]
+    },
+    {
+      "ts": "56:23",
+      "title": "在执行边界接收纠偏信息",
+      "body": "当早期决策影响后续流程时，系统应允许补充约束、调整计划或停止任务。课堂演示在循环合适的位置接收用户新指令，例如工具执行前后或下一次规划之前。如何中断请求、取消工具或消费新消息取决于运行时实现，不能把一次界面行为推广为所有模型请求都无法中断。DAG 也不天然禁止重新规划，关键是系统是否支持更新依赖与状态。",
+      "citation_ids": [
+        "original-75",
+        "original-77",
+        "original-78",
+        "original-79",
+        "original-80",
+        "original-86",
+        "original-89",
+        "original-90",
+        "original-91"
+      ]
+    },
+    {
+      "ts": "01:03:25",
+      "title": "长任务案例：初始化与增量交接",
+      "body": "课程引用 Anthropic 的跨会话开发实验：只给高层需求时，智能体可能一次做太多、遗留半成品，或看到局部功能后过早宣布完成。案例以初始化步骤建立功能清单、进度文件、启动脚本和版本历史，后续会话逐项推进并留下交接信息。这是改进运行环境的案例，不是重新训练模型，也不是通用成功保证。",
+      "citation_ids": [
+        "original-92",
+        "original-93",
+        "original-94",
+        "original-95",
+        "original-97",
+        "original-98",
+        "original-100",
+        "original-101",
+        "original-102"
+      ]
+    },
+    {
+      "ts": "01:11:57",
+      "title": "用测试和版本基线确认完成",
+      "body": "案例要求功能先标记为未完成，测试通过后再更新状态；会话交接时保存进度与代码变化。版本基线用于明确开始工作的已知状态，帮助比较和恢复。Git 提交保存的是纳入版本控制的内容，不能自动恢复所有数据库或外部副作用；课堂案例的提交规则也不表示所有编程智能体每次任务后都必然自动提交。",
+      "citation_ids": [
+        "original-103",
+        "original-104",
+        "original-105",
+        "original-106",
+        "original-107",
+        "original-108"
+      ]
+    },
+    {
+      "ts": "01:26:59",
+      "title": "运行系统、使用规范与组织方式",
+      "body": "课程区分三个层次：模型之上的运行控制系统；使用者提供的文档、Skills、测试和评审规范；围绕 Agent 重新分配工作的组织方式。Harness Engineering 在本课主要指设计、评估、部署和改进运行系统。文档只有被发现、加载并与执行和验证联动才发挥作用；工作空间、工具协议或单份规范都只是其中部分组件。",
+      "citation_ids": [
+        "original-112",
+        "original-113",
+        "original-114",
+        "original-115",
+        "original-116",
+        "original-118",
+        "original-119",
+        "original-126",
+        "original-127",
+        "original-128",
+        "original-129",
+        "original-130",
+        "original-131",
+        "original-132"
+      ]
+    },
+    {
+      "ts": "01:32:55",
+      "title": "ACP 的连接定位与协议边界",
+      "body": "课堂后文明确这里 ACP 指 Agent Client Protocol。其官方定位是规范编辑器等客户端与编程智能体之间的通信；应用可以据此构造代理连接和任务路由，但 ACP 本身不等同于通用多智能体协作协议。MCP、ACP、Skill 与编排各有职责，选型应核对实际客户端、适配器和后端支持。",
+      "citation_ids": [
+        "original-133",
+        "original-192",
+        "original-266",
+        "original-267",
+        "original-301",
+        "original-305",
+        "original-308"
+      ]
+    },
+    {
+      "ts": "01:33:49",
+      "title": "四个问题检查系统职责是否完整",
+      "body": "课程给出四个检查问题：是否有模型外的运行闭环，能否通过接口感知或改变环境，是否管理任务相关的上下文与状态，是否具备不依赖模型自觉的控制与验证。这是帮助查漏的课程方法，不是认证标准。提示模板、工具集合、沙盒和 while 循环分别覆盖部分职责，不能仅凭拥有其中一个就认定系统完整。",
+      "citation_ids": [
+        "original-134",
+        "original-135",
+        "original-136",
+        "original-137",
+        "original-138"
+      ]
+    },
+    {
+      "ts": "01:39:01",
+      "title": "按任务生命周期分配模块责任",
+      "body": "任务接入先明确目标、范围和完成证据；恢复时确认基线、进度和工作空间；再进行规划路由、行动、观察、验证与持久化。一个系统可以将部分阶段委托给已有 Agent，其他阶段由业务模块承担。先知道各阶段的责任，再按需求裁剪，不必由一个人或一个框架包办全流程。",
+      "citation_ids": [
+        "original-140",
+        "original-141",
+        "original-142",
+        "original-143",
+        "original-144",
+        "original-145",
+        "original-146"
+      ]
+    },
+    {
+      "ts": "01:44:47",
+      "title": "输出控制、状态与编排共同落地",
+      "body": "提示词要求输出 JSON 只是起点，系统还需解析、校验、处理错误并限制重试。输出格式合法不代表字段含义正确；约定 Markdown 模板也不等同于有 schema 约束的结构化接口。编排负责步骤和分支，状态记录运行情况；状态机还需要明确状态转换，不能把前端的单个 state 变量直接等同于状态机。",
+      "citation_ids": [
+        "original-148",
+        "original-149",
+        "original-150",
+        "original-151",
+        "original-152",
+        "original-153",
+        "original-157",
+        "original-201",
+        "original-260",
+        "original-277"
+      ]
+    },
+    {
+      "ts": "01:52:41",
+      "title": "Skills 的渐进加载与运行支持",
+      "body": "Skill 以名称和描述帮助发现任务相关能力，选中后读取 SKILL.md，并按需要访问脚本和参考资料。渐进式披露用于控制加载量，不意味着模型天生无法一次阅读文件。编写 Skill 与让自建系统支持 Skill 是不同工作：后者还要提供发现、加载、工具执行及权限管理。无需假定所有实现都使用同一种特殊循环。",
+      "citation_ids": [
+        "original-159",
+        "original-160",
+        "original-161",
+        "original-164",
+        "original-165",
+        "original-166",
+        "original-167",
+        "original-168",
+        "original-169",
+        "original-170",
+        "original-171"
+      ]
+    },
+    {
+      "ts": "02:00:47",
+      "title": "把评估接入持续集成",
+      "body": "模型应用仍可使用持续集成，并把单元测试、集成测试和模型行为评估加入检查。课程以智能问数说明两种视角：端到端检查问题与回答是否符合要求，过程检查定位查询和处理中哪里出错。可以组合确定性检查、模型评判与人工核验；模型评判也需校准。Evals 指评估，不是 Evolve 自我演进；课堂百分比不是跨任务统一验收线。",
+      "citation_ids": [
+        "original-173",
+        "original-174",
+        "original-175",
+        "original-176",
+        "original-177"
+      ]
+    },
+    {
+      "ts": "02:14:39",
+      "title": "按任务时长与失败后果选择控制强度",
+      "body": "短且影响小的任务可能只需基本格式、超时和日志；高风险操作即使很短，也可能需要审批、结果验证与幂等。幂等指同一操作重复请求不会增加额外副作用，并非仅仅校对结果。长任务还要考虑检查点、进度与预算。研究报告是否低风险取决于用途，不能由任务名称直接决定。",
+      "citation_ids": [
+        "original-193",
+        "original-194",
+        "original-195",
+        "original-196",
+        "original-197"
+      ]
+    },
+    {
+      "ts": "02:36:59",
+      "title": "沿用软件工程，同时处理模型不确定性",
+      "body": "状态机、流程编排、测试、接口和服务化来自已有软件工程实践。引入模型后，输出可能直接影响后续行动，应用团队需关注输入、结果校验和反馈，而不能完全把模型当成可靠黑盒。工程控制可以降低风险，不能保证百分之百确定。一次性脚本与长期业务系统的维护需求不同，后者仍涉及数据、模块边界和经营流程。",
+      "citation_ids": [
+        "original-226",
+        "original-227",
+        "original-228",
+        "original-229",
+        "original-230",
+        "original-231",
+        "original-232",
+        "original-233",
+        "original-234",
+        "original-235",
+        "original-236",
+        "original-237",
+        "original-238",
+        "original-244",
+        "original-245",
+        "original-246",
+        "original-247",
+        "original-253",
+        "original-256",
+        "original-257"
+      ]
+    },
+    {
+      "ts": "03:05:39",
+      "title": "按控制粒度选择成品或底层组件",
+      "body": "需求只是使用成熟 Agent 的整体能力时，可以考虑现有服务和适配层；需要自定义输出控制、路由或执行步骤时，才进一步选择可组合组件或自建模块。例子中执行脚本需要受控执行环境，跨步骤保存和读取产物还需要工作空间。框架选择应结合扩展和语言环境，不宜把课堂对某框架的个人评价当作兼容性结论。",
+      "citation_ids": [
+        "original-272",
+        "original-273",
+        "original-274",
+        "original-275",
+        "original-276",
+        "original-277",
+        "original-278",
+        "original-279",
+        "original-280",
+        "original-281",
+        "original-282",
+        "original-300",
+        "original-301",
+        "original-302",
+        "original-303",
+        "original-304",
+        "original-305",
+        "original-323",
+        "original-324",
+        "original-326",
+        "original-327"
+      ]
+    },
+    {
+      "ts": "03:18:47",
+      "title": "数据平台结合：问数与数据加工",
+      "body": "课堂提出两类结合方式：在问答端把用户问题转为数据请求，再根据返回数据总结；在数据生产过程中辅助抽取与加工已有数据。数据仓库查询与非结构化知识检索可以组合，但并非同一能力。这里是架构思路，不代表模型可绕过数据口径、权限或结果核验，也不把课堂搜索不确定的项目名写成推荐。",
+      "citation_ids": [
+        "original-290",
+        "original-291",
+        "original-292",
+        "original-293",
+        "original-295",
+        "original-296",
+        "original-297",
+        "original-298",
+        "original-299"
+      ]
+    },
+    {
+      "ts": "03:27:46",
+      "title": "服务化保留接口与执行边界",
+      "body": "将 Agent 纳入产品时，可以把执行能力封装为后端服务，前端负责交互，接口传递请求、状态与流式结果。企业消息入口可以连接自建服务，也可以路由到已有 Agent。部署形态应由执行位置、资源与权限决定，不能认为所有 Agent 必须采用同一前后端结构。",
+      "citation_ids": [
+        "original-263",
+        "original-266",
+        "original-267",
+        "original-269",
+        "original-306"
+      ]
+    },
+    {
+      "ts": "03:30:18",
+      "title": "通过测量定位瓶颈与模型需求",
+      "body": "延迟可能来自模型推理、网络、服务排队、Embedding、检索、工具或多轮串行调用。使用云端 API 不会自动消除模型侧瓶颈，应测量各阶段耗时和并发限制。模型参数量也不是任务成功的充分条件；课程给出的规模建议只是经验。推理服务帮助运行模型，多模态支持还需同时核对模型和服务接口。",
+      "citation_ids": [
+        "original-309",
+        "original-312",
+        "original-313",
+        "original-314"
+      ]
+    }
+  ],
+  "notes": [
+    "依据 328 段原文及 37 节导读全量重建。Harness Engineering 统一保留英文及“运行与控制工程”的课程语义，纠正导读“硬工程学”“Honey工程”等误译；原文不改。课程的三层范围、四问法和 L0—L5 是讲师组织内容的方法，不是行业认证或岗位等级标准。",
+    "外部校订：[ReAct 原论文](https://arxiv.org/abs/2210.03629)于 2022 年提出推理与行动交替，因此不能把后续某个项目表述为模型规划的唯一或最早起源。[CoT 论文](https://arxiv.org/abs/2201.11903)、[Zero-shot CoT 论文](https://arxiv.org/abs/2205.11916)和[ToT 论文](https://arxiv.org/abs/2305.10601)是不同工作；课堂“OpenAI 研究员最早发现”的归属未沿用。",
+    "案例核验：[Anthropic 长任务文章](https://www.anthropic.com/research/effective-harnesses-for-long-running-agents)发布于 2025-11-26，包含初始化、增量推进与交接安排。测试、进度更新及提交属于该实验设计，不可推出所有 Codex 或 Claude Code 产品都强制自动提交；模型型号及产品当前能力不由课堂演示外推。",
+    "外部校订：[Agent Skills 规范](https://agentskills.io/specification)支持分层加载元信息、指令与附加资料；规范不要求本课 L3 等级或某种专属循环。[ACP 官方仓库](https://github.com/agentclientprotocol/agent-client-protocol)定位编辑器与编程智能体通信，不应与 Agent Communication Protocol 或 A2A 混称。",
+    "外部校订：“密等”按上下文规范为幂等，但课堂解释不准确；[AWS 幂等与重试说明](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/)强调重复请求不产生额外副作用。[Anthropic Agent 评估说明](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)区分确定性、模型与人工评判；格式通过、答案正确与任务成功应分别评估。",
+    "兼容性校订：[LangChain JavaScript 文档](https://docs.langchain.com/oss/javascript/langchain/overview)及[通义集成接口](https://reference.langchain.com/javascript/langchain-community/chat_models/alibaba_tongyi/ChatAlibabaTongyi)表明其并非只有 Python 或完全不适配中国模型。[Python asyncio](https://docs.python.org/3/library/asyncio.html)支持异步并发；未采用 Python 必然远弱于其他语言的笼统排名。",
+    "外部校订：[Dify Loop 节点](https://docs.dify.ai/en/cloud/use-dify/nodes/loop)具有终止条件、最大循环次数和退出节点，因此未沿用原文关于 Dify 不能表达循环的概括。具体版本与插件能力仍需按部署环境检查。",
+    "模型强弱与停止倾向、DAG 导致锁死、三次重试达到百分之百、32B/70B 固定适用门槛及云端 API 无推理瓶颈均未作为确定规律保留。无完整测试集、版本和配置时，只能记为经验或待验证判断。",
+    "个人姓名、公司和含混项目型号未凭音猜补；不访问私人配置。有关招聘薪资、课程时数、免费产品额度、厂商战略和软件工程职业消失的讨论已去除或降为有边界的架构思考，不形成事实承诺。"
+  ],
+  "review_audit": {
+    "original_segment_count": 328,
+    "read_ranges": [
+      "original-1—45",
+      "original-46—85",
+      "original-86—125",
+      "original-126—165",
+      "original-166—205",
+      "original-206—245",
+      "original-246—285",
+      "original-286—328",
+      "导读标题、关键词、摘要及 summary-1—20",
+      "summary-21—37"
+    ],
+    "coverage": "00:00—03:40:38 全部 328 段和全部 37 节导读分批完整读取，无截断；24 个主题覆盖主体与后段技术答疑。",
+    "stage1": {
+      "executed_by": "主审代理",
+      "applied": 0,
+      "deferred": 0,
+      "interpretation": "零命中不是没有错误的证明；已独立执行完整语境复核。"
+    },
+    "corrections": [
+      "Harness/Honey/honest/hardness 等围绕课程主题的变体按上下文规范，取消“硬工程学”误译；保留原文。",
+      "Function Calling、ReAct、CoT、ToT、JSON、Git、会话、渐进式披露等按全课语境规范，不把 ReAct 混为前端 React。",
+      "original-29—30 的最早起源断言未采用；original-48 的逐步思考论文归属按两篇 CoT 原论文区分。",
+      "original-73—76 的决策偏离不直接称训练过拟合；DAG 不等于不能更新计划。",
+      "original-90 的不能中断与 original-104 的必然提交限定为实现或案例行为，避免全称结论。",
+      "original-133、308 明确 ACP 全称，再用官方定义限定客户端与智能体连接的职责。",
+      "original-160—170 的渐进披露改为按需加载设计，非模型一次无法理解；自建系统需支持运行能力。",
+      "original-173—176 的 Evoke/Evolve 规范为评估 Evals；CI 仍是持续集成，模型行为测试是新增内容。",
+      "original-196 的密等规范为幂等，同时纠正为重复调用的副作用语义。",
+      "original-274—279 的模型兼容、语言支持与异步性能概括按一手文档限定；original-313 的循环能力用 Dify 官方 Loop 节点校订。",
+      "original-309、312 的固定瓶颈和规模建议改为按任务及链路测量。"
+    ],
+    "unresolved": [
+      "演示代码、依赖版本和完整测试记录未提供，不声称已复现成功率或产品行为。",
+      "若干项目、型号和人物身份仅有音似转写，未猜补或检索私密配置。",
+      "未具名文章、企业内部制度及市场职位判断无法据本课独立核实，未当作通用结论。"
+    ],
+    "pending_tokens": [
+      {
+        "citation_id": "original-39",
+        "original": "emos",
+        "suggested": "",
+        "reason": "项目名多次出现音似变体，缺可靠屏幕或正式链接，不凭相似读音确认实体。"
+      },
+      {
+        "citation_id": "original-260",
+        "original": "千万2.5TB",
+        "suggested": "",
+        "reason": "模型系列与参数规模混杂，无法确认确切型号；不凭结构化输出成功率倒推。"
+      },
+      {
+        "citation_id": "original-286",
+        "original": "open cloud",
+        "suggested": "",
+        "reason": "项目名与内核关系需要明确实体证据，课堂仅提供音似文本，未直接猜改。"
+      },
+      {
+        "citation_id": "original-295",
+        "original": "chat to BI",
+        "suggested": "",
+        "reason": "讲师在后续检索中反复改变名称，无法确认意指项目，不将猜测写成推荐。"
+      },
+      {
+        "citation_id": "original-313",
+        "original": "NDC ll",
+        "suggested": "",
+        "reason": "推理工具名不清，缺链接或画面，不根据邻近工具猜补。"
+      }
+    ],
+    "external_sources": [
+      {
+        "url": "https://arxiv.org/abs/2210.03629",
+        "purpose": "ReAct 定义与发表时间"
+      },
+      {
+        "url": "https://arxiv.org/abs/2201.11903",
+        "purpose": "CoT 与作者归属"
+      },
+      {
+        "url": "https://arxiv.org/abs/2205.11916",
+        "purpose": "Zero-shot CoT 与逐步思考提示"
+      },
+      {
+        "url": "https://arxiv.org/abs/2305.10601",
+        "purpose": "ToT 不是必须调用多个不同模型"
+      },
+      {
+        "url": "https://www.anthropic.com/research/effective-harnesses-for-long-running-agents",
+        "purpose": "长任务实验、初始化与跨会话交接"
+      },
+      {
+        "url": "https://agentskills.io/specification",
+        "purpose": "Skill 内容与渐进加载"
+      },
+      {
+        "url": "https://github.com/agentclientprotocol/agent-client-protocol",
+        "purpose": "ACP 定位"
+      },
+      {
+        "url": "https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/",
+        "purpose": "幂等及重试副作用"
+      },
+      {
+        "url": "https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents",
+        "purpose": "评估器与验证"
+      },
+      {
+        "url": "https://docs.langchain.com/oss/javascript/langchain/overview",
+        "purpose": "JavaScript 支持和 Harness 表述"
+      },
+      {
+        "url": "https://reference.langchain.com/javascript/langchain-community/chat_models/alibaba_tongyi/ChatAlibabaTongyi",
+        "purpose": "通义模型集成反证绝对不兼容"
+      },
+      {
+        "url": "https://docs.python.org/3/library/asyncio.html",
+        "purpose": "异步并发能力"
+      },
+      {
+        "url": "https://docs.dify.ai/en/cloud/use-dify/nodes/loop",
+        "purpose": "循环节点与终止条件"
+      }
+    ],
+    "removed_or_merged": [
+      {
+        "range": "original-1—13、81—88、96、99、110—111 等",
+        "reason": "问候、自我介绍、设备与演示等待不构成知识；保留干预机制本身。"
+      },
+      {
+        "range": "original-20、29—30、117—125、215—216、222、240 等",
+        "reason": "未核实历史首创、人物和企业轶事不固化；不同 Harness 视角合并为课程工作定义。"
+      },
+      {
+        "range": "original-155—156、171、177—189、200、203—207、258—270、285—289、300、307—311、315—320 等",
+        "reason": "删除招生、薪资、课时、资源渠道和订阅额度；其中输出控制、服务连接与选型技术内容另行保留。"
+      },
+      {
+        "range": "original-208—219、225—257、274—284、301—305、322—328",
+        "reason": "重复循环、软件工程与框架讨论按主题合并；保留末段数据、部署和性能问答，去除闲聊与职业预言。"
+      }
+    ],
+    "first_pass_validation": "本代理检查 JSON、来源身份、首关键词与时间引用；独立冷复核由主审安排。",
+    "status": "learning_review_complete_source_uncertainties_retained",
+    "independent_review": {
+      "date": "2026-10-21",
+      "scope": "完整冷读学习资产；疑点对照原始片段及一手资料，非第二遍音频校对",
+      "coverage_verified": true,
+      "confirmed_findings": [],
+      "disposition": "已逐项核实并修正；未改原文时间、编号及原始DOCX。",
+      "pending_source_tokens": 5,
+      "queue_domain": "ai-study-course"
+    }
+  }
+}

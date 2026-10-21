@@ -1,0 +1,594 @@
+{
+  "course_key": "3. Agent：从可控性到自主反思",
+  "source_sha256": "07e96b975e85e1859f43475629b5a722a5db1ce575268673ac0eeb0873e8372e",
+  "review_date": "2026-10-21",
+  "method": "transcript-fixer Stage 1 词典初筛 + 321 段原文及全部导读全语境复核 + 官方一手来源外部校订 + 学习版整理 + 独立学习版冷复核及逐项裁定",
+  "keywords": [
+    "工作流",
+    "Agent",
+    "ReAct",
+    "Function Calling",
+    "工具调用",
+    "执行反馈",
+    "自主反思",
+    "上下文工程",
+    "企业搜索",
+    "记忆",
+    "Skill",
+    "MCP"
+  ],
+  "summary_points": [
+    "本课围绕可控性与自主性展开：已知步骤适合工作流，开放任务可用 ReAct 循环；两者能够嵌套组合。",
+    "附近站点案例将语义理解、地址参数、地理编码和代码计算串联起来，说明知识检索不能代替所有业务计算。",
+    "供应商案例用文件清单、制度问答、表格结构与代码执行逐步积累证据；讲师贴错表格的操作失误须与模型错误区分。",
+    "模型选择动作，应用负责校验与执行，并将真实结果作为下一轮观察；工具边界、停止条件和可观测过程是可靠性的基础。",
+    "反思依赖可用反馈但不局限于工具；记忆和上下文管理服务于持续任务，不能自动保证正确或节省成本。",
+    "企业搜索案例强调跨系统证据与权限；演示系统和预算数据是模拟素材。知识图谱、MCP、Skill 与提示工程的绝对淘汰论均作外部校订。"
+  ],
+  "interview_points": [
+    "工作流与自主 Agent 如何选择与组合？怎样设置任务边界和验收条件？",
+    "为什么附近站点问题不能只靠语义 RAG？地址歧义、距离计算和结果证据分别由谁负责？",
+    "请解释 ReAct 一轮中模型决策、运行时执行、观察回传和终止的责任边界。",
+    "如何用 PDF 规则和 Excel 交易记录分析供应商业绩？如何证明字段、筛选条件和计算口径正确？",
+    "模型请求了不存在的工具或重复动作时，怎样区分观察错误、工具设计错误与规划错误？",
+    "自我反思、外部反馈、会话上下文和持久化记忆有什么区别？怎样验证纠错是否有效？",
+    "长任务如何压缩历史而不丢关键证据？为什么工具数量、调用成本与任务成功率要一起评估？",
+    "企业搜索怎样跨系统取证并遵守权限？MCP、CLI、Skill 与 Agent 通信协议各解决什么问题？"
+  ],
+  "sections": [
+    {
+      "ts": "11:00",
+      "title": "可控流程与自主决策的边界",
+      "body": "课程用两类实现说明 Agent：已知任务可预设步骤，由模型理解输入、选择分支并生成答案；步骤难以事先穷尽时，再让模型根据反馈动态决定下一步。外部校订：工作流和 Agent 是可组合的设计方式，不应由“是否使用拖拽界面”判断先进程度；明确流程、RAG 或工具也不能保证零幻觉。",
+      "citation_ids": [
+        "original-18",
+        "original-20",
+        "original-21",
+        "original-22",
+        "original-54",
+        "original-60",
+        "original-70",
+        "original-151",
+        "original-240",
+        "original-241",
+        "original-242",
+        "original-266"
+      ]
+    },
+    {
+      "ts": "14:35",
+      "title": "从附近站点问题识别 RAG 的能力边界",
+      "body": "招聘知识库可以回答岗位规则，却未必能直接回答某地点附近有哪些站点。仅承诺“我去查”并没有执行查询；为所有地点提前编写答案也难以维护。课程把地点查询路由到计算工作流，再与知识库回答合并。这里的限制针对地理计算任务，不意味着所有表格都不适合检索。",
+      "citation_ids": [
+        "original-25",
+        "original-26",
+        "original-27",
+        "original-28",
+        "original-30",
+        "original-32",
+        "original-33",
+        "original-36"
+      ]
+    },
+    {
+      "ts": "22:53",
+      "title": "把自然语言转成可校验的工作流参数",
+      "body": "模型从问题中提取城市、地点等参数，地图工具把地址转换成经纬度，再交给后续计算。课堂中模型根据“五道口”补出北京，这是演示中的推断；实际应用应检查城市缺失、同名地点及地理编码结果，必要时向用户澄清。站点表是课堂旧数据，不作为当前站点名录。",
+      "citation_ids": [
+        "original-31",
+        "original-40",
+        "original-41",
+        "original-42",
+        "original-43"
+      ]
+    },
+    {
+      "ts": "26:54",
+      "title": "表格计算交给代码，模型负责生成计算方案",
+      "body": "附近站点案例先提供用户坐标和表格字段示例，让模型生成遍历、距离计算、筛选和排序的代码，再由执行工具读取完整文件运行。这样避免让模型直接心算大量距离。返回结果应说明筛选条件并与知识库信息合并；课堂显示的距离和条数不是经独立核实的地理事实。",
+      "citation_ids": [
+        "original-46",
+        "original-47",
+        "original-48",
+        "original-49",
+        "original-50",
+        "original-51",
+        "original-52",
+        "original-53"
+      ]
+    },
+    {
+      "ts": "33:37",
+      "title": "Function Calling 是选择工具与参数，执行发生在应用侧",
+      "body": "把可复用的流程包装成工具，模型选择工具名称和参数，运行时完成实际调用并返回结果。外部校订：现代工具 API 可通过结构化 tools 与参数 schema 提供能力定义，并非必须把所有工具手写进系统提示词；课堂的文本 JSON 模拟是一种教学实现。工具调用输出也不等于工具已成功执行。",
+      "citation_ids": [
+        "original-55",
+        "original-56",
+        "original-57",
+        "original-58",
+        "original-62",
+        "original-65"
+      ]
+    },
+    {
+      "ts": "39:40",
+      "title": "Agent 系统还需要状态、接口与执行组件",
+      "body": "课堂架构包括模型、提示词模板、记忆或检索、触发入口、工具适配器以及外部服务。工具既可以调用企业 API，也可以调用另一个模型。应用负责组织上下文、执行动作并处理返回值；不能把完整工程简化成“只拼接提示词”，接口权限、错误处理和状态同样影响结果。",
+      "citation_ids": [
+        "original-63",
+        "original-64",
+        "original-65",
+        "original-66",
+        "original-88"
+      ]
+    },
+    {
+      "ts": "45:37",
+      "title": "ReAct：决策、行动、观察形成循环",
+      "body": "开放任务难以穷举所有步骤。ReAct 让模型依据任务及已有观察选择动作，应用执行动作，再把观察交回模型，持续到完成或停止。外部校订：ReAct 指 Reasoning and Acting，与前端 React 无关；其原始论文发表于 2022 年，不能把后来出现的 AutoGPT 说成 ReAct 的起源。",
+      "citation_ids": [
+        "original-72",
+        "original-73",
+        "original-74",
+        "original-75",
+        "original-76",
+        "original-89"
+      ]
+    },
+    {
+      "ts": "48:04",
+      "title": "供应商分析先识别证据，再进行计算",
+      "body": "任务是在多个文件中找出某月业绩低于目标的供应商：销售表提供日期、供应商、单价和数量，制度 PDF 提供该月门槛，联系人表是可能的干扰项。文件名不可靠时可先抽取内容摘要并建立别名映射。计算应按业务口径核实单价乘数量、月份筛选和供应商汇总，不能只凭文件标题作答。",
+      "citation_ids": [
+        "original-77",
+        "original-78",
+        "original-79",
+        "original-80",
+        "original-81",
+        "original-82",
+        "original-83"
+      ]
+    },
+    {
+      "ts": "57:43",
+      "title": "最小 Agent 的提示模板与动作集合",
+      "body": "课堂模板把任务、决策要求、允许动作和执行历史组合起来。动作包括列文件、询问文档、查看表格结构、执行表格分析以及 finish；每次输出规定 JSON 结构，便于代码解析。每轮只执行一个动作是本例的简化约束，并非所有 ReAct 系统都必须如此。",
+      "citation_ids": [
+        "original-90",
+        "original-91",
+        "original-93",
+        "original-94",
+        "original-95",
+        "original-96",
+        "original-97",
+        "original-98",
+        "original-99",
+        "original-100"
+      ]
+    },
+    {
+      "ts": "01:04:51",
+      "title": "观察记录让下一轮拥有已验证的信息",
+      "body": "手工演示先让模型选 list，再把文件清单写进历史；随后读取制度 PDF 获得九月目标，再检查销售表字段，最后生成分析代码。模型每轮看到的是更新后的任务和观察。外部补充：日志宜区分模型建议、实际调用和真实返回值，不能把尚未执行的计划当成已取得证据。",
+      "citation_ids": [
+        "original-101",
+        "original-104",
+        "original-106",
+        "original-110",
+        "original-113",
+        "original-114",
+        "original-115",
+        "original-116",
+        "original-118",
+        "original-119",
+        "original-121",
+        "original-122",
+        "original-123",
+        "original-124"
+      ]
+    },
+    {
+      "ts": "01:18:23",
+      "title": "先排查输入错误，再评价模型纠错能力",
+      "body": "演示中看似重复请求销售表，实际是讲师误贴了联系人表；原文随后明确承认并替换错误观察。之后模型汇总金额、按 3 万元门槛筛选并结束。有的运行合并汇总与筛选，有的分开执行。课堂数据用于说明流程，不能据此断言模型总能自行恢复错误或固定需要几轮。",
+      "citation_ids": [
+        "original-125",
+        "original-126",
+        "original-127",
+        "original-128",
+        "original-131",
+        "original-132",
+        "original-133",
+        "original-134",
+        "original-136",
+        "original-137",
+        "original-149",
+        "original-150"
+      ]
+    },
+    {
+      "ts": "01:25:01",
+      "title": "把手工循环自动化，并设置可观测的退出机制",
+      "body": "Python 或工作流都可以实现模型决策、工具分发、观察追加和再次调用；文件别名是映射，不必真的改名。课堂展示设置最大轮数及异步等待。实践应同时处理完成、超时、预算耗尽、连续失败和用户中止；动作数与模型决策次数应分开统计，finish 也可能占一次决策。",
+      "citation_ids": [
+        "original-138",
+        "original-139",
+        "original-141",
+        "original-142",
+        "original-143",
+        "original-144",
+        "original-145",
+        "original-146",
+        "original-147",
+        "original-254",
+        "original-255"
+      ]
+    },
+    {
+      "ts": "01:34:35",
+      "title": "工具设计决定自主性的有效范围",
+      "body": "Agent 只能在所提供的能力范围内完成任务。应围绕目标配置少量清楚、有区分度的工具，提供参数约束和可理解的返回值，并用代表性任务测试工具是否足够。外部校订：不能因模型选了动作就无条件执行；运行时应检查工具白名单、参数、权限和影响，失败后提供真实反馈，必要时停止。",
+      "citation_ids": [
+        "original-130",
+        "original-152",
+        "original-153",
+        "original-154",
+        "original-155",
+        "original-156",
+        "original-157",
+        "original-239",
+        "original-243",
+        "original-244",
+        "original-298"
+      ]
+    },
+    {
+      "ts": "01:38:53",
+      "title": "推理提示与推理模型不能简单画等号",
+      "body": "提示模型拆解任务，是引导决策的一种办法；模型是否支持显式思考模式，则由具体产品与配置决定。外部校订：不能将 V 系列一概称为非推理、R 系列一概称为推理；DeepSeek 官方接口已提供可配置的 thinking 模式。也不应把可见解释当成模型内部推理过程的完整证明。",
+      "citation_ids": [
+        "original-158",
+        "original-159",
+        "original-160",
+        "original-161",
+        "original-162"
+      ]
+    },
+    {
+      "ts": "01:43:43",
+      "title": "反思、反馈与记忆各解决不同问题",
+      "body": "外部执行反馈可以揭示文件不存在、接口调用失败或计算结果不符，让下一轮调整方案。记忆则可保存任务状态、经验和过去失败路径，后续按需取回。外部校订：语言模型能够对文本进行自我批评和改写，不能绝对说“没有工具就不能反思”；自评或工具反馈都不保证纠错成功。当前上下文、应用持久化记忆与模型训练权重也不是同一层。",
+      "citation_ids": [
+        "original-164",
+        "original-165",
+        "original-166",
+        "original-167",
+        "original-168",
+        "original-169",
+        "original-170",
+        "original-171",
+        "original-172",
+        "original-173",
+        "original-174",
+        "original-175",
+        "original-300",
+        "original-301"
+      ]
+    },
+    {
+      "ts": "01:49:17",
+      "title": "企业搜索案例：从失败观察中发现正确接口",
+      "body": "课堂自建了数据库、关键词及向量检索、代码库和企业系统接口等工具。模型先查无结果，再尝试不存在的接口，随后通过接口目录发现正确 HR 能力，查到部门、项目和预算。全过程的系统、人物及数据均为模拟。预算以随后明确的总额 500 万、已用 320 万、剩余 180 万 为准，前文“已用 300 万”与余额不一致，不能照抄。",
+      "citation_ids": [
+        "original-176",
+        "original-177",
+        "original-178",
+        "original-180",
+        "original-181",
+        "original-182",
+        "original-183",
+        "original-184",
+        "original-185",
+        "original-186",
+        "original-187",
+        "original-188",
+        "original-189",
+        "original-190",
+        "original-195"
+      ]
+    },
+    {
+      "ts": "02:05:05",
+      "title": "企业搜索要关联知识，同时继承访问权限",
+      "body": "平台案例强调跨文档、人员和业务系统追踪信息：客户问题可关联到内部技术讨论及处理计划。检索范围必须遵循用户原有权限。外部校订：知识图谱与自注意力解决不同层次的问题，不能说前者已被后者取代；Microsoft GraphRAG 仍将图结构和 LLM 组合使用。连接器也可以抓取并索引企业内部内容，“爬取只用于外部数据”不成立。",
+      "citation_ids": [
+        "original-201",
+        "original-202",
+        "original-203",
+        "original-204",
+        "original-205",
+        "original-206",
+        "original-207",
+        "original-208",
+        "original-209",
+        "original-210",
+        "original-211",
+        "original-212",
+        "original-213",
+        "original-214",
+        "original-215",
+        "original-245",
+        "original-246",
+        "original-247"
+      ]
+    },
+    {
+      "ts": "02:21:55",
+      "title": "保留提示工程，把 MCP、CLI 和 Skill 放在各自位置",
+      "body": "即使由 AI 起草提示，目标、约束、信息结构和工具说明仍需设计。外部校订：MCP 提供工具等能力的标准化连接方式，CLI 是命令行接口，Skill 可组织可复用指令和资源，三者并非简单替代关系。原文“提示工程无用了”“MCP 过时”属于讲师判断，不能作为技术事实。",
+      "citation_ids": [
+        "original-230",
+        "original-232",
+        "original-233",
+        "original-234",
+        "original-235",
+        "original-253"
+      ]
+    },
+    {
+      "ts": "02:33:38",
+      "title": "结构化输出之后仍需要受控分发",
+      "body": "课堂答疑说明，应用解析模型返回的动作名和参数，再调用对应函数，将返回值送回下一轮。应把解析、校验、执行与观察分开实现，而不是把模型生成内容直接当作任意可执行代码。涉及代码工具时，应限制运行环境及资源；是否在工作目录内不足以单独判断操作安全。",
+      "citation_ids": [
+        "original-249",
+        "original-250",
+        "original-251",
+        "original-252",
+        "original-298"
+      ]
+    },
+    {
+      "ts": "02:40:36",
+      "title": "上下文管理要保留目标和关键证据",
+      "body": "长任务可能持续积累历史。课程建议保留目标、规则和当前阶段，压缩冗余执行日志；这可以由程序规则与模型摘要配合实现。外部补充：上下文工程还包括信息选择、检索、工具结果表达与状态管理，不只是删字。摘要有损，应保留来源和关键失败原因，避免压缩后重复走错路径。",
+      "citation_ids": [
+        "original-173",
+        "original-175",
+        "original-260",
+        "original-261",
+        "original-262",
+        "original-263",
+        "original-264"
+      ]
+    },
+    {
+      "ts": "02:43:39",
+      "title": "工作流、子 Agent 与工具可以组合",
+      "body": "固定工作流中可以嵌入自主循环，自主 Agent 也可以调用确定性的流程；一个动作内部还可能调用另一模型或 Agent。文档问答动作在课堂实现里会读取文档再让模型回答，但这不代表所有工具都必须使用模型。外部校订：Agent 间可用文本或 JSON 传递信息，而 A2A 还规定能力发现、任务和消息等语义，不能等同于“传个 JSON”。",
+      "citation_ids": [
+        "original-266",
+        "original-267",
+        "original-268",
+        "original-269",
+        "original-270",
+        "original-271",
+        "original-276",
+        "original-277"
+      ]
+    },
+    {
+      "ts": "02:47:56",
+      "title": "大文件处理取决于任务和输入结构",
+      "body": "长 PDF 可按章节、目录或检索路径逐步读取，摘要需要保留可回查依据；不能以固定页数判断一定能装进上下文。表格常先给字段和少量示例，再用代码处理全量记录。CSV 与 Excel 的存储差异不等于模型输入 token 必然不同：若只传结构和执行结果，主要成本来自实际送入模型的内容。",
+      "citation_ids": [
+        "original-272",
+        "original-273",
+        "original-282",
+        "original-283",
+        "original-284",
+        "original-285",
+        "original-299"
+      ]
+    },
+    {
+      "ts": "02:49:11",
+      "title": "Skill 的渐进加载降低不必要的上下文占用",
+      "body": "课堂介绍先提供 Skill 名称与描述，需要时再加载详细内容。官方 Agent Skills 说明同样采用渐进披露，将入口元数据、指令与附属资源按需提供。这能减少一次塞入全部资料的问题，但仍需检查技能适用范围、内容可信度与执行权限。",
+      "citation_ids": [
+        "original-274",
+        "original-275"
+      ]
+    },
+    {
+      "ts": "03:00:09",
+      "title": "配置问题与成本问题要分层排查",
+      "body": "外部校订：embedding 维度不匹配通常先检查向量模型和集合或索引配置；切换模型还可能需要重新生成向量，并非必然更换整个数据库。自部署模型仍处理 token，也仍有计算、运维和许可等成本，只是未必按云端 API 单价计费。记忆是否省 token 要看取回内容和减少重复工作的净效果。",
+      "citation_ids": [
+        "original-290",
+        "original-292",
+        "original-293",
+        "original-300"
+      ]
+    },
+    {
+      "ts": "03:02:29",
+      "title": "用明确任务和可验收过程练习 Agent",
+      "body": "先限定工具能覆盖的任务，再逐步增加文件类型、问题变化和异常情形。可以让 AI 编写界面，显示每一步的输入、动作和返回值，便于核对证据、定位错误并回归测试。不能把“信息都在文件里”当成必然完成的保证；未完成时应报告缺失条件和停止原因。",
+      "citation_ids": [
+        "original-294",
+        "original-295",
+        "original-296",
+        "original-307",
+        "original-308",
+        "original-309",
+        "original-311",
+        "original-314",
+        "original-315",
+        "original-316"
+      ]
+    }
+  ],
+  "notes": [
+    "引用标识指向原文；正文中标为“外部校订/补充”的内容是复核结论，不冒充讲师原话。原始逐字稿及时间戳均未改动。",
+    "站点表、供应商和企业预算均为课堂演示材料；未核实站点现状、供应商身份、产品实时配额或讲师个人效率数据。",
+    "未决：原文若干人名、onto logic 等口语专名及 UNSLOTH 相关残句缺乏足够身份或技术语境，不推断、不纳入确定知识。关于模型迎合用户的提问，讲师明确表示不知道，不能把现场猜想写成有效解决方案。",
+    "外部核验：[ReAct 原始论文](https://arxiv.org/abs/2210.03629)——2022 年提出交错推理、行动和环境观察；并非源于 AutoGPT。",
+    "外部核验：[Anthropic Building effective agents](https://www.anthropic.com/research/building-effective-agents)——工作流与动态 Agent 的区别、组合和简单可评估的设计。",
+    "外部核验：[Claude tool use](https://platform.claude.com/docs/claude/docs/tool-use)——结构化工具定义、工具请求与客户端实际执行的区分。",
+    "外部核验：[MCP tools specification](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/server/tools.mdx)——工具发现、名称与 schema、执行控制。",
+    "外部核验：[DeepSeek thinking mode](https://api-docs.deepseek.com/guides/thinking_mode/)——当前接口支持思考模式，型号字母不能代替能力核对。",
+    "外部核验：[Self-Refine 原始论文](https://arxiv.org/abs/2303.17651)——模型可对文本生成反馈并迭代修订，效果并非保证。",
+    "外部核验：[Microsoft GraphRAG](https://www.microsoft.com/en-us/research/project/graphrag/)——图结构与 LLM 可结合，知识图谱未被注意力机制简单替代。",
+    "外部核验：[Glean connectors](https://docs.glean.com/connectors/about)——企业数据连接、抓取索引与权限同步。",
+    "外部核验：[Anthropic context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)——上下文选择、按需信息与压缩，提示工程仍属其中。",
+    "外部核验：[Anthropic Agent Skills](https://www.anthropic.com/research/equipping-agents-for-the-real-world-with-agent-skills)——元数据、指令和资源的渐进披露。",
+    "外部核验：[A2A specification](https://github.com/a2aproject/A2A/blob/main/docs/specification.md)——Agent Card、任务与消息模型，超过单纯 JSON 序列化。",
+    "外部核验：[Qdrant collections](https://qdrant.tech/documentation/manage-data/collections/)——向量维度属于集合或命名向量空间配置。"
+  ],
+  "review_audit": {
+    "original_segment_count": 321,
+    "read_ranges": [
+      [
+        1,
+        321
+      ]
+    ],
+    "summary_section_count": 40,
+    "summary_read_ranges": [
+      [
+        1,
+        40
+      ]
+    ],
+    "full_read_method": "原文按 1–50、51–100、101–150、151–200、201–250、251–300、301–321 分段完整阅读；导读关键词、摘要和 40 节全部阅读。TXT 与 JSON 原文逐段比对。",
+    "stage1": {
+      "performed_by": "主 agent 统一执行",
+      "applied": 0,
+      "deferred": 0,
+      "review_enqueued": 0,
+      "boundary_check_active": true
+    },
+    "coverage": [
+      "固定流程与自主循环",
+      "站点地理计算",
+      "Function Calling 与工具执行",
+      "供应商多文件证据链及操作失误",
+      "循环退出与工具设计",
+      "推理、自我修订和记忆",
+      "模拟企业搜索",
+      "权限与知识图谱",
+      "MCP、CLI、Skill、A2A 的边界",
+      "上下文压缩、混合架构、长文档",
+      "向量维度、成本与实践验收"
+    ],
+    "important_corrections": [
+      "ReAct 不是前端 React，2022 年论文早于 AutoGPT；纠正起源说法。",
+      "结构化 tools/schema 可定义工具；模型输出请求与运行时执行不同。",
+      "第 126–128 段明确是讲师贴错联系人表，不能解释为模型无故重复。",
+      "销售额按单价与数量计算；预算按后文明确的 500、320、180 保持算术一致，全部标明模拟。",
+      "工作流、RAG、工具反馈、反思均不能保证正确；不采纳无条件执行模型动作或无限循环。",
+      "模型可进行文本自我修订；V 系列不能一概归为非推理模型。",
+      "自注意力没有取代知识图谱；MCP、提示工程、工作流的过时说属于观点。",
+      "向量维度不匹配不必然更换数据库；本地推理仍有 token 及计算成本。"
+    ],
+    "unresolved_items": [
+      "不明人名及 onto logic 等口语词缺乏证据，保留待核。",
+      "UNSLOTH 残句未展开，不补写产品结论。",
+      "模型迎合问题未得到可靠答案，不把温度或鼓励性提示当有效修复。",
+      "产品 UI、邀请、额度与速度属于时点信息，未核实且不纳入学习结论。"
+    ],
+    "official_sources": [
+      {
+        "title": "ReAct 原始论文",
+        "url": "https://arxiv.org/abs/2210.03629",
+        "supports": "2022 年提出交错推理、行动和环境观察；并非源于 AutoGPT。"
+      },
+      {
+        "title": "Anthropic Building effective agents",
+        "url": "https://www.anthropic.com/research/building-effective-agents",
+        "supports": "工作流与动态 Agent 的区别、组合和简单可评估的设计。"
+      },
+      {
+        "title": "Claude tool use",
+        "url": "https://platform.claude.com/docs/claude/docs/tool-use",
+        "supports": "结构化工具定义、工具请求与客户端实际执行的区分。"
+      },
+      {
+        "title": "MCP tools specification",
+        "url": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/server/tools.mdx",
+        "supports": "工具发现、名称与 schema、执行控制。"
+      },
+      {
+        "title": "DeepSeek thinking mode",
+        "url": "https://api-docs.deepseek.com/guides/thinking_mode/",
+        "supports": "当前接口支持思考模式，型号字母不能代替能力核对。"
+      },
+      {
+        "title": "Self-Refine 原始论文",
+        "url": "https://arxiv.org/abs/2303.17651",
+        "supports": "模型可对文本生成反馈并迭代修订，效果并非保证。"
+      },
+      {
+        "title": "Microsoft GraphRAG",
+        "url": "https://www.microsoft.com/en-us/research/project/graphrag/",
+        "supports": "图结构与 LLM 可结合，知识图谱未被注意力机制简单替代。"
+      },
+      {
+        "title": "Glean connectors",
+        "url": "https://docs.glean.com/connectors/about",
+        "supports": "企业数据连接、抓取索引与权限同步。"
+      },
+      {
+        "title": "Anthropic context engineering",
+        "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents",
+        "supports": "上下文选择、按需信息与压缩，提示工程仍属其中。"
+      },
+      {
+        "title": "Anthropic Agent Skills",
+        "url": "https://www.anthropic.com/research/equipping-agents-for-the-real-world-with-agent-skills",
+        "supports": "元数据、指令和资源的渐进披露。"
+      },
+      {
+        "title": "A2A specification",
+        "url": "https://github.com/a2aproject/A2A/blob/main/docs/specification.md",
+        "supports": "Agent Card、任务与消息模型，超过单纯 JSON 序列化。"
+      },
+      {
+        "title": "Qdrant collections",
+        "url": "https://qdrant.tech/documentation/manage-data/collections/",
+        "supports": "向量维度属于集合或命名向量空间配置。"
+      }
+    ],
+    "excluded_content": [
+      "开场寒暄、节日闲聊、求职聊天、资源领取、群通知、账号开通、复制故障、共享额度、邀请链接及收尾班务：不形成持久教学主题。",
+      "未核实的名人使用产品传闻、个人开发速度与产品淘汰评价：不作为事实教学。",
+      "重复口头操作和等待输出：保留有助理解动作与观察的关键过程，删去重复口头填充。"
+    ],
+    "limits": "完成全语境学习资产复核；未执行课堂代码或验证模拟业务数据；冷复核由主 agent 另行安排。",
+    "pending_tokens": [
+      {
+        "citation_id": "original-265",
+        "original": "onto logic",
+        "suggested": "",
+        "reason": "口语中未展开定义，可能为工具或技术名的识别片段；缺少音频、课件拼写和上下文定义，不猜测替换。"
+      }
+    ],
+    "status": "learning_review_complete_source_uncertainties_retained",
+    "independent_review": {
+      "date": "2026-10-21",
+      "scope": "完整冷读学习资产；疑点对照原始片段及一手资料，非第二遍音频校对",
+      "coverage_verified": true,
+      "confirmed_findings": [
+        {
+          "line": 281,
+          "original": "总额 500、已用 320、剩余 180",
+          "suggested": "总额 500 万、已用 320 万、剩余 180 万",
+          "reason": "original-190（01:58:18）明确说预算 total 500万、已花费320、剩余180；original-184也明确使用500万、300万、180万。学习版正确选择了后文320，却删除了全部金额单位，正文失去数值量级。应恢复万的单位，保留模拟数据说明，不更改数值。"
+        }
+      ],
+      "disposition": "已逐项核实并修正；未改原文时间、编号及原始DOCX。",
+      "pending_source_tokens": 1,
+      "queue_domain": "ai-study-course"
+    }
+  }
+}

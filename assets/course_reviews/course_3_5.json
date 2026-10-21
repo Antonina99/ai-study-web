@@ -1,0 +1,635 @@
+{
+  "course_key": "12. 搭建Hermes Agent 中的长期记忆和自进化能力",
+  "source_sha256": "7ffa6ecf8641479f789fe680aaaa78b7c640935a00a1d2a5d866083b6fdb4147",
+  "review_date": "2026-10-21",
+  "method": "transcript-fixer Stage 1 词典初筛 + 330 段原文及完整导读全语境复核 + 官方一手来源校订 + 学习版整理 + 独立学习版冷复核及逐项裁定",
+  "keywords": [
+    "记忆",
+    "长期记忆",
+    "Hermes",
+    "上下文管理",
+    "工作记忆",
+    "会话记忆",
+    "稳定规则",
+    "事件溯源",
+    "记忆升格",
+    "渐进披露",
+    "Checkpoint",
+    "心跳"
+  ],
+  "summary_points": [
+    "本课把记忆视为外部信息管理闭环：写入、修正、遗忘和召回，而不是模型答应记住就完成持久化。",
+    "课堂四层管线是原始事件、会话级记忆、稳定规则和动态工作记忆；这是教学组织法，不与 CoALA 原论文分类逐项等同。",
+    "抽取用类型、独立陈述、来源事件 ID 与有效范围组织候选记忆；升格合并跨会话经验，不能无条件放大到所有用户。",
+    "新任务按领域、主体和预算召回，按需从标题、概要深入详情；检索条数与 token 预算需要分别控制。",
+    "后台整理可由事件或定时器触发，并用 checkpoint 增量更新；冲突要核实，过期信息要维护。",
+    "Hermes 官方文件记忆、会话历史与 Skill 文档都属于应用状态；本课的“自进化”不等于自动训练模型。关键词召回 demo 存在讲师承认的未修复问题。"
+  ],
+  "interview_points": [
+    "为什么两次独立 API 请求之间模型不一定记得用户？会话状态、长期记忆与模型权重有什么区别？",
+    "如何设计原始事件、会话摘要、稳定规则和工作记忆之间的写入与召回路径？",
+    "记忆项为何要带支持事件 ID、主体、作用域和有效期？怎样防止摘要把猜测变事实？",
+    "什么信息值得升格？如何处理重复偏好、一次性例外、用户转述和相互冲突的规则？",
+    "为什么 RAG 可以参与记忆却不足以定义整个记忆生命周期？检索时效如何受索引更新影响？",
+    "如何评估压缩的成本收益和事实损失？为什么 top N 不能单独保证上下文不超限？",
+    "后台整理怎样使用 checkpoint、重试与一致性提交避免重复或漏处理？",
+    "如何区分课堂文件 demo、Hermes 官方实现和可部署系统？怎样验证长期记忆确实改善任务效果？"
+  ],
+  "sections": [
+    {
+      "ts": "01:07",
+      "title": "课程范围：用文件演示记忆管理，不等于完整 Harness",
+      "body": "本课聚焦长期记忆及整理流程，用本地文件工作区保存和读取中间产物。讲师明确说明样例没有完整覆盖沙盒、安全和代码执行等工程能力。文件存储本身并非不可用于生产；需要补齐访问控制、隔离、并发写入和失败恢复，再讨论部署。",
+      "citation_ids": [
+        "original-5",
+        "original-6",
+        "original-7",
+        "original-8",
+        "original-256",
+        "original-257",
+        "original-258"
+      ]
+    },
+    {
+      "ts": "04:21",
+      "title": "多轮对话依赖上下文，不是每次请求自动记住用户",
+      "body": "普通模型请求要利用先前对话，必须由应用提供相应历史或状态。课堂“买三个鸡蛋”的两次独立请求说明：模型答应记住，不代表发生了持久化写入。外部校订：这里应理解为普通推理调用不会自动更新模型权重来记住每次对话；模型已有参数知识、服务端会话状态和应用长期记忆需分开讨论。",
+      "citation_ids": [
+        "original-10",
+        "original-11",
+        "original-78",
+        "original-79",
+        "original-80",
+        "original-81",
+        "original-82",
+        "original-83",
+        "original-86",
+        "original-87",
+        "original-88"
+      ]
+    },
+    {
+      "ts": "06:04",
+      "title": "上下文容量由输入规模决定，超限不必然自动截断",
+      "body": "长对话不断累积历史、当前输入与输出预算，可能挤掉早期规则。外部校订：上下文通常按 token 计量，不按过去多少天计量；超限可能报错，也可能由应用截断或压缩，不能把图中的“旧轮次自动断掉”当成所有 API 的固定行为。具体窗口及输出上限应查所用模型。",
+      "citation_ids": [
+        "original-12",
+        "original-14",
+        "original-15",
+        "original-16",
+        "original-17",
+        "original-18",
+        "original-19"
+      ]
+    },
+    {
+      "ts": "11:20",
+      "title": "旅行案例：跨会话继承偏好与同会话保留规则",
+      "body": "用户希望亲子游不要一天堆叠多个耗时很长的大项目。即使上一轮已纠正，北京与西安两个会话若没有共享记忆，或规则在长上下文中丢失，下一次仍可能重犯。要持久化的是可迁移且有适用范围的偏好，不能直接把个别城市行程或临时要求推广成对所有用户有效的规则。景点安排只是说明记忆问题的课堂例子。",
+      "citation_ids": [
+        "original-20",
+        "original-21",
+        "original-22",
+        "original-23",
+        "original-24",
+        "original-25",
+        "original-26"
+      ]
+    },
+    {
+      "ts": "16:42",
+      "title": "RAG 可以参与记忆，但检索不等于完整生命周期管理",
+      "body": "课堂用入库预处理与在线检索的时差解释为什么只建静态知识库不够。外部校订：RAG 并非必然只能处理静态资料，也不要求所有实现都使用向量库；近实时索引和运行时记忆写入都可实现。记忆系统还要管理信息归属、更新、冲突、遗忘与何时召回，时效取决于具体管线。",
+      "citation_ids": [
+        "original-27",
+        "original-28",
+        "original-29",
+        "original-30",
+        "original-31",
+        "original-32",
+        "original-33",
+        "original-37",
+        "original-39",
+        "original-40",
+        "original-327"
+      ]
+    },
+    {
+      "ts": "23:03",
+      "title": "写入、修正、遗忘、召回构成闭环",
+      "body": "存入数据库只是一步，系统还需要决定旧记录是否继续影响输出。新的偏好可能修正旧值，临时事实可能过期，错误信息需要撤回，真正相关的信息才进入当前请求。长期记忆整理是持续的数据治理过程；“存得久”不等于“永远有效”。",
+      "citation_ids": [
+        "original-37",
+        "original-39",
+        "original-40",
+        "original-259",
+        "original-317",
+        "original-323",
+        "original-328"
+      ]
+    },
+    {
+      "ts": "26:19",
+      "title": "四层是本课的工程组织法，不是统一标准",
+      "body": "本课把信息组织为原始事件、会话级摘要与经验、跨会话稳定规则，以及当前实际送入模型的工作记忆。工作记忆动态从前面各层选择。外部校订：CoALA 原论文区分工作记忆与长期的情景、语义、程序记忆；不能把课堂的四层加工管线逐项冒称论文原始分类。短、中、长期也没有通用的固定时长分界。",
+      "citation_ids": [
+        "original-40",
+        "original-41",
+        "original-42",
+        "original-43",
+        "original-44",
+        "original-45",
+        "original-46",
+        "original-47",
+        "original-110",
+        "original-111",
+        "original-296",
+        "original-297",
+        "original-298",
+        "original-299",
+        "original-300",
+        "original-330"
+      ]
+    },
+    {
+      "ts": "31:15",
+      "title": "请求拼装：规则、相关记忆、近期历史与当前输入",
+      "body": "示例将稳定规则、必要补充信息、近期少量原文及当前问题拼装成请求。所谓“最后一次输入”指每次发请求时最新的那次输入，不是预知会话终点。信息补充放在何种消息结构取决于 API 与信任边界；info 是课堂自定义结构，不是所有模型 API 的标准角色。回写历史时宜保存用户原始问题，避免把每轮附加记忆反复累积。",
+      "citation_ids": [
+        "original-48",
+        "original-49",
+        "original-50",
+        "original-51",
+        "original-52",
+        "original-53",
+        "original-54",
+        "original-56",
+        "original-57",
+        "original-58",
+        "original-59",
+        "original-60",
+        "original-93",
+        "original-94",
+        "original-99",
+        "original-103",
+        "original-106",
+        "original-107",
+        "original-108"
+      ]
+    },
+    {
+      "ts": "57:58",
+      "title": "自动记录历史不能代替业务筛选",
+      "body": "框架可以维护消息和持久化状态，但哪些内容有效、应放在哪一层仍需业务策略。旅游任务只需召回相应旅行偏好，通常不应同时加载无关的 PPT 或编程习惯。外部校订：不能因此认定框架“没有意义”或只会堆叠；现有框架也提供分域存储、筛选和后台记忆管理能力。",
+      "citation_ids": [
+        "original-105",
+        "original-110",
+        "original-111",
+        "original-112",
+        "original-113",
+        "original-114",
+        "original-294"
+      ]
+    },
+    {
+      "ts": "01:04:16",
+      "title": "Hermes 官方实现与课堂抽象要区分",
+      "body": "课堂以 MEMORY.md、USER.md 和历史会话存储解释冷热信息。官方核验：Hermes 将这两个有容量限制的记忆文件在会话启动时作为冻结快照注入，记忆工具可修改磁盘记录；历史会话存于 SQLite 并可用 session_search 检索。它不等同于课堂设想的“先对所有规则按场景筛选再注入”，也不能推广为所有编码 Agent 的统一文件布局。",
+      "citation_ids": [
+        "original-115",
+        "original-116",
+        "original-117",
+        "original-118",
+        "original-119",
+        "original-120",
+        "original-121"
+      ]
+    },
+    {
+      "ts": "01:10:30",
+      "title": "保留可追溯的原始事件，再分组整理",
+      "body": "原始层可以记录用户消息、模型回答、工具调用、结果、失败与修正，并按会话和事件标识组织。课堂先搬运到工作区，再分组查看。原始输出不是天然事实：模型曾说过的话、工具真实结果和用户确认应保留各自来源，避免摘要时把猜测提升为事实。原始数据保留期限应由用途、用户要求和存储策略决定，不是无限保留的硬规则。",
+      "citation_ids": [
+        "original-125",
+        "original-126",
+        "original-127",
+        "original-128",
+        "original-129",
+        "original-130",
+        "original-131",
+        "original-153",
+        "original-154",
+        "original-171",
+        "original-172",
+        "original-182"
+      ]
+    },
+    {
+      "ts": "01:16:30",
+      "title": "用抽取规则和结构化字段生成候选记忆",
+      "body": "示例把原始事件流交给模型，排除寒暄、口误及仅当时有效的琐碎信息，输出会话摘要及记忆项。记忆项包含类型、可独立理解的 statement、支持事件 ID 和持久性标记；课堂初始类型为用户偏好、事实和经验教训。schema 约束输出形状，仍需检查陈述是否由所引事件支持。",
+      "citation_ids": [
+        "original-137",
+        "original-139",
+        "original-140",
+        "original-141",
+        "original-147",
+        "original-148",
+        "original-149",
+        "original-150",
+        "original-151",
+        "original-152",
+        "original-153"
+      ]
+    },
+    {
+      "ts": "01:23:01",
+      "title": "来源与有效范围是压缩后的纠错入口",
+      "body": "摘要让后续模型少读原文，事件 ID 则允许有疑问时回查具体消息。durable 表达示例中的跨会话候选范围，不是事实永远有效的保证；“以后记住”也可能被后续更新。系统应区分来源、主体、时间和范围，保留撤回或修订路径。只给一句结论而没有溯源，容易把错误带入后续任务。",
+      "citation_ids": [
+        "original-150",
+        "original-151",
+        "original-152",
+        "original-158",
+        "original-159",
+        "original-203",
+        "original-204",
+        "original-206",
+        "original-207"
+      ]
+    },
+    {
+      "ts": "01:25:00",
+      "title": "压缩有成本也有损失，收益应通过实际任务衡量",
+      "body": "模型摘要本身会消耗 token，但可能减少以后重复发送的大段历史。课堂 1M、2M、60K 是说明性数量，不能当作固定压缩比或计费公式。压缩可能遗漏例外、误改事实；需要保留关键约束和回查源文的能力。外部校订：摘要不是唯一或始终最优的压缩方法，裁剪、选择性检索和确定性状态提取也可组合；成本还受后续轮数与缓存影响。",
+      "citation_ids": [
+        "original-154",
+        "original-155",
+        "original-156",
+        "original-157",
+        "original-158",
+        "original-159",
+        "original-160",
+        "original-161",
+        "original-162",
+        "original-165"
+      ]
+    },
+    {
+      "ts": "01:33:22",
+      "title": "记忆类型应服务于业务，而不是照抄分类",
+      "body": "财务辅助例子中，“金额单元格显示两位小数”可以成为特定任务的操作规则；这与用户交流风格、一次性事实不同。可以增加领域标签和适用条件，让综合 Agent 在旅行、财务、代码等场景选择相关内容。课堂自定义的“技能”分类只是记忆项类型，并不自动成为可执行的 Agent Skill 包。",
+      "citation_ids": [
+        "original-165",
+        "original-166",
+        "original-167",
+        "original-168",
+        "original-169",
+        "original-174",
+        "original-175",
+        "original-176",
+        "original-177",
+        "original-178"
+      ]
+    },
+    {
+      "ts": "01:42:24",
+      "title": "模型抽取、程序搬运和调试展示承担不同工作",
+      "body": "课堂重跑并打印请求与响应，是为了证明摘要由模型生成；原始材料搬运则是确定性程序操作。输出文本会变化，不代表可以省略校验。数据变大时可分批抽取再合并，课堂称为 map-reduce 思路；需要保留跨批次来源与一致性，不能把分批处理本身当作正确性的保证。",
+      "citation_ids": [
+        "original-179",
+        "original-180",
+        "original-181",
+        "original-182",
+        "original-183",
+        "original-186",
+        "original-187",
+        "original-188",
+        "original-189",
+        "original-190",
+        "original-191",
+        "original-192",
+        "original-193"
+      ]
+    },
+    {
+      "ts": "01:49:15",
+      "title": "升格：去重并扩大复用范围，而非改变模型权重",
+      "body": "跨会话反复出现的午休偏好，可以从单次会话候选整理成该用户的稳定旅行规则。升格要合并重复表达，同时保留条件、来源和作用域；出现次数多不等于事实可靠，更不表示应推广到所有用户。这里的“全局”是选定用户、项目或 Agent 范围内的跨会话复用，不是全站共享。该过程更新外部记录，不会自动训练底层模型。",
+      "citation_ids": [
+        "original-42",
+        "original-194",
+        "original-195",
+        "original-196",
+        "original-197",
+        "original-199",
+        "original-200",
+        "original-201",
+        "original-202",
+        "original-203",
+        "original-263",
+        "original-298"
+      ]
+    },
+    {
+      "ts": "01:55:39",
+      "title": "遇到规则冲突，先确认主体和变化原因",
+      "body": "用户新要求与旧偏好冲突，可能是口误、临时例外、偏好改变，或在转述别人的需求。讲师建议识别冲突后向用户核实；不能让模型凭空选一个答案。新记录覆盖旧记录可以是明确的业务规则，但不能默认适用于所有情况。把临时例外限制在当次任务，可以避免误删稳定偏好。",
+      "citation_ids": [
+        "original-204",
+        "original-205",
+        "original-206",
+        "original-207",
+        "original-208",
+        "original-209",
+        "original-210"
+      ]
+    },
+    {
+      "ts": "01:59:46",
+      "title": "召回演示有已知缺陷：关键词生成不是唯一正确方法",
+      "body": "课堂文件版根据关键词匹配记忆，讲师当场指出当前分词和打分实现尚未达到自己的预期，拟改成先由模型分析任务生成关键词。外部校订：这是该 demo 的改进方向，并不证明传统分词检索错误或必须使用 LLM 生成关键词。文件搜索、全文检索、向量及混合方式均应依据召回质量、延迟和成本选择；课堂承诺的课后修复未在本原文中验证。",
+      "citation_ids": [
+        "original-211",
+        "original-212",
+        "original-213",
+        "original-214",
+        "original-215",
+        "original-217",
+        "original-218",
+        "original-219",
+        "original-220",
+        "original-221",
+        "original-224",
+        "original-258"
+      ]
+    },
+    {
+      "ts": "02:05:25",
+      "title": "把写入管线与新任务召回分开理解",
+      "body": "课堂步骤 02 搬运并保存原始事件，03 做会话级抽取，04 合并升格；新任务分析范围后从已整理记忆中选出相关片段，拼成 task brief 或工作上下文。文件、JSONL 与数据库都是可选载体。脚本编号在答疑中有口头变化，应以职责理解：整理、范围分析、实际检索、上下文拼装与调用，不把编号当成通用标准。",
+      "citation_ids": [
+        "original-222",
+        "original-223",
+        "original-224",
+        "original-225",
+        "original-228",
+        "original-229",
+        "original-242",
+        "original-243",
+        "original-262",
+        "original-263",
+        "original-264",
+        "original-269",
+        "original-271",
+        "original-279",
+        "original-280"
+      ]
+    },
+    {
+      "ts": "02:10:01",
+      "title": "Checkpoint 让后台整理只处理新增内容",
+      "body": "记录已处理到的事件边界，下次使用上一版会话摘要与新增原文生成更新，避免每次重跑全量历史。外部工程补充：摘要、进度标记和源事件关联应一致提交；失败重试需避免重复写入或漏处理。这里的 checkpoint 是整理进度水位，不应与所有框架的完整运行状态快照混为一谈。",
+      "citation_ids": [
+        "original-230",
+        "original-231",
+        "original-303",
+        "original-304",
+        "original-305",
+        "original-328"
+      ]
+    },
+    {
+      "ts": "02:10:52",
+      "title": "心跳负责触发任务，事件触发与定时触发可并用",
+      "body": "课中 heartbeat 是周期运行整理脚本的调度器；也可以在上下文接近上限或用户手动请求时触发。长期目标任务并不等于定时任务。外部校订：Windows 对应 Task Scheduler，可用 schtasks 管理，不能把任务管理器和任务计划程序混称。自写脚本仍需要限定读取范围和权限，并处理并发、失败重试及成本，不能因“自己写”就认定没有风险。",
+      "citation_ids": [
+        "original-232",
+        "original-233",
+        "original-234",
+        "original-235",
+        "original-236",
+        "original-238",
+        "original-239",
+        "original-241",
+        "original-242",
+        "original-272",
+        "original-273",
+        "original-274",
+        "original-276",
+        "original-281"
+      ]
+    },
+    {
+      "ts": "02:17:04",
+      "title": "渐进披露与预算控制决定取回多少信息",
+      "body": "先识别任务域和适用规则，展示标题或概要，再由任务需要读取详情或原始事件；任务中途也可继续召回。排序、相似度阈值和 top N 限制候选，但少量长片段仍可能超出窗口，必须再做 token 预算。外部校订：字符 len 只是粗估，需用匹配模型的计数方式并预留输出空间。存储库很大与每次请求很大是不同问题，但“切块后永远不会超限”不成立。",
+      "citation_ids": [
+        "original-243",
+        "original-244",
+        "original-245",
+        "original-247",
+        "original-248",
+        "original-249",
+        "original-250",
+        "original-251",
+        "original-252",
+        "original-253",
+        "original-254",
+        "original-266",
+        "original-267",
+        "original-277",
+        "original-278",
+        "original-280",
+        "original-285",
+        "original-289",
+        "original-301",
+        "original-302",
+        "original-309",
+        "original-310",
+        "original-313",
+        "original-314",
+        "original-315",
+        "original-321"
+      ]
+    },
+    {
+      "ts": "02:38:15",
+      "title": "长期维护与自进化：更新记忆和技能，验证效果",
+      "body": "整理后的经验可进一步形成可复用 Skill、项目规范或用户画像；Hermes 官方 Skill 是按需加载的知识文档。外部校订：保存这些外部资产不同于微调或自动更新模型参数，不能据此保证越用越好。多人场景要区分说话人、记忆归属和可见范围；过期、冲突或不再相关的信息应按规则修订或遗忘。选择抽取模型要评估理解、长文本处理、溯源准确性和成本。",
+      "citation_ids": [
+        "original-281",
+        "original-282",
+        "original-284",
+        "original-306",
+        "original-307",
+        "original-316",
+        "original-317",
+        "original-318",
+        "original-319",
+        "original-320",
+        "original-321",
+        "original-322",
+        "original-323",
+        "original-325",
+        "original-326",
+        "original-328"
+      ]
+    }
+  ],
+  "notes": [
+    "原始逐字稿和时间戳未改。正文引用支撑课堂讲解；标为外部校订或工程补充的内容来自复核，不冒充讲师原话。",
+    "课程题名中的 Hermes 及官方文档可核实；原文出现 MS、aas 等不稳定识别时，只在题目和充分语境支持处讨论 Hermes，不据此建立通用批量替换规则。未知型号与缩写保留待核。",
+    "课堂频繁出现“绘画”指会话、“Jason l”指 JSONL 等清晰上下文错误，学习版按语义规范术语；不回写原稿。第 209 段吃辣示例自身有前后口误，仅保留“核实冲突来源”的明确教学意图。",
+    "示例脚本未取得或运行；第 211–224、258、329 段提及召回逻辑缺陷和课后修订，不能视为修订已交付或效果已验证。",
+    "未决：M4、千万的架构、SDDTD 缺少可靠拼写证据；具体 1M 上下文显存需求讲师也未计算，学习版不补造数值。未访问私密配置、API 密钥、人员名册或用户机器记忆。",
+    "外部核验：[Hermes Persistent Memory](https://hermes-agent.nousresearch.com/docs/user-guide/features/memory)——有界 MEMORY.md / USER.md、会话开始冻结快照及记忆工具；不等于场景筛选式注入。",
+    "外部核验：[Hermes Sessions](https://hermes-agent.nousresearch.com/docs/user-guide/sessions)——SQLite 会话历史与全文检索，外部持久化数据。",
+    "外部核验：[Hermes Skills System](https://hermes-agent.nousresearch.com/docs/user-guide/features/skills)——Skill 为按需读取的知识文档，支持渐进披露。",
+    "外部核验：[CoALA 原始论文](https://arxiv.org/html/2309.02427v3)——工作记忆及情景、语义、程序记忆分类；外部记忆更新与参数训练分别讨论。",
+    "外部核验：[LangChain Memory overview](https://docs.langchain.com/oss/python/concepts/memory)——会话与跨会话范围、namespace、运行时及后台写入；框架不限于堆叠消息。",
+    "外部核验：[Elasticsearch refresh](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/refresh-parameter)——新写数据可通过 refresh 对搜索可见；检索时效是实现问题。",
+    "外部核验：[Claude token counting](https://platform.claude.com/docs/en/build-with-claude/token-counting)——按模型计算请求 token，而非以字符长度直接替代。",
+    "外部核验：[Claude context windows](https://platform.claude.com/docs/en/build-with-claude/context-windows)——输入、输出及上下文窗口预算需按模型具体规则处理。",
+    "外部核验：[Microsoft schtasks](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/schtasks)——Windows 任务计划调度命令。"
+  ],
+  "review_audit": {
+    "original_segment_count": 330,
+    "read_ranges": [
+      [
+        1,
+        330
+      ]
+    ],
+    "summary_section_count": 24,
+    "summary_read_ranges": [
+      [
+        1,
+        24
+      ]
+    ],
+    "full_read_method": "按 1–45、46–90、91–135、136–180、181–230、231–280、281–330 完整分段阅读原文；导读标题、关键词、摘要和 24 节完整阅读。TXT 与 JSON 原文逐段一致性检查。",
+    "stage1": {
+      "performed_by": "主 agent 统一执行",
+      "applied": 0,
+      "deferred": 0,
+      "review_enqueued": 0,
+      "boundary_check_active": true
+    },
+    "coverage": [
+      "记忆与模型请求、上下文窗口",
+      "旅行偏好跨会话案例",
+      "RAG 时效与记忆生命周期",
+      "四层教学组织法及请求拼装",
+      "Hermes 文件与会话历史",
+      "事件抽取、溯源、持久性",
+      "模型压缩、业务分类与分批处理",
+      "升格和冲突核实",
+      "有缺陷的关键词召回 demo",
+      "写入召回管线",
+      "checkpoint 增量更新",
+      "心跳与事件调度",
+      "渐进披露及预算",
+      "多人归属、遗忘及 Skill 扩展"
+    ],
+    "important_corrections": [
+      "长期外部记忆、文档和 Skill 更新不是自动模型训练；普通推理不自动改变权重来记住对话。",
+      "CoALA 原分类不是课堂原始事件/会话摘要/全局规则/工作记忆的逐项名称。",
+      "Hermes 官方核心记忆为有容量上限的启动快照，不是课堂所述先按任务筛选所有文件内容；不泛化为全部产品。",
+      "RAG 可近实时更新，框架也能支持复杂记忆，二者不应被绝对否定。",
+      "讲师承认关键词召回代码尚需修订；不能推广为分词检索错误、必须 LLM 提关键词。",
+      "字符数不等于 token；top N 和切块不自动保证窗口不超限；压缩收益非固定。",
+      "心跳为课堂调度形式，不等同于目标追逐任务；Windows Task Scheduler 与 Task Manager 区分。",
+      "自写脚本仍需权限与隔离；升格保持主体/作用域；原文长期保留不是无条件规则。"
+    ],
+    "pending_tokens": [
+      {
+        "citation_id": "original-8",
+        "original": "M4",
+        "suggested": "",
+        "reason": "与同段 MS 一样处于系统名口语位置，缺音频或课件拼写，不反推成确定产品或型号。"
+      },
+      {
+        "citation_id": "original-105",
+        "original": "千万的架构",
+        "suggested": "",
+        "reason": "疑似框架名或口语误识别，无法仅凭与 LangChain 并列确定具体名称。"
+      },
+      {
+        "citation_id": "original-214",
+        "original": "SDDTD",
+        "suggested": "",
+        "reason": "未解释缩写，可能指开发方法或术语；缺课件、音频证据，不能反猜为某种开发流程。"
+      }
+    ],
+    "unresolved_items": [
+      "未知系统/框架名与缩写见 pending_tokens，未写成知识结论。",
+      "未取得课堂源码和后续修订版，代码可运行性与效果不做保证。",
+      "原文关于 Codex/Claude Code 的界面观察和文件布局未作为共同实现规范。",
+      "1M 上下文显存、固定压缩比和当前具体产品配额未核验，不补造。"
+    ],
+    "official_sources": [
+      {
+        "title": "Hermes Persistent Memory",
+        "url": "https://hermes-agent.nousresearch.com/docs/user-guide/features/memory",
+        "supports": "有界 MEMORY.md / USER.md、会话开始冻结快照及记忆工具；不等于场景筛选式注入。"
+      },
+      {
+        "title": "Hermes Sessions",
+        "url": "https://hermes-agent.nousresearch.com/docs/user-guide/sessions",
+        "supports": "SQLite 会话历史与全文检索，外部持久化数据。"
+      },
+      {
+        "title": "Hermes Skills System",
+        "url": "https://hermes-agent.nousresearch.com/docs/user-guide/features/skills",
+        "supports": "Skill 为按需读取的知识文档，支持渐进披露。"
+      },
+      {
+        "title": "CoALA 原始论文",
+        "url": "https://arxiv.org/html/2309.02427v3",
+        "supports": "工作记忆及情景、语义、程序记忆分类；外部记忆更新与参数训练分别讨论。"
+      },
+      {
+        "title": "LangChain Memory overview",
+        "url": "https://docs.langchain.com/oss/python/concepts/memory",
+        "supports": "会话与跨会话范围、namespace、运行时及后台写入；框架不限于堆叠消息。"
+      },
+      {
+        "title": "Elasticsearch refresh",
+        "url": "https://www.elastic.co/docs/reference/elasticsearch/rest-apis/refresh-parameter",
+        "supports": "新写数据可通过 refresh 对搜索可见；检索时效是实现问题。"
+      },
+      {
+        "title": "Claude token counting",
+        "url": "https://platform.claude.com/docs/en/build-with-claude/token-counting",
+        "supports": "按模型计算请求 token，而非以字符长度直接替代。"
+      },
+      {
+        "title": "Claude context windows",
+        "url": "https://platform.claude.com/docs/en/build-with-claude/context-windows",
+        "supports": "输入、输出及上下文窗口预算需按模型具体规则处理。"
+      },
+      {
+        "title": "Microsoft schtasks",
+        "url": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/schtasks",
+        "supports": "Windows 任务计划调度命令。"
+      }
+    ],
+    "excluded_content": [
+      "网络卡顿、内存占用猜测、重启软件、鼠标显示、领取课件、班务和下课安排：不构成记忆技术学习主题。",
+      "API 配置演示只保留模型可替换及外部请求语境，不复制私密配置或不完整地址。",
+      "人物姓名、口头玩笑、重复手工调试和未完成缩写：无可靠身份或技术证据，避免误导。"
+    ],
+    "limits": "全语境学习资产已完成；官方文档用于当前事实校订，不假定课堂代码与当前产品版本完全一致；未修改原稿、未执行示例代码，待主 agent 冷复核。",
+    "status": "learning_review_complete_source_uncertainties_retained",
+    "independent_review": {
+      "date": "2026-10-21",
+      "scope": "完整冷读学习资产；疑点对照原始片段及一手资料，非第二遍音频校对",
+      "coverage_verified": true,
+      "confirmed_findings": [],
+      "disposition": "已逐项核实并修正；未改原文时间、编号及原始DOCX。",
+      "pending_source_tokens": 3,
+      "queue_domain": "ai-study-course"
+    }
+  }
+}

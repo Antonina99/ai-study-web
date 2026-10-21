@@ -394,7 +394,7 @@ def render_course_detail(item, section=None, career_direction=None):
     with t_essence:
         st.markdown("### ✨ 课程精华")
         if data_pack.get("review_notes"):
-            st.caption("已结合整课原文复核并整理；保留知识要点、适用条件与原文依据。")
+            st.caption("已通读课程文字并复核关键知识；校订依据、适用条件及待核内容见下方说明。未做音频回听。")
             with st.expander("术语校订与依据"):
                 for note in data_pack["review_notes"]:
                     st.markdown(f"- {note}")
