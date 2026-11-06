@@ -36,6 +36,9 @@ def init_session_state():
         "llm_model": llm.DEFAULT_MODEL,
         "current_course": data.COURSE_INDEX[0],
         "current_section": None,
+        "knowledge_view": "本课知识",
+        "graph_search": "",
+        "graph_scope": "全部课程",
         "tab1_detail": "✨ 课程精华",
         "tab1_module": data.MODULES[0]["name"],
         "tab1_course": f"{data.COURSE_INDEX[0]['id']}｜{data.COURSE_INDEX[0]['name']}",
@@ -132,7 +135,9 @@ def render_sidebar():
             key="sidebar_kb_metric",
         )
         if data.newly_added:
-            st.info(f"🆕 检测到新入库课程：**{data.newly_added}**")
+            with st.expander("本次载入的课程资料"):
+                for name in data.newly_added:
+                    st.caption(name)
         render_progress_bar(_total_chapters())
         st.caption(f"错题本：{len(st.session_state.error_notebook)} 道（本会话内有效，可在「错题复习」导出）")
         if st.session_state.error_notebook:

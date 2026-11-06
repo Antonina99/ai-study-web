@@ -49,7 +49,7 @@ h2 { font-size: 1.35rem !important; }
 h3 { font-size: 1.02rem !important; }
 
 p, label, [data-testid="stCaptionContainer"] {
-  color: var(--workspace-muted);
+  color: var(--workspace-text);
 }
 
 .workspace-hero {
@@ -173,10 +173,11 @@ p, label, [data-testid="stCaptionContainer"] {
 }
 
 .knowledge-tree-root {
-  background: linear-gradient(135deg, #6558cf 0%, #7d70da 100%);
-  border: 1px solid #5f53c3;
+  background: #f0edff;
+  border: 0;
+  border-left: 3px solid #6d5bd0;
   border-radius: 12px;
-  color: #fff;
+  color: #302953;
   display: flex;
   flex-direction: column;
   gap: .18rem;
@@ -185,8 +186,9 @@ p, label, [data-testid="stCaptionContainer"] {
 }
 
 .knowledge-tree-root.course {
-  background: linear-gradient(135deg, #434651 0%, #5b5e69 100%);
-  border-color: #484b56;
+  background: #eef5f3;
+  border-color: #31846b;
+  color: #244c40;
 }
 
 .knowledge-tree-root span {
@@ -203,8 +205,9 @@ p, label, [data-testid="stCaptionContainer"] {
 .knowledge-tree-node {
   align-items: center;
   background: #fff;
-  border: 1px solid var(--workspace-border);
-  border-radius: 9px;
+  border: 0;
+  border-left: 2px solid #ddd7f1;
+  border-radius: 0;
   display: flex;
   gap: .55rem;
   margin: .35rem 0;
@@ -315,3 +318,26 @@ code {
 .knowledge-tree-tag.optional { background: #f1f3f5; color: #647080; }
 .knowledge-tree-tag.preparation { background: #fff3de; color: #946511; }
 .knowledge-tree-label small { line-height: 1.6; }
+
+/* 文字学习工作台：分支线表达层级，正文保持安静、可连续阅读。 */
+.knowledge-tree-node { background: transparent; margin: 0 0 0 .4rem; padding: .65rem .8rem; }
+.knowledge-tree-label { font-weight: 450; line-height: 1.8; overflow-wrap: anywhere; }
+.knowledge-tree-root small { opacity: 1; }
+[data-testid="stCaptionContainer"] p { color: #626573; }
+[data-testid="stMarkdownContainer"] p { line-height: 1.8; }
+.st-key-course_reading { max-width: 78ch; }
+.st-key-course_reading [data-testid="stMarkdownContainer"] p { color: #303441; }
+button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid #6d5bd0; outline-offset: 3px; }
+[class*="st-key-graph_course_"] { box-shadow: none; }
+@media (max-width: 640px) {
+  [data-testid="stTabs"] [role="tablist"] { overflow-x: auto; }
+  .knowledge-tree-root strong { overflow-wrap: anywhere; }
+  .knowledge-tree-node { flex-direction: row; }
+}
+
+.st-key-course_detail, .st-key-course_directory { background: #fff; }
+.st-key-course_detail [data-testid="stVerticalBlock"],
+.st-key-course_directory [data-testid="stVerticalBlock"] { gap: .65rem; }
+.workspace-eyebrow { display: none; }
+.workspace-hero h1 { font-size: 1.4rem; }
+[class*="st-key-graph_course_"] [data-testid="stButton"] button { justify-content: flex-start; text-align: left; }

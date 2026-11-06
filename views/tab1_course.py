@@ -92,17 +92,41 @@ def _render_career_course_tree(current_item, career_direction):
     st.caption("课程定位依据当前大纲；未入库课程的具体覆盖范围待原文确认。未标记课程可按需浏览。")
     if data.PATH_GAPS.get(path):
         st.info(data.PATH_GAPS[path])
+    query = st.text_input("查找路线课程", placeholder="输入课程名称，例如 RAG、Agent",
+                          key="graph_search")
+    scope = st.radio("显示课程", ["全部课程", "已有文字", "岗位核心"],
+                     horizontal=True, key="graph_scope")
+    shown = 0
     for module in data.MODULES:
         if module.get("no") == data.EXT_MODULE_NO:
             continue
         courses = module.get("courses", [])
         profiles = {name: data.course_learning_profile(name, career_direction, variant)
                     for name in courses}
-        core_count = sum(p.get("level") == "岗位核心" for p in profiles.values())
+        courses = [name for name in courses
+                   if _matches_path_course(name, profiles[name], bound_keys, query, scope)]
+        if not courses:
+            continue
+        shown += len(courses)
+        core_count = sum(profiles[name].get("level") == "岗位核心" for name in courses)
         contains_current = any(data.kb.normalize(name) == current_key for name in courses)
-        with st.expander(f"{module['name']} · {core_count} 门岗位核心", expanded=contains_current):
+        with st.expander(f"{module['name']} · {len(courses)} 门" +
+                         (f" / {core_count} 门岗位核心" if core_count else ""),
+                         expanded=contains_current or bool(query.strip())):
             for name in courses:
                 _render_career_node(name, profiles[name], current_key, bound_keys)
+    if not shown:
+        st.info("没有符合条件的课程，请清空搜索或切换到全部课程。")
+
+
+def _matches_path_course(name: str, profile: dict, bound_keys: set,
+                         query: str, scope: str) -> bool:
+    """按名称、资料状态和岗位等级筛选，不改变课程推荐映射。"""
+    if query.strip().casefold() not in name.casefold():
+        return False
+    if scope == "已有文字":
+        return data.kb.normalize(name) in bound_keys
+    return scope != "岗位核心" or profile.get("level") == "岗位核心"
 
 
 def _render_career_node(name, profile, current_key, bound_keys):
@@ -318,8 +342,6 @@ def render_course_detail(item, section=None, career_direction=None):
         tag_parts.append("原文为空")
     else:
         tag_parts.append("未提供原文")
-    tag = "　".join(tag_parts)
-    st.caption(f"已绑定知识库：`{kb_name}`　{tag}")
     workspace_ui.render_badges(tag_parts, key=f"course_assets_{item['id']}")
 
     api_key = st.session_state.get("api_key", "").strip()
@@ -358,32 +380,13 @@ def render_course_detail(item, section=None, career_direction=None):
             key=f"course_clean_progress_{item['id']}",
         )
 
-    metric_cols = st.columns(3)
-    with metric_cols[0]:
-        workspace_ui.render_metric(
-            "课程章节", len(data.course_sections(course)), "可定位的学习单元",
-            key=f"course_sections_{item['id']}",
-        )
-    with metric_cols[1]:
-        workspace_ui.render_metric(
-            "转写片段", len(original_segments), "已解析原文段落",
-            key=f"course_segments_{item['id']}",
-        )
-    with metric_cols[2]:
-        workspace_ui.render_metric(
-            "当前方向", career_name, "内容与考点偏好",
-            key=f"course_career_{item['id']}",
-        )
-
-    # A. 关键资产置顶：核心关键词 + 全文摘要
-    st.markdown("### 🔑 核心关键词")
-    _render_keywords(data_pack["keywords"])
-
-    st.markdown("### 📌 全文摘要")
-    if data_pack["summary"]:
-        st.info(data_pack["summary"])
-    else:
-        st.caption("（暂无摘要，配置 API Key 后可由 AI 自动萃取）")
+    st.caption(f"{len(data.course_sections(course))} 个学习主题 · {len(original_segments)} 段原文 · {career_name}")
+    with st.expander("课程概览 · 关键词与全文摘要", expanded=False):
+        _render_keywords(data_pack["keywords"])
+        if data_pack["summary"]:
+            st.info(data_pack["summary"])
+        else:
+            st.caption("暂无摘要，可先阅读课程原文。")
 
     # B. 二级 Tab 拆解长页面（P2 减负）
     t_essence, t_mind, t_quiz, t_sec, t_original = st.tabs(
@@ -408,22 +411,23 @@ def render_course_detail(item, section=None, career_direction=None):
             st.divider()
         if data_pack["clean_text"]:
             st.markdown("**结构化课程干货**")
-            with st.container(border=True):
+            with st.container(border=True, key="course_reading"):
                 st.markdown(data_pack["clean_text"])
         else:
             st.info("该课程暂无可整理的知识内容。")
 
     with t_mind:
-        st.markdown("### 🧭 岗位课程路径")
-        st.caption("点击课程名称打开课程精华；待补原文的课程暂不可点击。重点标记随左侧求职方向切换。")
-        _render_career_course_tree(item, career_direction)
-        st.divider()
-        st.markdown("### 🧠 当前课程知识结构")
-        st.caption("课程内部知识按主题、脉络、考点和求职关联分组，可分别展开或收起。")
-        if data_pack["knowledge_groups"]:
-            _render_course_knowledge_tree(item, data_pack["knowledge_groups"])
+        mode = st.radio("知识导航", ["本课知识", "岗位路线"],
+                        horizontal=True, key="knowledge_view")
+        if mode == "本课知识":
+            st.caption("按分支梳理本课内容；展开查看主题、脉络与考点。")
+            if data_pack["knowledge_groups"]:
+                _render_course_knowledge_tree(item, data_pack["knowledge_groups"])
+            else:
+                st.info("本课暂无知识分支，可先阅读课程精华或原文。")
         else:
-            st.caption("（当前课程暂无可整理的知识节点）")
+            st.caption("按求职方向选课。点击已入库课程，直接打开课程精华。")
+            _render_career_course_tree(item, career_direction)
 
     with t_quiz:
         # 实战/面试考点
@@ -532,11 +536,11 @@ def render_tab1(selected_job):
     col_dir, col_detail = st.columns([0.82, 2.18], gap="medium")
 
     with col_dir:
-        with st.container(border=True):
+        with st.container(border=True, key="course_directory"):
             current_course, current_section = _render_course_directory(selected_job)
             st.session_state.current_course = current_course
             st.session_state.current_section = current_section
 
     with col_detail:
-        with st.container(border=True):
+        with st.container(border=True, key="course_detail"):
             render_course_detail(st.session_state.current_course, st.session_state.current_section, selected_job)
